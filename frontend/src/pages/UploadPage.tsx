@@ -8,7 +8,7 @@ import { ExistingProjectsTable } from "../components/ui/ExistingProjectsTable";
 import { IconUploadCloud } from "../components/ui/icons";
 import { StepIndicator } from "../components/ui/StepIndicator";
 import { UploadCaseTypeBar } from "../components/ui/UploadCaseTypeBar";
-import { cacheUpload } from "../utils/docCache";
+import { cacheUpload, getLastDocId } from "../utils/docCache";
 
 export function UploadPage() {
   const navigate = useNavigate();
@@ -77,7 +77,7 @@ export function UploadPage() {
       </header>
 
       <div className="flex-1 mx-6 mb-6 bg-white border border-coolgray-20 overflow-hidden flex flex-col">
-        <StepIndicator current="upload" />
+        <StepIndicator current="upload" docId={getLastDocId() ?? undefined} />
         <UploadCaseTypeBar active={docType} disabled={loading} onChange={setDocType} />
 
         <div className="flex-1 overflow-y-auto">

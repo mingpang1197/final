@@ -98,6 +98,7 @@ export function ExportPage() {
   return (
     <WorkflowLayout
       step="export"
+      docId={id}
       projectTitle="프로젝트 이름"
       filename={filename || "파일명"}
       error={error || undefined}

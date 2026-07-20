@@ -8,6 +8,7 @@ import { StepIndicator, type WorkflowStep } from "./StepIndicator";
 
 interface WorkflowLayoutProps {
   step: WorkflowStep;
+  docId?: string;
   filename?: string;
   projectTitle?: ReactNode;
   headerVariant?: "default" | "compact";
@@ -20,6 +21,7 @@ interface WorkflowLayoutProps {
 
 export function WorkflowLayout({
   step,
+  docId,
   filename,
   projectTitle = "Easy-Read 판결문 작성 보조",
   headerVariant = "default",
@@ -59,7 +61,7 @@ export function WorkflowLayout({
           compact ? "mb-4" : "mb-6"
         }`}
       >
-        <StepIndicator current={step} />
+        <StepIndicator current={step} docId={docId} />
 
         {(prevNav || nextNav) && (
           <div className="flex items-center justify-between px-4 py-2 border-b border-coolgray-20">

@@ -197,6 +197,7 @@ export function SummaryPage() {
   return (
     <WorkflowLayout
       step="summary"
+      docId={id}
       headerVariant="compact"
       projectTitle={
         <>

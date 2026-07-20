@@ -20,8 +20,17 @@ const KEY_PREFIX = "easyread:doc:";
 export function cacheUpload(result: CachedUpload): void {
   try {
     sessionStorage.setItem(`${KEY_PREFIX}${result.id}`, JSON.stringify(result));
+    sessionStorage.setItem("easyread:last-doc-id", result.id);
   } catch {
     /* quota exceeded — ignore */
+  }
+}
+
+export function getLastDocId(): string | null {
+  try {
+    return sessionStorage.getItem("easyread:last-doc-id");
+  } catch {
+    return null;
   }
 }
 

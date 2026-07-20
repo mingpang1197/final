@@ -132,6 +132,7 @@ export function TranslatePage() {
   return (
     <WorkflowLayout
       step="translate"
+      docId={id}
       projectTitle="프로젝트 이름"
       filename={filenameLabel}
       error={error || undefined}

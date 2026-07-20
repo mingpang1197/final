@@ -137,6 +137,7 @@ export function ImagesPage() {
   return (
     <WorkflowLayout
       step="images"
+      docId={id}
       projectTitle="프로젝트 이름"
       filename={filenameLabel}
       error={error || undefined}

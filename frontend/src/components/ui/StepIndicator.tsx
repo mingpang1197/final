@@ -1,6 +1,7 @@
 /**
  * Figma 5단계 워크플로 stepper (업로드→요약→번역→그림→추출).
  */
+import { Link } from "react-router-dom";
 import { IconActiveStep, IconCheck, IconCircle } from "./icons";
 
 export type WorkflowStep = "upload" | "summary" | "translate" | "images" | "export";
@@ -17,11 +18,29 @@ function stepIndex(step: WorkflowStep): number {
   return STEPS.findIndex((s) => s.id === step);
 }
 
-interface StepIndicatorProps {
-  current: WorkflowStep;
+export function stepPath(step: WorkflowStep, docId?: string): string | null {
+  switch (step) {
+    case "upload":
+      return "/";
+    case "summary":
+      return docId ? `/documents/${docId}/summary` : null;
+    case "translate":
+      return docId ? `/documents/${docId}/translate` : null;
+    case "images":
+      return docId ? `/documents/${docId}/images` : null;
+    case "export":
+      return docId ? `/documents/${docId}/export` : null;
+    default:
+      return null;
+  }
 }
 
-export function StepIndicator({ current }: StepIndicatorProps) {
+interface StepIndicatorProps {
+  current: WorkflowStep;
+  docId?: string;
+}
+
+export function StepIndicator({ current, docId }: StepIndicatorProps) {
   const currentIdx = stepIndex(current);
 
   return (
@@ -30,6 +49,7 @@ export function StepIndicator({ current }: StepIndicatorProps) {
         const done = idx < currentIdx;
         const active = idx === currentIdx;
         const pending = idx > currentIdx;
+        const to = stepPath(step.id, docId);
 
         let borderClass = "border-t-[3px] border-coolgray-30";
         let bgClass = "bg-white";
@@ -39,11 +59,8 @@ export function StepIndicator({ current }: StepIndicatorProps) {
           borderClass = "border-t-[3px] border-coolgray-90 bg-white";
         }
 
-        return (
-          <div
-            key={step.id}
-            className={`flex flex-1 gap-2 px-2 min-w-0 ${borderClass} ${bgClass}`}
-          >
+        const content = (
+          <>
             <div className="pt-3 shrink-0">
               {done ? (
                 <IconCheck className="size-6" />
@@ -53,7 +70,7 @@ export function StepIndicator({ current }: StepIndicatorProps) {
                 <IconCircle className="size-6" />
               )}
             </div>
-            <div className="py-4 min-w-0 flex-1">
+            <div className="py-4 min-w-0 flex-1 text-left">
               <p
                 className={`text-sm font-medium leading-tight ${
                   pending ? "text-coolgray-40" : "text-coolgray-90"
@@ -71,6 +88,31 @@ export function StepIndicator({ current }: StepIndicatorProps) {
                 <p className="text-xs text-coolgray-40 mt-0.5 truncate">이전 단계 완료 후</p>
               )}
             </div>
+          </>
+        );
+
+        const className = `flex flex-1 gap-2 px-2 min-w-0 ${borderClass} ${bgClass}`;
+
+        if (to) {
+          return (
+            <Link
+              key={step.id}
+              to={to}
+              className={`${className} hover:opacity-90 transition-opacity cursor-pointer no-underline text-inherit`}
+            >
+              {content}
+            </Link>
+          );
+        }
+
+        return (
+          <div
+            key={step.id}
+            className={`${className} opacity-60 cursor-not-allowed`}
+            aria-disabled
+            title="문서 업로드 후 이동할 수 있습니다"
+          >
+            {content}
           </div>
         );
       })}
