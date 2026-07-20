@@ -11,15 +11,13 @@ import { UploadPage } from "./pages/UploadPage";
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="h-full min-h-0 flex flex-col">
-        <Routes>
+      <Routes>
         <Route path="/" element={<UploadPage />} />
         <Route path="/documents/:id/summary" element={<SummaryPage />} />
         <Route path="/documents/:id/translate" element={<TranslatePage />} />
         <Route path="/documents/:id/images" element={<ImagesPage />} />
         <Route path="/documents/:id/export" element={<ExportPage />} />
-        </Routes>
-      </div>
+      </Routes>
     </BrowserRouter>
   );
 }

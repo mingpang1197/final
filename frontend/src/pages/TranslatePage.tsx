@@ -122,7 +122,7 @@ export function TranslatePage() {
       nextNav={id ? { label: "그림", to: `/documents/${id}/images` } : undefined}
       error={error || undefined}
     >
-      <div className="flex-1 grid grid-cols-2 gap-3 p-3 min-h-0 h-full">
+      <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
         <PanePanel title="요약문">
           <pre className="flex-1 overflow-auto whitespace-pre-wrap text-sm p-3 bg-coolgray-10 border border-coolgray-20 rounded leading-relaxed">
             {summary}
@@ -149,7 +149,7 @@ export function TranslatePage() {
               ))
             )}
           </div>
-          <div className="shrink-0 mt-3 pt-3 border-t border-coolgray-20">
+          <div className="shrink-0 mt-4 pt-4 border-t border-coolgray-20">
             <PromptBar
               value={prompt}
               onChange={setPrompt}
