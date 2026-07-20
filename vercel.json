@@ -4,13 +4,15 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "pip install -r requirements.txt",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/images/(.*)", "destination": "/api/index" },
     { "source": "/health", "destination": "/api/index" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/|images/|assets/|favicon\\.svg).*)", "destination": "/index.html" }
   ],
   "functions": {
     "api/index.py": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/[...path].py": {
       "maxDuration": 60,
       "memory": 1024
     }

@@ -37,5 +37,6 @@ app.include_router(documents.router, prefix="/api")
 
 
 @app.get("/health")
+@app.get("/api/health")
 async def health():
     return {"status": "ok", "mock_mode": settings.use_mock}
