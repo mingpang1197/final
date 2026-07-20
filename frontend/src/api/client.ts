@@ -59,6 +59,8 @@ export interface UploadResult {
   doc_type: DocType;
   page_count: number;
   message: string;
+  pages?: string[];
+  full_text?: string;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -88,9 +90,18 @@ export async function getPage(id: string, pageNum: number): Promise<string> {
   return data.page;
 }
 
-export async function summarize(id: string, force = false): Promise<Document> {
+export async function summarize(id: string, force = false, fallback?: {
+  full_text: string;
+  doc_type: DocType;
+  filename: string;
+  pages: string[];
+}): Promise<Document> {
   const q = force ? "?force=true" : "";
-  return request<Document>(`/documents/${id}/summarize${q}`, { method: "POST" });
+  return request<Document>(`/documents/${id}/summarize${q}`, {
+    method: "POST",
+    headers: fallback ? { "Content-Type": "application/json" } : undefined,
+    body: fallback ? JSON.stringify(fallback) : undefined,
+  });
 }
 
 export async function updateSummary(id: string, summary: string): Promise<Document> {

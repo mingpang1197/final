@@ -12,7 +12,7 @@
   ],
   "functions": {
     "api/index.py": {
-      "maxDuration": 60,
+      "maxDuration": 120,
       "memory": 1024,
       "excludeFiles": "{frontend/**,images/**,samples/**,data/**,scripts/**,.cursor/**,**/*.pdf,**/*.docx,**/*.md,node_modules/**}"
     }

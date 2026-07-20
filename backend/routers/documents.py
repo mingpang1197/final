@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from backend.config import UPLOAD_DIR
 from backend.database import (
     create_document,
+    ensure_document,
     get_document,
     get_doc_type,
     get_page,
@@ -21,6 +22,7 @@ from backend.models.schemas import (
     ImageCatalogItem,
     ImagePlacement,
     RefineRequest,
+    SummarizeRequest,
     SummaryUpdate,
     TranslationUpdate,
     UploadResponse,
@@ -63,6 +65,8 @@ async def upload_document(file: UploadFile = File(...)) -> UploadResponse:
         doc_type=doc_type,
         page_count=len(pages),
         message="업로드 및 OCR 완료",
+        pages=pages,
+        full_text=full_text,
     )
 
 
@@ -86,10 +90,23 @@ async def read_page(doc_id: str, page_num: int) -> dict[str, str]:
 async def summarize_document(
     doc_id: str,
     force: bool = Query(False),
+    body: SummarizeRequest | None = None,
 ) -> DocumentResponse:
     doc = await get_document(doc_id)
     if not doc:
-        raise HTTPException(404, "문서를 찾을 수 없습니다.")
+        if not body or not body.full_text:
+            raise HTTPException(404, "문서를 찾을 수 없습니다.")
+        pages = body.pages or [body.full_text]
+        await ensure_document(
+            doc_id,
+            filename=body.filename or "upload.pdf",
+            doc_type=body.doc_type or "unknown",
+            pages=pages,
+            full_text=body.full_text,
+        )
+        doc = await get_document(doc_id)
+        if not doc:
+            raise HTTPException(404, "문서를 복구하지 못했습니다.")
     if doc.summary and not force:
         return doc
 

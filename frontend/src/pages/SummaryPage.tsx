@@ -9,6 +9,10 @@ import {
 } from "../api/client";
 import { PageNavigator } from "../components/PageNavigator";
 import { PromptBar } from "../components/PromptBar";
+import {
+  getCachedUpload,
+  summarizeFallbackBody,
+} from "../utils/docCache";
 
 export function SummaryPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,21 +23,49 @@ export function SummaryPage() {
   const [summary, setSummary] = useState("");
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
 
   const load = useCallback(async () => {
     if (!id) return;
-    const doc = await getDocument(id);
-    setFilename(doc.filename);
-    setPageCount(doc.page_count);
-    setSummary(doc.summary || "");
-    if (!doc.summary) {
-      setLoading(true);
-      try {
-        const updated = await summarize(id);
-        setSummary(updated.summary || "");
-      } finally {
-        setLoading(false);
+    setError("");
+    const cached = getCachedUpload(id);
+
+    try {
+      const doc = await getDocument(id);
+      setFilename(doc.filename);
+      setPageCount(doc.page_count);
+      setSummary(doc.summary || "");
+      if (!doc.summary) {
+        setLoading(true);
+        try {
+          const updated = await summarize(
+            id,
+            false,
+            cached ? summarizeFallbackBody(cached) : undefined,
+          );
+          setSummary(updated.summary || "");
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "요약 생성 실패");
+        } finally {
+          setLoading(false);
+        }
+      }
+    } catch {
+      if (cached) {
+        setFilename(cached.filename);
+        setPageCount(cached.page_count);
+        setLoading(true);
+        try {
+          const updated = await summarize(id, false, summarizeFallbackBody(cached));
+          setSummary(updated.summary || "");
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "요약 생성 실패");
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setError("문서를 불러오지 못했습니다. 다시 업로드해 주세요.");
       }
     }
   }, [id]);
@@ -44,7 +76,14 @@ export function SummaryPage() {
 
   useEffect(() => {
     if (!id) return;
-    getPage(id, pageNum).then(setOriginalPage).catch(console.error);
+    const cached = getCachedUpload(id);
+    if (cached?.pages?.length) {
+      setOriginalPage(cached.pages[pageNum - 1] || "");
+      return;
+    }
+    getPage(id, pageNum)
+      .then(setOriginalPage)
+      .catch(() => setOriginalPage("(페이지를 불러오지 못했습니다)"));
   }, [id, pageNum]);
 
   async function saveSummary() {
@@ -55,10 +94,13 @@ export function SummaryPage() {
   async function applyPrompt() {
     if (!id || !prompt.trim()) return;
     setLoading(true);
+    setError("");
     try {
       const doc = await refineSummary(id, prompt);
       setSummary(doc.summary || "");
       setPrompt("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 수정 실패");
     } finally {
       setLoading(false);
     }
@@ -88,6 +130,12 @@ export function SummaryPage() {
           </button>
         </div>
       </header>
+
+      {error && (
+        <div className="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="flex-1 grid grid-cols-2 gap-0 min-h-0">
         <section className="flex flex-col border-r border-slate-200 p-4 bg-slate-50">

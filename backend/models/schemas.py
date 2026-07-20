@@ -63,12 +63,21 @@ class TranslationUpdate(BaseModel):
     segments: list[TranslationSegment]
 
 
+class SummarizeRequest(BaseModel):
+    full_text: str | None = None
+    doc_type: DocType | None = None
+    filename: str | None = None
+    pages: list[str] | None = None
+
+
 class UploadResponse(BaseModel):
     id: str
     filename: str
     doc_type: DocType
     page_count: int
     message: str
+    pages: list[str] = Field(default_factory=list)
+    full_text: str = ""
 
 
 class ImageCatalogItem(BaseModel):

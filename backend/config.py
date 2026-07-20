@@ -32,7 +32,9 @@ class Settings(BaseSettings):
 
     @property
     def use_mock(self) -> bool:
-        return self.mock_upstage or not self.upstage_api_key.strip()
+        if not self.upstage_api_key.strip():
+            return True
+        return self.mock_upstage
 
 
 settings = Settings()

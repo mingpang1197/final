@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadDocument } from "../api/client";
+import { cacheUpload } from "../utils/docCache";
 
 export function UploadPage() {
   const navigate = useNavigate();
@@ -14,6 +15,13 @@ export function UploadPage() {
     setError("");
     try {
       const result = await uploadDocument(file);
+      if (result.pages?.length && result.full_text) {
+        cacheUpload({
+          ...result,
+          pages: result.pages,
+          full_text: result.full_text,
+        });
+      }
       navigate(`/documents/${result.id}/summary`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "업로드 실패");

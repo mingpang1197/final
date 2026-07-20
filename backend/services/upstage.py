@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import base64
+import logging
 from pathlib import Path
 
 import httpx
 
 from backend.config import settings
 from backend.services.pdf_extract import extract_pdf_pages
+
+logger = logging.getLogger(__name__)
 
 SAMPLE_JUDGMENT = """주문
 피고인 갑을 징역 3년에 처한다.
@@ -19,6 +22,48 @@ SAMPLE_JUDGMENT = """주문
 이유
 피고인의 범행은 계획적이지 않고 반성하고 있다.
 """
+
+
+def _parse_upstage_response(data: dict) -> str:
+    """Extract plain text from Upstage document-parse / OCR JSON."""
+    content = data.get("content")
+    if isinstance(content, dict):
+        for key in ("text", "markdown", "html"):
+            value = content.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    if isinstance(data.get("text"), str) and data["text"].strip():
+        return data["text"].strip()
+
+    chunks: list[str] = []
+    for element in data.get("elements") or []:
+        if not isinstance(element, dict):
+            continue
+        element_content = element.get("content")
+        if isinstance(element_content, dict):
+            piece = (
+                element_content.get("text")
+                or element_content.get("markdown")
+                or element_content.get("html")
+                or ""
+            )
+        else:
+            piece = element.get("text") or ""
+        if piece and str(piece).strip():
+            chunks.append(str(piece).strip())
+
+    if chunks:
+        return "\n".join(chunks).strip()
+
+    for page in data.get("pages") or []:
+        if not isinstance(page, dict):
+            continue
+        page_text = page.get("text") or ""
+        if page_text.strip():
+            chunks.append(page_text.strip())
+
+    return "\n\n".join(chunks).strip()
 
 
 async def extract_text_from_file(file_path: Path, filename: str) -> tuple[list[str], str]:
@@ -34,29 +79,67 @@ async def extract_text_from_file(file_path: Path, filename: str) -> tuple[list[s
         if settings.use_mock:
             raise ValueError(
                 "PDF에서 텍스트를 추출하지 못했습니다. "
-                "스캔본일 수 있습니다. .env에 UPSTAGE_API_KEY를 넣고 MOCK_UPSTAGE=false로 설정하세요."
+                "Vercel 배포 시 UPSTAGE_API_KEY와 MOCK_UPSTAGE=false를 설정하세요."
             )
 
     if settings.use_mock:
         return _mock_pages(filename)
 
     content = file_path.read_bytes()
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    mime = _guess_mime(filename)
+    text = await _call_upstage_ocr(content, filename, mime)
+    if not text.strip():
+        raise ValueError(
+            "Upstage OCR에서 텍스트를 추출하지 못했습니다. "
+            "스캔 PDF이거나 API 키·요금 한도를 확인하세요."
+        )
+    pages = _split_pages(text)
+    return pages, "\n\n".join(pages)
+
+
+def _guess_mime(filename: str) -> str:
+    lower = filename.lower()
+    if lower.endswith(".pdf"):
+        return "application/pdf"
+    if lower.endswith(".png"):
+        return "image/png"
+    if lower.endswith(".jpg") or lower.endswith(".jpeg"):
+        return "image/jpeg"
+    return "application/octet-stream"
+
+
+async def _call_upstage_ocr(content: bytes, filename: str, mime: str) -> str:
+    headers = {"Authorization": f"Bearer {settings.upstage_api_key}"}
+    form_data = {
+        "model": "document-parse",
+        "output_formats": '["text"]',
+        "ocr": "force",
+    }
+    files = {"document": (filename, content, mime)}
+
+    async with httpx.AsyncClient(timeout=180.0) as client:
         response = await client.post(
             settings.upstage_ocr_url,
-            headers={"Authorization": f"Bearer {settings.upstage_api_key}"},
-            files={"document": (filename, content)},
-            data={"ocr": "force", "base64_encoding": "['table']", "model": "document-parse"},
+            headers=headers,
+            files=files,
+            data=form_data,
         )
-        response.raise_for_status()
+        if response.status_code >= 400:
+            logger.error("Upstage OCR failed: %s %s", response.status_code, response.text[:500])
+            response.raise_for_status()
         data = response.json()
-        text = data.get("text") or data.get("content", {}).get("text", "")
-        if not text and "pages" in data:
-            text = "\n\n".join(
-                p.get("text", "") for p in data["pages"] if isinstance(p, dict)
-            )
-        pages = _split_pages(text or SAMPLE_JUDGMENT)
-        return pages, "\n\n".join(pages)
+        text = _parse_upstage_response(data)
+        if text:
+            return text
+
+        # Some responses nest under result
+        if isinstance(data.get("result"), dict):
+            text = _parse_upstage_response(data["result"])
+            if text:
+                return text
+
+        logger.error("Upstage OCR empty payload keys: %s", list(data.keys()))
+        return ""
 
 
 def _mock_pages(filename: str) -> tuple[list[str], str]:
@@ -81,7 +164,7 @@ async def chat_completion(system: str, user: str) -> str:
     if settings.use_mock:
         return _mock_chat(system, user)
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=180.0) as client:
         response = await client.post(
             settings.upstage_chat_url,
             headers={
@@ -112,7 +195,6 @@ def _mock_summarize_from_text(text: str) -> str:
 
     heading = "<이 판결의 결론>"
     if "행정법원" in text or "구합" in text or "처분" in text:
-        heading = "<이 판결의 결론>"
         intro = "아래는 업로드한 행정판결 원문에서 추출한 내용입니다. (Solar API 키 설정 시 AI 요약)"
     elif "원고" in text or "피고" in text:
         intro = "아래는 업로드한 판결 원문에서 추출한 내용입니다. (Solar API 키 설정 시 AI 요약)"
