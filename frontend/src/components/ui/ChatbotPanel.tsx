@@ -3,11 +3,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "../../api/client";
-import {
-  getChatPrompt,
-  sendChatMessage,
-  updateChatPrompt,
-} from "../../api/client";
+import { sendChatMessage } from "../../api/client";
 import { IconChatSolid } from "./icons";
 
 interface ChatbotPanelProps {
@@ -21,24 +17,7 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showPromptEditor, setShowPromptEditor] = useState(false);
-  const [systemPrompt, setSystemPrompt] = useState("");
-  const [promptDraft, setPromptDraft] = useState("");
-  const [promptSaving, setPromptSaving] = useState(false);
-  const [promptStatus, setPromptStatus] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    getChatPrompt()
-      .then((data) => {
-        setSystemPrompt(data.system_prompt);
-        setPromptDraft(data.system_prompt);
-      })
-      .catch(() => {
-        setError("프롬프트를 불러오지 못했습니다.");
-      });
-  }, [open]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -65,20 +44,6 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
       setLoading(false);
     }
   }, [docId, input, loading, messages]);
-
-  async function savePrompt() {
-    setPromptSaving(true);
-    setPromptStatus("");
-    try {
-      const res = await updateChatPrompt(promptDraft);
-      setSystemPrompt(res.system_prompt);
-      setPromptStatus("저장됨");
-    } catch (err) {
-      setPromptStatus(err instanceof Error ? err.message : "저장 실패");
-    } finally {
-      setPromptSaving(false);
-    }
-  }
 
   if (!open) return null;
 
@@ -107,13 +72,6 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
           </div>
           <button
             type="button"
-            onClick={() => setShowPromptEditor((v) => !v)}
-            className="text-xs text-primary-60 hover:underline shrink-0 px-2 py-1"
-          >
-            프롬프트
-          </button>
-          <button
-            type="button"
             onClick={onClose}
             className="text-coolgray-60 hover:text-coolgray-90 text-xl leading-none px-1"
             aria-label="닫기"
@@ -121,30 +79,6 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
             ×
           </button>
         </header>
-
-        {showPromptEditor && (
-          <div className="border-b border-coolgray-20 p-3 bg-white shrink-0 max-h-[220px] flex flex-col gap-2">
-            <p className="text-xs text-coolgray-60">
-              챗봇 system prompt (Solar). 서버에 저장되며 다음 대화부터 적용됩니다.
-            </p>
-            <textarea
-              className="flex-1 min-h-[100px] text-xs border border-coolgray-30 rounded p-2 resize-none outline-none focus:border-primary-60"
-              value={promptDraft}
-              onChange={(e) => setPromptDraft(e.target.value)}
-            />
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-coolgray-60">{promptStatus}</span>
-              <button
-                type="button"
-                disabled={promptSaving || promptDraft === systemPrompt}
-                onClick={savePrompt}
-                className="px-3 py-1 text-xs bg-primary-60 text-white rounded disabled:opacity-50"
-              >
-                {promptSaving ? "저장 중..." : "프롬프트 저장"}
-              </button>
-            </div>
-          </div>
-        )}
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
           {messages.length === 0 && !loading && (

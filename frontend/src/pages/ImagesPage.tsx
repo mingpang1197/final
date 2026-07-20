@@ -7,10 +7,8 @@ import type { ImageCatalogItem, ImagePlacement, TranslationSegment } from "../ap
 import {
   detectImagePlacements,
   getImageCatalog,
-  refineTranslation,
   updateTranslation,
 } from "../api/client";
-import { PromptBar } from "../components/PromptBar";
 import { TranslationSegmentView } from "../components/TranslationSegment";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
@@ -36,8 +34,6 @@ function segmentsToText(segments: TranslationSegment[]): string {
 export function ImagesPage() {
   const { id } = useParams<{ id: string }>();
   const [segments, setSegments] = useState<TranslationSegment[]>([]);
-  const [prompt, setPrompt] = useState("");
-  const [loading, setLoading] = useState(false);
   const [filename, setFilename] = useState("");
   const [error, setError] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -125,33 +121,10 @@ export function ImagesPage() {
 
   useDebouncedSave(segments, persistTranslation);
 
-  function editSegment(segId: string, text: string) {
-    setSegments((prev) =>
-      prev.map((s) => (s.id === segId ? { ...s, easy_text: text, source: "manual" as const } : s)),
-    );
-  }
-
   function editPlacements(segId: string, placements: ImagePlacement[]) {
     setSegments((prev) =>
       prev.map((s) => (s.id === segId ? { ...s, image_placements: placements } : s)),
     );
-  }
-
-  async function applyPrompt() {
-    if (!id || !prompt.trim()) return;
-    setLoading(true);
-    setError("");
-    try {
-      const doc = await refineTranslation(id, prompt);
-      const segs = sanitizeSegments(doc.translation_segments);
-      setSegments(segs);
-      saveWorkflowSnapshot(id, { translation_segments: segs });
-      setPrompt("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "AI 수정 실패");
-    } finally {
-      setLoading(false);
-    }
   }
 
   const filenameLabel = [
@@ -190,9 +163,10 @@ export function ImagesPage() {
                   <TranslationSegmentView
                     key={seg.id}
                     segment={seg}
-                    onEdit={editSegment}
+                    onEdit={() => {}}
                     onPlacementsChange={editPlacements}
                     fill={segments.length === 1}
+                    imagesOnly
                   />
                 ))}
               </div>
@@ -236,15 +210,6 @@ export function ImagesPage() {
                 </ul>
               )}
             </div>
-          </div>
-
-          <div className="shrink-0">
-            <PromptBar
-              value={prompt}
-              onChange={setPrompt}
-              onSubmit={applyPrompt}
-              loading={loading}
-            />
           </div>
         </div>
       </div>

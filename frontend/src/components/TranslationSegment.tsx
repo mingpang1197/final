@@ -15,6 +15,8 @@ interface TranslationSegmentViewProps {
   onEdit: (id: string, text: string) => void;
   onPlacementsChange: (id: string, placements: ImagePlacement[]) => void;
   fill?: boolean;
+  /** 그림 탭: 미리보기·배치만 표시, 본문 textarea 숨김 */
+  imagesOnly?: boolean;
 }
 
 function renderBoldText(text: string) {
@@ -195,6 +197,7 @@ export function TranslationSegmentView({
   onEdit,
   onPlacementsChange,
   fill = false,
+  imagesOnly = false,
 }: TranslationSegmentViewProps) {
   const previewLines = useMemo(
     () => filterPreviewLines(segment.easy_text),
@@ -274,8 +277,8 @@ export function TranslationSegmentView({
         )}
         {segment.easy_text && (
           <div
-            className={`mb-2 overflow-auto rounded-lg border border-slate-100 bg-slate-50 p-3 text-[15px] leading-relaxed text-slate-800 ${
-              fill ? "max-h-[45%] shrink-0" : "max-h-64"
+            className={`overflow-auto rounded-lg border border-slate-100 bg-slate-50 p-3 text-[15px] leading-relaxed text-slate-800 ${
+              imagesOnly || fill ? "flex-1 min-h-0" : "mb-2 max-h-64"
             }`}
           >
             {previewLines.map((line, idx) => (
@@ -310,14 +313,16 @@ export function TranslationSegmentView({
             ))}
           </div>
         )}
-        <textarea
-          className={`w-full p-3 border border-coolgray-30 rounded-lg text-[15px] leading-relaxed resize-none ${
-            fill ? "flex-1 min-h-0" : "min-h-[120px]"
-          }`}
-          value={segment.easy_text}
-          onChange={(e) => onEdit(segment.id, e.target.value)}
-        />
-        {!fill && segment.original && (
+        {!imagesOnly && (
+          <textarea
+            className={`w-full p-3 border border-coolgray-30 rounded-lg text-[15px] leading-relaxed resize-none ${
+              fill ? "flex-1 min-h-0" : "min-h-[120px]"
+            }`}
+            value={segment.easy_text}
+            onChange={(e) => onEdit(segment.id, e.target.value)}
+          />
+        )}
+        {!imagesOnly && !fill && segment.original && (
           <div className="text-xs text-slate-400 mt-1 truncate shrink-0">
             원문: {segment.original}
           </div>
