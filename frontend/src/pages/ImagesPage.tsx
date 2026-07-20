@@ -114,7 +114,7 @@ export function ImagesPage() {
       nextNav={id ? { label: "추출", to: `/documents/${id}/export` } : undefined}
       error={error || undefined}
     >
-      <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
+      <div className="flex-1 grid grid-cols-2 gap-3 p-3 min-h-0 h-full">
         <PanePanel title="이지리드">
           <div className="flex-1 min-h-0 overflow-auto">
             {segments.length === 0 ? (

@@ -96,7 +96,7 @@ export function ExportPage() {
       prevNav={id ? { label: "그림", to: `/documents/${id}/images` } : undefined}
       error={error || undefined}
     >
-      <div className="flex-1 flex flex-col p-6 gap-4 min-h-0">
+      <div className="flex-1 flex flex-col p-4 gap-3 min-h-0 overflow-hidden">
         <ChecklistPanel checklist={checklist} onRecheck={handleRecheck} loading={loading} />
 
         <div className="flex-1 min-h-0 border border-coolgray-40 rounded bg-white overflow-hidden flex flex-col">
@@ -108,12 +108,12 @@ export function ExportPage() {
           </pre>
         </div>
 
-        <div className="flex justify-center pb-4">
+        <div className="flex justify-center shrink-0 pb-2">
           <button
             type="button"
             onClick={handleExport}
             disabled={exporting || segments.length === 0}
-            className="w-80 h-12 bg-primary-60 border-2 border-primary-60 text-white text-xl font-medium rounded-lg hover:bg-primary-90 disabled:opacity-50 transition-colors"
+            className="w-72 h-11 bg-primary-60 border-2 border-primary-60 text-white text-base font-medium rounded-lg hover:bg-primary-90 disabled:opacity-50 transition-colors"
           >
             {exporting ? "출력 중..." : "추출하기"}
           </button>

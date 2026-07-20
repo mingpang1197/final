@@ -22,3 +22,14 @@
 body {
   @apply bg-coolgray-10 text-coolgray-90 min-h-screen font-sans;
 }
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}

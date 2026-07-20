@@ -25,52 +25,41 @@ export function StepIndicator({ current }: StepIndicatorProps) {
   const currentIdx = stepIndex(current);
 
   return (
-    <div className="flex border-b border-coolgray-20 bg-white">
+    <div className="shrink-0 flex border-b border-coolgray-20 bg-white">
       {STEPS.map((step, idx) => {
         const done = idx < currentIdx;
         const active = idx === currentIdx;
         const pending = idx > currentIdx;
 
-        let borderClass = "border-t-[3px] border-coolgray-30";
+        let borderClass = "border-t-2 border-coolgray-30";
         let bgClass = "bg-white";
         if (done) {
-          borderClass = "border-t-[3px] border-primary-90 bg-coolgray-10";
+          borderClass = "border-t-2 border-primary-90 bg-coolgray-10";
         } else if (active) {
-          borderClass = "border-t-[3px] border-coolgray-90 bg-white";
+          borderClass = "border-t-2 border-coolgray-90 bg-white";
         }
 
         return (
           <div
             key={step.id}
-            className={`flex flex-1 gap-2 px-2 min-w-0 ${borderClass} ${bgClass}`}
+            className={`flex flex-1 items-center gap-1.5 px-2 py-2 min-w-0 ${borderClass} ${bgClass}`}
           >
-            <div className="pt-3 shrink-0">
+            <div className="shrink-0">
               {done ? (
-                <IconCheck className="size-6" />
+                <IconCheck className="size-4" />
               ) : active ? (
-                <IconActiveStep className="size-6" />
+                <IconActiveStep className="size-4" />
               ) : (
-                <IconCircle className="size-6" />
+                <IconCircle className="size-4" />
               )}
             </div>
-            <div className="py-4 min-w-0 flex-1">
-              <p
-                className={`text-sm font-medium leading-tight ${
-                  pending ? "text-coolgray-40" : "text-coolgray-90"
-                }`}
-              >
-                {step.label}
-              </p>
-              {active && (
-                <p className="text-xs text-alert mt-0.5 truncate">진행 중</p>
-              )}
-              {done && (
-                <p className="text-xs text-coolgray-60 mt-0.5 truncate">완료</p>
-              )}
-              {pending && step.id === "export" && (
-                <p className="text-xs text-coolgray-40 mt-0.5 truncate">이전 단계 완료 후</p>
-              )}
-            </div>
+            <p
+              className={`text-xs font-medium leading-none truncate ${
+                pending ? "text-coolgray-40" : "text-coolgray-90"
+              }`}
+            >
+              {step.label}
+            </p>
           </div>
         );
       })}

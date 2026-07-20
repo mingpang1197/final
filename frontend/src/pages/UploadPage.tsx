@@ -51,62 +51,64 @@ export function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-coolgray-10 flex flex-col">
-      <div className="px-6 pt-6 pb-0">
-        <h1 className="text-[42px] font-bold leading-tight text-coolgray-90 mb-6">
+    <div className="h-full min-h-0 flex flex-col bg-coolgray-10 overflow-hidden">
+      <header className="shrink-0 px-6 pt-4 pb-3">
+        <h1 className="text-2xl font-bold leading-snug text-coolgray-90">
           Easy-Read 판결문 작성 보조
         </h1>
-      </div>
+      </header>
 
-      <div className="flex-1 mx-6 mb-6 bg-white border border-coolgray-20 overflow-hidden">
+      <div className="flex-1 flex flex-col mx-6 mb-4 min-h-0 bg-white border border-coolgray-20 overflow-hidden">
         <StepIndicator current="upload" />
 
-        <div className="p-8 max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold text-coolgray-90 mb-6">새 프로젝트</h2>
+        <div className="flex-1 flex items-center justify-center p-6 min-h-0">
+          <div className="w-full max-w-2xl">
+            <h2 className="text-lg font-bold text-coolgray-90 mb-4">새 프로젝트</h2>
 
-          <div
-            className={`rounded-xl border-2 border-dashed p-12 flex flex-col items-center gap-4 transition-colors ${
-              dragOver
-                ? "border-primary-60 bg-blue-50"
-                : "border-coolgray-30 bg-coolgray-10"
-            }`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={onDrop}
-          >
-            <IconUploadCloud className="size-8" />
-            <div className="text-center">
-              <p className="text-base font-medium text-coolgray-90">
-                {loading ? "업로드 중..." : "Drop file or browse"}
-              </p>
-              <p className="text-sm text-coolgray-60 mt-1">
-                Format: PDF, PNG, JPG, TXT, DOC, DOCX, HWP · Max 25 MB
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => inputRef.current?.click()}
-              className="px-4 py-1 text-sm font-semibold text-white bg-[#6794e5] border border-white rounded-lg shadow-sm hover:bg-primary-60 disabled:opacity-50"
+            <div
+              className={`rounded-xl border-2 border-dashed p-10 flex flex-col items-center gap-3 transition-colors ${
+                dragOver
+                  ? "border-primary-60 bg-blue-50"
+                  : "border-coolgray-30 bg-coolgray-10"
+              }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={onDrop}
             >
-              Browse Files
-            </button>
-            <input
-              ref={inputRef}
-              type="file"
-              className="hidden"
-              accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx,.hwp,.hwpx"
-              disabled={loading}
-              onChange={onInputChange}
-            />
-          </div>
+              <IconUploadCloud className="size-8" />
+              <div className="text-center">
+                <p className="text-sm font-medium text-coolgray-90">
+                  {loading ? "업로드 중..." : "Drop file or browse"}
+                </p>
+                <p className="text-xs text-coolgray-60 mt-1">
+                  Format: PDF, PNG, JPG, TXT, DOC, DOCX, HWP · Max 25 MB
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => inputRef.current?.click()}
+                className="px-4 py-1.5 text-sm font-semibold text-white bg-[#6794e5] border border-white rounded-lg shadow-sm hover:bg-primary-60 disabled:opacity-50"
+              >
+                Browse Files
+              </button>
+              <input
+                ref={inputRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx,.hwp,.hwpx"
+                disabled={loading}
+                onChange={onInputChange}
+              />
+            </div>
 
-          {error && (
-            <p className="mt-4 text-sm text-alert text-center">{error}</p>
-          )}
+            {error && (
+              <p className="mt-3 text-sm text-alert text-center">{error}</p>
+            )}
+          </div>
         </div>
       </div>
     </div>

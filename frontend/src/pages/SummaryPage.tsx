@@ -232,7 +232,7 @@ export function SummaryPage() {
     >
       <DocTypePills active={docType} disabled={loading} onChange={handleDocTypeChange} />
 
-      <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
+      <div className="flex-1 grid grid-cols-2 gap-3 p-3 min-h-0 h-full">
         <PanePanel title="원문">
           {sourcePreviewUrl && sourceReady ? (
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -270,7 +270,7 @@ export function SummaryPage() {
             onChange={(e) => setSummary(e.target.value)}
             placeholder={loading ? "요약 생성 중..." : ""}
           />
-          <div className="shrink-0 mt-4 pt-4 border-t border-coolgray-20">
+          <div className="shrink-0 mt-3 pt-3 border-t border-coolgray-20">
             <PromptBar
               value={prompt}
               onChange={setPrompt}
