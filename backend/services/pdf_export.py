@@ -40,6 +40,10 @@ FONT_URL = (
 PAGE_WIDTH = 595.28
 PAGE_HEIGHT = 841.89
 MARGIN = 72
+CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN
+IMAGE_COL_PT = round(CONTENT_WIDTH * 0.32)
+IMAGE_INSET_PT = IMAGE_COL_PT - 12
+IMAGE_MAX_HEIGHT_PT = 130
 
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
 
@@ -63,58 +67,57 @@ def _font_dir() -> Path:
 def _font_css() -> tuple[str, fitz.Archive]:
     font_dir = _font_dir()
     archive = fitz.Archive(str(font_dir))
-    css = """
-    @font-face {
+    css = f"""
+    @font-face {{
       font-family: "Nanum Gothic";
       src: url("nanumgothic-regular.ttf");
-    }
-    body {
+    }}
+    body {{
       font-family: "Nanum Gothic", sans-serif;
       font-size: 14px;
       line-height: 1.35;
       color: #21272a;
-    }
-    p.body {
+    }}
+    p.body {{
       margin: 0 0 8px 0;
-    }
-    p.heading {
+    }}
+    p.heading {{
       margin: 16px 0 8px 0;
       font-size: 17px;
       font-weight: bold;
-    }
-    table.section-row {
+    }}
+    div.section-row {{
       width: 100%;
-      border-collapse: collapse;
+      overflow: hidden;
       margin: 0 0 20px 0;
-    }
-    td.section-image {
-      width: 32%;
-      vertical-align: top;
-      padding: 8px 12px 8px 0;
+    }}
+    div.image-col {{
+      float: left;
+      width: {IMAGE_COL_PT}pt;
       background: #f5f0e8;
-      min-height: 100px;
-    }
-    td.section-image img {
-      max-width: 100%;
-      max-height: 160px;
+      padding: 8px 8px 8px 0;
+      box-sizing: border-box;
+    }}
+    img.section-img {{
+      width: {IMAGE_INSET_PT}pt;
+      max-height: {IMAGE_MAX_HEIGHT_PT}pt;
       height: auto;
       display: block;
-      margin: 0 auto;
-    }
-    div.image-empty {
-      min-height: 100px;
-    }
-    td.section-body {
-      vertical-align: top;
-      padding: 8px 0;
-    }
-    p.image-block {
+    }}
+    div.image-empty {{
+      min-height: {IMAGE_MAX_HEIGHT_PT}pt;
+    }}
+    div.body-col {{
+      margin-left: {IMAGE_COL_PT}pt;
+      padding: 8px 0 8px 4px;
+    }}
+    p.image-block {{
       margin: 8px 0 12px 0;
-    }
-    p.image-block img {
+    }}
+    p.image-block img {{
       max-width: 230px;
       height: auto;
-    }
+    }}
     """
     return css, archive
 
@@ -162,8 +165,14 @@ def _placement_to_img_tag(placement: ImagePlacement) -> str | None:
     raw = (placement.image_base64 or "").strip()
     if raw:
         src = raw if raw.startswith("data:") else f"data:image/png;base64,{raw}"
-        return f'<img src="{src}" alt="" />'
-    return _image_to_img_tag(placement.image_file, placement.image_url)
+        return (
+            f'<img class="section-img" src="{src}" '
+            f'width="{IMAGE_INSET_PT}" alt="" />'
+        )
+    file_tag = _image_to_img_tag(placement.image_file, placement.image_url)
+    if not file_tag:
+        return None
+    return file_tag.replace("<img ", f'<img class="section-img" width="{IMAGE_INSET_PT}" ', 1)
 
 
 def _section_block_html(
@@ -189,21 +198,23 @@ def _section_block_html(
             seen.add(key)
 
     body_html = _lines_to_html(section.body_lines)
+    row_open = '<div class="section-row">'
+    row_close = "</div>"
 
     if section.heading:
         image_cell = "".join(img_tags) if img_tags else '<div class="image-empty">&nbsp;</div>'
         blocks.append(
-            "<table class=\"section-row\"><tr>"
-            f'<td class="section-image">{image_cell}</td>'
-            f'<td class="section-body">{body_html}</td>'
-            "</tr></table>"
+            f"{row_open}"
+            f'<div class="image-col">{image_cell}</div>'
+            f'<div class="body-col">{body_html}</div>'
+            f"{row_close}"
         )
     elif img_tags:
         blocks.append(
-            "<table class=\"section-row\"><tr>"
-            f'<td class="section-image">{"".join(img_tags)}</td>'
-            f'<td class="section-body">{body_html}</td>'
-            "</tr></table>"
+            f"{row_open}"
+            f'<div class="image-col">{"".join(img_tags)}</div>'
+            f'<div class="body-col">{body_html}</div>'
+            f"{row_close}"
         )
     elif body_html:
         blocks.append(body_html)
