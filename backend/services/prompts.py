@@ -23,6 +23,21 @@ DOC_TYPE_FILES: dict[DocType, str] = {
     "unknown": "criminal.yaml",
 }
 
+TRANSLATION_OUTPUT_RULES = """
+## 번역 출력 규칙 (반드시 준수)
+
+1. **문서 제목·표지 줄 금지** — 아래 형태는 **절대 출력하지 마세요**.
+   - `<민사판결 이지리드 — …>`, `<형사판결 이지리드 — …>` 등
+   - `# <…판결…이지리드…>` 형태의 표지·케이스명 한 줄
+   - `<…판결 이지리드 — 작성 요점>`
+2. **첫 줄부터 바로 본문 소제목**으로 시작 (예: `<이 판결의 결론>`).
+3. **섹션 순서** — 청구·요구 내용보다 **판결 결론(주문)을 항상 먼저** 작성.
+   - 1순위: `<이 판결의 결론>` (또는 청구·결론이 합쳐진 `<…원하는 것과 이 판결의 결론>`)
+   - 2순위: `<이 소송에서 {원고}가 요구하는 것>` / `<{원고}가 원하는 것>` (결론과 **별도**일 때만)
+   - 그 다음: `<이런 결론을 내린 이유>` 등 이유·쟁점
+4. `주문`, `청구취지` 같은 원문 용어는 쓰지 말고 규칙의 쉬운 소제목만 사용.
+""".strip()
+
 SUMMARY_STRUCTURE_RULES = """
 ## 요약 작성 구조 (반드시 준수)
 아래 판결문 텍스트를 분석하여, 반드시 다음 5가지 목차 순서로 요약하세요.
@@ -135,15 +150,21 @@ def build_summary_system_prompt(doc_type: DocType) -> str:
 
 def build_translation_system_prompt(doc_type: DocType) -> str:
     rules = load_writing_rules(doc_type)
+    summary = load_summary_prompt(doc_type)
     style = load_easy_read_style()
     parts = [
         "당신은 발달장애인이 이해할 수 있는 이지리드(Easy-Read) 판결문 작성 전문가입니다.",
         "아래 **공통 작성 규칙**, **판결 유형별 규칙**, **예시**를 반드시 따르세요.",
         "",
+        TRANSLATION_OUTPUT_RULES,
+        "",
         _format_easy_read_style(style),
         "",
         "## 판결 유형별 작성 규칙",
-        _format_writing_rules(rules),
+        _format_writing_rules(rules, for_translation=True),
+        "",
+        "## 요약·번역 출력 순서",
+        summary.get("output_format", ""),
         "",
         "## Few-shot 예시",
         _format_examples(rules.get("examples", [])),
@@ -151,7 +172,7 @@ def build_translation_system_prompt(doc_type: DocType) -> str:
     return "\n".join(p for p in parts if p)
 
 
-def _format_writing_rules(rules: dict[str, Any]) -> str:
+def _format_writing_rules(rules: dict[str, Any], *, for_translation: bool = False) -> str:
     if not rules:
         return "(작성 규칙 파일 없음)"
     lines: list[str] = []
@@ -159,13 +180,17 @@ def _format_writing_rules(rules: dict[str, Any]) -> str:
         lines.append(f"대상 섹션: {rules['section_label']}")
     order = rules.get("section_order", [])
     if order:
-        lines.append(f"섹션 순서: {', '.join(order)}")
+        visible = [k for k in order if not (for_translation and k == "overview")]
+        if visible:
+            lines.append(f"섹션 순서: {', '.join(visible)}")
     sections = rules.get("sections", {})
     for key, cfg in sections.items():
+        if for_translation and key == "overview":
+            continue
         if not isinstance(cfg, dict):
             continue
         lines.append(f"\n### {key}")
-        if cfg.get("heading"):
+        if cfg.get("heading") and not (for_translation and key == "overview"):
             lines.append(f"- 제목: {cfg['heading']}")
         if cfg.get("avoid_terms"):
             lines.append(f"- 사용 금지: {', '.join(cfg['avoid_terms'])}")

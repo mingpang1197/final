@@ -75,8 +75,11 @@ async def translate_summary(
     if needs_solar:
         system = prompts.build_translation_system_prompt(doc_type)
         user = (
-            "다음 판결 요약 전체를 이지리드로 번역하세요. "
-            "공통 작성 규칙·판결 유형 규칙·예시를 따르세요.\n\n"
+            "다음 판결 요약 전체를 이지리드로 번역하세요.\n"
+            "공통 작성 규칙·판결 유형 규칙·예시를 따르세요.\n"
+            "`<○○판결 이지리드 — …>` 같은 **문서 제목·표지 줄은 출력하지 마세요**.\n"
+            "첫 소제목은 **반드시 `<이 판결의 결론>`**(또는 청구·결론 합친 제목)으로 시작하고, "
+            "청구(`<…가 요구하는 것>`)는 결론 **다음**에 작성하세요.\n\n"
             f"{summary}"
         )
         easy_text = await upstage.chat_completion(system, user)
