@@ -21,7 +21,7 @@
 cd "실험4"
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 copy .env.example .env
 # .env 에 UPSTAGE_API_KEY 설정 (없으면 MOCK 모드)
 uvicorn backend.main:app --reload --port 8001
