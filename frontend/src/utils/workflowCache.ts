@@ -4,6 +4,7 @@
  * 서버리스/Vercel에서 DB 조회가 실패하거나 지연될 때 탭 이동 후 재생성을 방지한다.
  */
 import type { ImagePlacement, TranslationSegment } from "../api/client";
+import { enrichPlacementsWithHeadings } from "./translationSections";
 
 export interface WorkflowSnapshot {
   summary?: string;
@@ -50,26 +51,30 @@ function mergePlacements(
   server?: ImagePlacement[],
   cached?: ImagePlacement[],
 ): ImagePlacement[] {
-  const merged = new Map<number, ImagePlacement>();
-  for (const p of server ?? []) merged.set(p.line_index, p);
-  for (const p of cached ?? []) {
-    if (!merged.has(p.line_index)) merged.set(p.line_index, p);
+  if ((cached?.length ?? 0) > 0) {
+    return [...cached!].sort((a, b) => a.line_index - b.line_index);
   }
-  return Array.from(merged.values()).sort((a, b) => a.line_index - b.line_index);
+  return [...(server ?? [])].sort((a, b) => a.line_index - b.line_index);
 }
 
 function mergeSegment(
   server: TranslationSegment,
   cached?: TranslationSegment,
 ): TranslationSegment {
-  const placements = mergePlacements(
-    server.image_placements,
-    cached?.image_placements,
-  );
+  const serverPlacements = server.image_placements ?? [];
+  const cachedPlacements = cached?.image_placements ?? [];
+  const hasCachedPlacements = cachedPlacements.length > 0;
+  const easyText = hasCachedPlacements
+    ? cached?.easy_text || server.easy_text || ""
+    : server.easy_text || cached?.easy_text || "";
+  const rawPlacements = mergePlacements(serverPlacements, cachedPlacements);
+  const placements = enrichPlacementsWithHeadings(easyText, rawPlacements);
   return {
     ...server,
-    easy_text: server.easy_text || cached?.easy_text || "",
-    image_placements: placements.length ? placements : server.image_placements ?? cached?.image_placements,
+    easy_text: easyText,
+    image_placements: placements.length
+      ? placements
+      : server.image_placements ?? cached?.image_placements,
   };
 }
 

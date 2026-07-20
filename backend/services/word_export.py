@@ -16,7 +16,11 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 
-from backend.services.export_layout import is_image_placeholder, parse_export_sections
+from backend.services.export_layout import (
+    align_placements_to_sections,
+    is_image_placeholder,
+    parse_export_sections,
+)
 from backend.services.image_assets import resolve_placement_image
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.image_matcher import (
@@ -146,14 +150,6 @@ def _add_rich_paragraph(doc: Document, line: str) -> None:
                 _set_run_font(run, BODY_PT, bold=False)
 
 
-def _placements_by_line(
-    placements: list[ImagePlacement],
-) -> dict[int, list[ImagePlacement]]:
-    by_line: dict[int, list[ImagePlacement]] = {}
-    for placement in placements:
-        by_line.setdefault(placement.line_index, []).append(placement)
-    return by_line
-
 
 def _export_text_with_placements(
     doc: Document,
@@ -161,12 +157,12 @@ def _export_text_with_placements(
     placements: list[ImagePlacement],
 ) -> None:
     sections = parse_export_sections(text)
-    by_line = _placements_by_line(placements)
+    by_section = align_placements_to_sections(text, placements)
     inserted: set[str] = set()
     for section in sections:
         if section.heading:
             _add_rich_paragraph(doc, section.heading)
-        for placement in by_line.get(section.start_line_index, []):
+        for placement in by_section.get(section.start_line_index, []):
             key = f"{placement.image_file}:{placement.image_url or ''}"
             if key in inserted:
                 continue

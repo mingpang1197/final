@@ -61,3 +61,69 @@ def parse_export_sections(text: str) -> list[ExportSection]:
         sections.append(ExportSection(heading=None, body_lines=body, start_line_index=start))
 
     return sections
+
+
+def _normalize_heading(text: str) -> str:
+    return text.strip().lstrip("#").strip()
+
+
+def align_placements_to_sections(
+    body: str,
+    placements: list,
+) -> dict[int, list]:
+    """Map image placements to section start indices (handles sanitize reorder)."""
+    from backend.models.schemas import ImagePlacement
+
+    sections = parse_export_sections(body)
+    if not sections or not placements:
+        return {}
+
+    lines = preview_lines(body)
+    by_section: dict[int, list[ImagePlacement]] = {
+        section.start_line_index: [] for section in sections
+    }
+    used: set[str] = set()
+
+    typed = [p if isinstance(p, ImagePlacement) else ImagePlacement(**p) for p in placements]
+
+    for placement in typed:
+        if placement.id in used:
+            continue
+        assigned = False
+
+        if placement.section_heading:
+            target = _normalize_heading(placement.section_heading)
+            for section in sections:
+                if section.heading and _normalize_heading(section.heading) == target:
+                    by_section[section.start_line_index].append(placement)
+                    used.add(placement.id)
+                    assigned = True
+                    break
+        if assigned:
+            continue
+
+        for section in sections:
+            if section.start_line_index == placement.line_index:
+                by_section[section.start_line_index].append(placement)
+                used.add(placement.id)
+                assigned = True
+                break
+        if assigned:
+            continue
+
+        if placement.line_index < len(lines):
+            line_at = _normalize_heading(lines[placement.line_index])
+            for section in sections:
+                if section.heading and _normalize_heading(section.heading) == line_at:
+                    by_section[section.start_line_index].append(placement)
+                    used.add(placement.id)
+                    assigned = True
+                    break
+        if assigned:
+            continue
+
+        nearest = min(sections, key=lambda s: abs(s.start_line_index - placement.line_index))
+        by_section[nearest.start_line_index].append(placement)
+        used.add(placement.id)
+
+    return by_section

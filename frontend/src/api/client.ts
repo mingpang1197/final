@@ -29,6 +29,7 @@ export interface ImagePlacement {
   line_index: number;
   title?: string | null;
   image_url?: string | null;
+  section_heading?: string | null;
 }
 
 export interface ImageCatalogItem {

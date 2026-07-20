@@ -3,26 +3,28 @@ from __future__ import annotations
 """이지리드 문서 PDF 내보내기.
 
 역할: DocumentResponse를 Easy-Read 타이포그래피 규칙에 맞는 PDF로 변환한다.
-주요 기능: export_to_pdf (본문·이미지·페이지 나눔).
-관계: word_export(본문 수집), image_assets, image_matcher, routers/documents(export API).
+주요 기능: export_to_pdf (본문·이미지·2단 섹션 레이아웃).
+관계: word_export(본문 수집), image_assets, export_layout, routers/documents.
 """
 
+import base64
 import html
+import io
+import mimetypes
 import os
 import re
-import base64
-import mimetypes
 from pathlib import Path
 
 import fitz  # PyMuPDF
 
 from backend.models.schemas import DocumentResponse, ImagePlacement
-from backend.services.export_layout import is_image_placeholder, parse_export_sections
-from backend.services.image_assets import resolve_placement_image
-from backend.services.image_matcher import (
-    MAX_IMAGES_PER_TEXT,
-    find_images_for_line,
+from backend.services.export_layout import (
+    align_placements_to_sections,
+    is_image_placeholder,
+    parse_export_sections,
 )
+from backend.services.image_assets import resolve_placement_image
+from backend.services.image_matcher import MAX_IMAGES_PER_TEXT, find_images_for_line
 from backend.services.word_export import (
     _META_SECTION_START,
     _SKIP_LINE,
@@ -76,28 +78,39 @@ def _font_css() -> tuple[str, fitz.Archive]:
       margin: 0 0 8px 0;
     }
     p.heading {
-      margin: 12px 0 8px 0;
+      margin: 16px 0 8px 0;
       font-size: 17px;
       font-weight: bold;
     }
-    p.image {
+    table.section-row {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 20px 0;
+    }
+    td.section-image {
+      width: 32%;
+      vertical-align: top;
+      padding: 8px 12px 8px 0;
+      background: #f5f0e8;
+    }
+    td.section-image img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+    td.section-body {
+      vertical-align: top;
+      padding: 8px 0;
+    }
+    p.image-block {
       margin: 8px 0 12px 0;
     }
-    p.image img {
+    p.image-block img {
       max-width: 230px;
       height: auto;
     }
     """
     return css, archive
-
-
-def _placements_by_line(
-    placements: list[ImagePlacement],
-) -> dict[int, list[ImagePlacement]]:
-    by_line: dict[int, list[ImagePlacement]] = {}
-    for placement in placements:
-        by_line.setdefault(placement.line_index, []).append(placement)
-    return by_line
 
 
 def _line_to_html(line: str) -> str | None:
@@ -126,13 +139,53 @@ def _line_to_html(line: str) -> str | None:
     return f'<p class="body">{"".join(chunks)}</p>'
 
 
-def _image_to_html(image_file: str, image_url: str | None = None) -> str | None:
+def _lines_to_html(lines: list[str]) -> str:
+    return "".join(block for line in lines if (block := _line_to_html(line)))
+
+
+def _image_to_img_tag(image_file: str, image_url: str | None = None) -> str | None:
     img_path = resolve_placement_image(image_file=image_file, image_url=image_url)
     if not img_path:
         return None
     mime = mimetypes.guess_type(str(img_path))[0] or "image/png"
     encoded = base64.b64encode(img_path.read_bytes()).decode("ascii")
-    return f'<p class="image"><img src="data:{mime};base64,{encoded}" /></p>'
+    return f'<img src="data:{mime};base64,{encoded}" alt="" />'
+
+
+def _section_with_image_html(
+    section,
+    section_placements: list[ImagePlacement],
+) -> str:
+    blocks: list[str] = []
+    if section.heading:
+        heading_html = _line_to_html(section.heading)
+        if heading_html:
+            blocks.append(heading_html)
+
+    img_tags: list[str] = []
+    seen: set[str] = set()
+    for placement in section_placements:
+        key = f"{placement.image_file}:{placement.image_url or ''}"
+        if key in seen:
+            continue
+        tag = _image_to_img_tag(placement.image_file, placement.image_url)
+        if tag:
+            img_tags.append(tag)
+            seen.add(key)
+
+    body_html = _lines_to_html(section.body_lines)
+
+    if img_tags:
+        blocks.append(
+            "<table class=\"section-row\"><tr>"
+            f'<td class="section-image">{"".join(img_tags)}</td>'
+            f'<td class="section-body">{body_html}</td>'
+            "</tr></table>"
+        )
+    elif body_html:
+        blocks.append(body_html)
+
+    return "".join(blocks)
 
 
 def _build_html(doc: DocumentResponse) -> tuple[str, str]:
@@ -145,25 +198,14 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
     placements = _collect_placements(doc)
     if placements:
         sections = parse_export_sections(body)
-        by_line = _placements_by_line(placements)
-        inserted: set[str] = set()
+        by_section = align_placements_to_sections(body, placements)
         for section in sections:
-            if section.heading:
-                line_html = _line_to_html(section.heading)
-                if line_html:
-                    blocks.append(line_html)
-            for placement in by_line.get(section.start_line_index, []):
-                key = f"{placement.image_file}:{placement.image_url or ''}"
-                if key in inserted:
-                    continue
-                img_html = _image_to_html(placement.image_file, placement.image_url)
-                if img_html:
-                    blocks.append(img_html)
-                    inserted.add(key)
-            for line in section.body_lines:
-                line_html = _line_to_html(line)
-                if line_html:
-                    blocks.append(line_html)
+            section_html = _section_with_image_html(
+                section,
+                by_section.get(section.start_line_index, []),
+            )
+            if section_html:
+                blocks.append(section_html)
     else:
         in_meta_section = False
         inserted_images: set[str] = set()
@@ -192,9 +234,9 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
                 exclude=inserted_images,
                 max_total=MAX_IMAGES_PER_TEXT,
             ):
-                img_html = _image_to_html(match.image_file)
-                if img_html:
-                    blocks.append(img_html)
+                tag = _image_to_img_tag(match.image_file)
+                if tag:
+                    blocks.append(f'<p class="image-block">{tag}</p>')
                     inserted_images.add(match.image_file)
 
     css, _ = _font_css()
@@ -203,8 +245,6 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
 
 
 def export_to_pdf(doc: DocumentResponse) -> bytes:
-    import io
-
     story_html, story_css = _build_html(doc)
     _, archive = _font_css()
     story = fitz.Story(html=story_html, user_css=story_css, archive=archive)

@@ -19,6 +19,7 @@ class ImagePlacement(BaseModel):
     line_index: int = 0
     title: str | None = None
     image_url: str | None = None
+    section_heading: str | None = None
 
 
 class TranslationSegment(BaseModel):

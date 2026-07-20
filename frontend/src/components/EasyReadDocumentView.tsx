@@ -76,7 +76,7 @@ export function EasyReadDocumentView({
     onTextChange(sectionsToTranslationText(next));
   }
 
-  function setSectionPlacement(startLineIndex: number, item: ImageCatalogItem) {
+  function setSectionPlacement(startLineIndex: number, item: ImageCatalogItem, sectionHeading: string | null) {
     if (!onPlacementsChange) return;
     const without = placements.filter((p) => p.line_index !== startLineIndex);
     onPlacementsChange([
@@ -86,6 +86,7 @@ export function EasyReadDocumentView({
         image_file: item.image_file,
         line_index: startLineIndex,
         title: item.title,
+        section_heading: sectionHeading,
         image_url:
           item.source_url || (item.url.startsWith("http") ? item.url : null) || null,
       },
@@ -123,7 +124,7 @@ export function EasyReadDocumentView({
           onDragLeave={() => setDragOverSection(null)}
           onDrop={(item) => {
             setDragOverSection(null);
-            setSectionPlacement(section.startLineIndex, item);
+            setSectionPlacement(section.startLineIndex, item, section.heading);
           }}
           onRemoveImage={() => removeSectionPlacement(section.startLineIndex)}
           onBodyChange={(body) => updateSectionBody(sectionIndex, body)}
