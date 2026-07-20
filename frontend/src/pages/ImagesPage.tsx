@@ -161,9 +161,15 @@ export function ImagesPage() {
 
   function editPlacements(next: ImagePlacement[]) {
     if (!mainSegment) return;
-    setSegments((prev) =>
-      prev.map((s) => (s.id === mainSegment.id ? { ...s, image_placements: next } : s)),
-    );
+    setSegments((prev) => {
+      const updated = prev.map((s) =>
+        s.id === mainSegment.id ? { ...s, image_placements: next } : s,
+      );
+      if (id) {
+        saveWorkflowSnapshot(id, { translation_segments: updated });
+      }
+      return updated;
+    });
   }
 
   const filenameLabel = [

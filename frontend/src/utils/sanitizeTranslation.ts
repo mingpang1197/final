@@ -7,6 +7,7 @@
  */
 
 const META_SECTION_START = /^###\s*수정\s*사항/;
+const IMAGE_PLACEHOLDER = /^\[image\]\s*$/i;
 const DOC_TITLE_LINE =
   /^#?\s*<[^>]*(?:형사|민사|가사|행정)판결\s*이지리드/i;
 const DOC_TITLE_EASY_READ = /^#?\s*<[^>]*이지리드\s*[—\-–]/i;
@@ -133,6 +134,9 @@ export function sanitizeTranslationText(text: string): string {
       continue;
     }
     if (inMeta) {
+      continue;
+    }
+    if (IMAGE_PLACEHOLDER.test(stripped)) {
       continue;
     }
     out.push(line);

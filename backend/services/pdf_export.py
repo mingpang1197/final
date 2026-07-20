@@ -10,16 +10,18 @@ from __future__ import annotations
 import html
 import os
 import re
+import base64
+import mimetypes
 from pathlib import Path
 
 import fitz  # PyMuPDF
 
 from backend.models.schemas import DocumentResponse, ImagePlacement
+from backend.services.export_layout import is_image_placeholder, parse_export_sections
 from backend.services.image_assets import resolve_placement_image
 from backend.services.image_matcher import (
     MAX_IMAGES_PER_TEXT,
     find_images_for_line,
-    preview_lines,
 )
 from backend.services.word_export import (
     _META_SECTION_START,
@@ -104,6 +106,8 @@ def _line_to_html(line: str) -> str | None:
         return None
     if stripped == "## 수정된 이지리드 번역본":
         return None
+    if is_image_placeholder(stripped):
+        return None
 
     if _is_heading(stripped):
         text = html.escape(_clean_heading(stripped))
@@ -126,8 +130,9 @@ def _image_to_html(image_file: str, image_url: str | None = None) -> str | None:
     img_path = resolve_placement_image(image_file=image_file, image_url=image_url)
     if not img_path:
         return None
-    uri = img_path.resolve().as_uri()
-    return f'<p class="image"><img src="{html.escape(uri, quote=True)}" /></p>'
+    mime = mimetypes.guess_type(str(img_path))[0] or "image/png"
+    encoded = base64.b64encode(img_path.read_bytes()).decode("ascii")
+    return f'<p class="image"><img src="data:{mime};base64,{encoded}" /></p>'
 
 
 def _build_html(doc: DocumentResponse) -> tuple[str, str]:
@@ -139,14 +144,15 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
     blocks: list[str] = []
     placements = _collect_placements(doc)
     if placements:
-        lines = preview_lines(body)
+        sections = parse_export_sections(body)
         by_line = _placements_by_line(placements)
         inserted: set[str] = set()
-        for i, line in enumerate(lines):
-            line_html = _line_to_html(line)
-            if line_html:
-                blocks.append(line_html)
-            for placement in by_line.get(i, []):
+        for section in sections:
+            if section.heading:
+                line_html = _line_to_html(section.heading)
+                if line_html:
+                    blocks.append(line_html)
+            for placement in by_line.get(section.start_line_index, []):
                 key = f"{placement.image_file}:{placement.image_url or ''}"
                 if key in inserted:
                     continue
@@ -154,6 +160,10 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
                 if img_html:
                     blocks.append(img_html)
                     inserted.add(key)
+            for line in section.body_lines:
+                line_html = _line_to_html(line)
+                if line_html:
+                    blocks.append(line_html)
     else:
         in_meta_section = False
         inserted_images: set[str] = set()

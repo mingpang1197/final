@@ -16,6 +16,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 
+from backend.services.export_layout import is_image_placeholder, parse_export_sections
 from backend.services.image_assets import resolve_placement_image
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.image_matcher import (
@@ -115,6 +116,8 @@ def _add_rich_paragraph(doc: Document, line: str) -> None:
         return
     if stripped == "## 수정된 이지리드 번역본":
         return
+    if is_image_placeholder(stripped):
+        return
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -157,17 +160,20 @@ def _export_text_with_placements(
     text: str,
     placements: list[ImagePlacement],
 ) -> None:
-    lines = preview_lines(text)
+    sections = parse_export_sections(text)
     by_line = _placements_by_line(placements)
     inserted: set[str] = set()
-    for i, line in enumerate(lines):
-        _add_rich_paragraph(doc, line)
-        for placement in by_line.get(i, []):
+    for section in sections:
+        if section.heading:
+            _add_rich_paragraph(doc, section.heading)
+        for placement in by_line.get(section.start_line_index, []):
             key = f"{placement.image_file}:{placement.image_url or ''}"
             if key in inserted:
                 continue
             _add_picture(doc, placement.image_file, placement.image_url)
             inserted.add(key)
+        for line in section.body_lines:
+            _add_rich_paragraph(doc, line)
 
 
 def _export_text(doc: Document, text: str, *, skip_meta: bool = True) -> None:
@@ -203,12 +209,16 @@ def _export_text(doc: Document, text: str, *, skip_meta: bool = True) -> None:
 
 def _collect_placements(doc: DocumentResponse) -> list[ImagePlacement] | None:
     for segment in doc.translation_segments or []:
-        if segment.easy_text and segment.image_placements:
+        if segment.image_placements:
             return segment.image_placements
     return None
 
 
 def _collect_body_text(doc: DocumentResponse) -> str:
+    if doc.translation_segments:
+        for segment in doc.translation_segments:
+            if segment.image_placements and segment.easy_text and segment.easy_text.strip():
+                return segment.easy_text.strip()
     if doc.translation_text and doc.translation_text.strip():
         return doc.translation_text.strip()
     if doc.translation_segments:

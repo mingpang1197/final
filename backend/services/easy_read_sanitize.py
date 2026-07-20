@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 
 _META_SECTION_START = re.compile(r"^###\s*수정\s*사항")
+_IMAGE_PLACEHOLDER = re.compile(r"^\[image\]\s*$", re.I)
 _DOC_TITLE_LINE = re.compile(
     r"^#?\s*<[^>]*(?:형사|민사|가사|행정)판결\s*이지리드",
     re.IGNORECASE,
@@ -55,6 +56,8 @@ def _strip_doc_title_lines(text: str) -> str:
         if _DOC_TITLE_EASY_READ.match(stripped):
             continue
         if _DOC_META_HEADING.match(stripped):
+            continue
+        if _IMAGE_PLACEHOLDER.match(stripped):
             continue
         out.append(line)
     return "\n".join(out)

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-from functools import lru_cache
 from pathlib import Path
 
 import httpx
@@ -20,7 +19,6 @@ _CACHE_DIR = DATA_DIR / "image-cache"
 _WEB_CACHE_DIR = DATA_DIR / "web-image-cache"
 
 
-@lru_cache(maxsize=256)
 def resolve_image_path(image_file: str) -> Path | None:
     local = IMAGES_DIR / image_file
     if local.is_file():

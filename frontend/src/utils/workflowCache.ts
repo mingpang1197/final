@@ -62,18 +62,14 @@ function mergeSegment(
   server: TranslationSegment,
   cached?: TranslationSegment,
 ): TranslationSegment {
-  const serverPlacements = server.image_placements ?? [];
-  const cachedPlacements = cached?.image_placements ?? [];
-  const placements =
-    cachedPlacements.length > serverPlacements.length
-      ? mergePlacements(serverPlacements, cachedPlacements)
-      : serverPlacements.length > 0
-        ? serverPlacements
-        : cachedPlacements;
+  const placements = mergePlacements(
+    server.image_placements,
+    cached?.image_placements,
+  );
   return {
     ...server,
     easy_text: server.easy_text || cached?.easy_text || "",
-    image_placements: placements.length ? placements : server.image_placements,
+    image_placements: placements.length ? placements : server.image_placements ?? cached?.image_placements,
   };
 }
 
