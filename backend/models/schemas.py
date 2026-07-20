@@ -1,3 +1,10 @@
+"""API 요청·응답 Pydantic 스키마.
+
+역할: FastAPI 엔드포인트와 서비스 계층 간 데이터 계약을 정의한다.
+주요 기능: DocumentResponse, TranslationSegment, ChecklistReport 등 타입·모델.
+관계: routers/documents(요청·응답), database(직렬화), services(내부 전달).
+"""
+
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -87,6 +94,10 @@ class SummarizeRequest(BaseModel):
     doc_type: DocType | None = None
     filename: str | None = None
     pages: list[str] | None = None
+
+
+class DocTypeUpdate(BaseModel):
+    doc_type: DocType
 
 
 class UploadResponse(BaseModel):

@@ -1,10 +1,21 @@
+/**
+ * AI 요약 편집 페이지 (워크플로 2단계).
+ *
+ * 역할: 원문 미리보기와 요약본을 나란히 보여 주고 수정·저장·AI 보정을 지원한다.
+ * 주요 기능: 자동 요약 생성, 디바운스 저장, 원본 iframe/텍스트 미리보기, AI refine.
+ * 연관 파일: api/client.ts, components/PageNavigator.tsx, components/PromptBar.tsx, utils/docCache.ts
+ */
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
+  type DocType,
+  DOC_TYPE_LABELS,
+  DOC_TYPE_OPTIONS,
   getDocument,
   getPage,
   refineSummary,
   summarize,
+  updateDocType,
   updateSummary,
 } from "../api/client";
 import { PageNavigator } from "../components/PageNavigator";
@@ -41,6 +52,7 @@ export function SummaryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
+  const [docType, setDocType] = useState<DocType>("unknown");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   async function loadDocumentWithRetry(docId: string) {
@@ -79,6 +91,7 @@ export function SummaryPage() {
     try {
       const doc = await loadDocumentWithRetry(id);
       setFilename(doc.filename);
+      setDocType(doc.doc_type);
       setPageCount(doc.page_count);
       setSummary(doc.summary || "");
       if (!doc.summary) {
@@ -99,6 +112,7 @@ export function SummaryPage() {
     } catch {
       if (cached) {
         setFilename(cached.filename);
+        setDocType(cached.doc_type);
         setPageCount(cached.page_count);
         setLoading(true);
         try {
@@ -182,16 +196,67 @@ export function SummaryPage() {
     }
   }
 
+  async function handleDocTypeChange(next: Exclude<DocType, "unknown">) {
+    if (!id || next === docType || loading) return;
+    const label = DOC_TYPE_LABELS[next];
+    const currentLabel =
+      docType !== "unknown" ? DOC_TYPE_LABELS[docType as Exclude<DocType, "unknown">] : "미분류";
+    const ok = window.confirm(
+      `사건 유형을 「${currentLabel}」에서 「${label}」(으)로 변경하고 요약을 다시 생성할까요?`,
+    );
+    if (!ok) return;
+
+    setLoading(true);
+    setError("");
+    try {
+      await updateDocType(id, next);
+      setDocType(next);
+      const cached = getCachedUpload(id);
+      const updated = await summarize(
+        id,
+        true,
+        cached ? summarizeFallbackBody(cached) : undefined,
+      );
+      setSummary(updated.summary || "");
+      setDocType(updated.doc_type);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "유형 변경 또는 요약 재생성 실패");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const activeDocType = docType !== "unknown" ? docType : null;
+
   return (
     <div className="h-screen flex flex-col">
-      <header className="flex items-center justify-between px-4 py-3 border-b bg-white">
-        <div>
+      {/* 상단: 제목, 저장 상태, 저장·번역 단계 이동 */}
+      <header className="flex items-center justify-between px-4 py-3 border-b bg-white gap-4">
+        <div className="min-w-0">
           <h1 className="font-semibold">요약</h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 truncate">
             {filename}
+            {docType !== "unknown" && ` · ${DOC_TYPE_LABELS[docType as Exclude<DocType, "unknown">]}`}
             {saveStatus === "saving" && " · 저장 중..."}
             {saveStatus === "saved" && " · 저장됨"}
           </p>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {DOC_TYPE_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                disabled={loading}
+                onClick={() => handleDocTypeChange(value)}
+                className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                  activeDocType === value
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex gap-2">
           <button
@@ -217,7 +282,9 @@ export function SummaryPage() {
         </div>
       )}
 
+      {/* 본문: 좌측 원문 / 우측 요약 2열 레이아웃 */}
       <div className="flex-1 grid grid-cols-2 gap-0 min-h-0">
+        {/* 좌측 — 업로드 원본 미리보기 또는 페이지별 OCR 텍스트 */}
         <section className="flex flex-col border-r border-slate-200 p-4 bg-slate-50 min-h-0 overflow-hidden">
           <h2 className="text-center text-sm font-medium text-slate-500 mb-2">(원문)</h2>
           {sourcePreviewUrl && sourceReady ? (
@@ -249,6 +316,7 @@ export function SummaryPage() {
           )}
         </section>
 
+        {/* 우측 — 요약 편집 및 AI 프롬프트 */}
         <section className="flex flex-col p-4 min-h-0 overflow-hidden">
           <h2 className="text-center text-sm font-medium text-slate-500 mb-2 shrink-0">(요약본)</h2>
           <textarea

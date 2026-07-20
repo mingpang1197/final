@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""문서 API 라우터.
+
+역할: /api/documents 하위 REST 엔드포인트를 제공한다.
+주요 기능: 업로드(OCR), 조회, 요약·번역·체크리스트, 이미지 배치, Word 내보내기.
+관계: database(저장), services(upstage·translator·word_export 등), models/schemas(요청·응답).
+"""
+
 import mimetypes
 import re
 import uuid
@@ -15,11 +22,13 @@ from backend.database import (
     get_document,
     get_doc_type,
     get_page,
+    update_doc_type,
     update_summary,
     update_translation,
 )
 from backend.models.schemas import (
     ChecklistReport,
+    DocTypeUpdate,
     DocumentResponse,
     ExportRequest,
     ImageCatalogItem,
@@ -35,10 +44,14 @@ from backend.services import parser, prompts, translator, upstage, word_export
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
+# --- 헬퍼: 원본 파일 경로 ---
+
 
 def _source_path(doc_id: str, filename: str) -> Path:
     ext = Path(filename).suffix.lower() or ".bin"
     return UPLOAD_DIR / f"{doc_id}_source{ext}"
+
+# --- 요약 텍스트 정규화·교정 ---
 
 
 _ITEM_START_RE = re.compile(
@@ -173,6 +186,8 @@ async def _polish_summary_text(text: str) -> str:
         return base
     return polished or base
 
+# --- Word 내보내기 헬퍼 ---
+
 
 def _doc_for_export(doc_id: str, doc: DocumentResponse | None, body: ExportRequest | None) -> DocumentResponse | None:
     if body and body.segments:
@@ -217,6 +232,8 @@ async def _resolve_document(doc_id: str, body: ExportRequest | None) -> Document
         )
         return await get_document(doc_id)
     return None
+
+# --- 업로드·조회 ---
 
 
 @router.get("/catalog/images", response_model=list[ImageCatalogItem])
@@ -298,12 +315,28 @@ async def read_document(doc_id: str) -> DocumentResponse:
     return doc
 
 
+@router.patch("/{doc_id}/doc-type", response_model=DocumentResponse)
+async def patch_doc_type(doc_id: str, body: DocTypeUpdate) -> DocumentResponse:
+    doc = await get_document(doc_id)
+    if not doc:
+        raise HTTPException(404, "문서를 찾을 수 없습니다.")
+    if body.doc_type == "unknown":
+        raise HTTPException(400, "unknown 유형은 선택할 수 없습니다.")
+    await update_doc_type(doc_id, body.doc_type)
+    updated = await get_document(doc_id)
+    if not updated:
+        raise HTTPException(404, "문서를 갱신하지 못했습니다.")
+    return updated
+
+
 @router.get("/{doc_id}/pages/{page_num}")
 async def read_page(doc_id: str, page_num: int) -> dict[str, str]:
     page = await get_page(doc_id, page_num)
     if page is None:
         raise HTTPException(404, "페이지를 찾을 수 없습니다.")
     return {"page": page}
+
+# --- 요약 API ---
 
 
 @router.post("/{doc_id}/summarize", response_model=DocumentResponse)
@@ -369,6 +402,8 @@ async def refine_summary(doc_id: str, body: RefineRequest) -> DocumentResponse:
     revised = await _polish_summary_text(revised)
     await update_summary(doc_id, revised)
     return (await get_document(doc_id))  # type: ignore[return-value]
+
+# --- 쉬운 글(번역) API ---
 
 
 @router.post("/{doc_id}/translate", response_model=DocumentResponse)
@@ -449,6 +484,8 @@ async def run_translation_checklist(doc_id: str) -> ChecklistReport:
             doc_id, doc.translation_segments, text, checklist=report
         )
     return report
+
+# --- Word 내보내기 ---
 
 
 @router.get("/{doc_id}/export.docx")

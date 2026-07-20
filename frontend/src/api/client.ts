@@ -1,6 +1,27 @@
+/**
+ * 백엔드 REST API 클라이언트 및 공유 타입 정의.
+ *
+ * 역할: 문서 업로드·요약·번역·체크리스트·Word 출력 등 API 호출을 캡슐화한다.
+ * 주요 기능: fetch 래퍼, Document/TranslationSegment 타입, 파일 다운로드.
+ * 연관 파일: pages/*.tsx, components/*.tsx, utils/docCache.ts
+ */
 const API_BASE = "/api";
 
 export type DocType = "criminal" | "civil" | "family" | "administrative" | "unknown";
+
+export const DOC_TYPE_LABELS: Record<Exclude<DocType, "unknown">, string> = {
+  criminal: "형사",
+  civil: "민사",
+  family: "가사",
+  administrative: "행정",
+};
+
+export const DOC_TYPE_OPTIONS: { value: Exclude<DocType, "unknown">; label: string }[] = [
+  { value: "criminal", label: "형사" },
+  { value: "civil", label: "민사" },
+  { value: "family", label: "가사" },
+  { value: "administrative", label: "행정" },
+];
 
 export interface ImagePlacement {
   id: string;
@@ -120,6 +141,14 @@ export async function updateSummary(
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ summary, ...ensure }),
+  });
+}
+
+export async function updateDocType(id: string, docType: DocType): Promise<Document> {
+  return request<Document>(`/documents/${id}/doc-type`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doc_type: docType }),
   });
 }
 

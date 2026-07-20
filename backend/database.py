@@ -1,3 +1,10 @@
+"""문서 영속화 계층 (SQLite + JSON 백업).
+
+역할: 업로드된 판결문의 메타·페이지·요약·번역 데이터를 저장·조회·갱신한다.
+주요 기능: documents 테이블 CRUD, Vercel 등 DB 유실 시 JSON 백업 복구.
+관계: models/schemas(타입), config(DB_PATH), routers/documents(호출).
+"""
+
 import json
 import uuid
 from datetime import datetime, timezone
@@ -12,6 +19,8 @@ from backend.models.schemas import (
     DocType,
     TranslationSegment,
 )
+
+# --- JSON 백업 헬퍼 ---
 
 
 def _now() -> str:
@@ -41,6 +50,8 @@ def _read_backup(doc_id: str) -> tuple[DocumentResponse, list[str]] | None:
     except (json.JSONDecodeError, TypeError, ValueError):
         return None
 
+# --- DB 초기화 ---
+
 
 async def init_db() -> None:
     async with aiosqlite.connect(DB_PATH) as db:
@@ -62,6 +73,8 @@ async def init_db() -> None:
             """
         )
         await db.commit()
+
+# --- 문서 CRUD ---
 
 
 async def create_document(
@@ -207,6 +220,8 @@ async def get_page(doc_id: str, page_num: int) -> str | None:
             return pages[page_num - 1]
     return None
 
+# --- 요약·번역 갱신 ---
+
 
 async def update_summary(doc_id: str, summary: str) -> None:
     doc = await get_document(doc_id)
@@ -334,3 +349,43 @@ async def get_doc_type(doc_id: str) -> DocType | None:
         async with db.execute("SELECT doc_type FROM documents WHERE id = ?", (doc_id,)) as cursor:
             row = await cursor.fetchone()
     return row[0] if row else None
+
+
+async def update_doc_type(doc_id: str, doc_type: DocType) -> None:
+    doc = await get_document(doc_id)
+    if not doc:
+        return
+    now = _now()
+    backup = _read_backup(doc_id)
+    pages = backup[1] if backup else ([doc.full_text] if doc.full_text else [])
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "UPDATE documents SET doc_type = ?, updated_at = ? WHERE id = ?",
+            (doc_type, now, doc_id),
+        )
+        if cursor.rowcount == 0:
+            await db.execute(
+                """
+                INSERT INTO documents
+                (id, filename, doc_type, stage, page_count, pages_json, full_text,
+                 summary, translation_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+                """,
+                (
+                    doc_id,
+                    doc.filename,
+                    doc_type,
+                    doc.stage,
+                    doc.page_count,
+                    json.dumps(pages, ensure_ascii=False),
+                    doc.full_text,
+                    doc.summary,
+                    now,
+                    now,
+                ),
+            )
+        await db.commit()
+    _write_backup(
+        doc.model_copy(update={"doc_type": doc_type}),
+        pages,
+    )

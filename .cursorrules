@@ -23,6 +23,10 @@ POST   /api/documents/upload
 GET    /api/documents/{doc_id}
 - 문서 조회
 
+PATCH  /api/documents/{doc_id}/doc-type
+- 사건 유형 수동 변경 (criminal|civil|family|administrative)
+- Request: { "doc_type": "civil" }
+
 GET    /api/documents/{doc_id}/pages/{page_num}
 - 특정 페이지 조회
 
