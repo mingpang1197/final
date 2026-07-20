@@ -55,24 +55,21 @@ export function UploadPage() {
   }
 
   return (
-    <div className="h-full min-h-0 flex flex-col bg-coolgray-10 overflow-y-auto">
-      <div className="flex-1 min-h-0 flex flex-col">
-        <header className="shrink-0 px-6 pt-4 pb-3">
+    <div className="workflow-page bg-coolgray-10">
+      <div className="workflow-top">
+        <header className="px-6 pt-4 pb-3">
           <h1 className="text-[42px] font-bold leading-tight text-coolgray-90">
             Easy-Read 판결문 작성 보조
           </h1>
         </header>
 
-        <div className="mx-6 shrink-0 bg-white border border-coolgray-20 border-b-0">
+        <div className="mx-6 bg-white border border-coolgray-20 border-b-0">
           <StepIndicator current="upload" />
           <DocTypePills active={docType} disabled={loading} onChange={setDocType} />
         </div>
       </div>
 
-      <div
-        className="shrink-0 mx-6 mb-4 bg-white border border-coolgray-20 overflow-hidden flex flex-col"
-        style={{ height: "var(--workflow-body-height)" }}
-      >
+      <div className="workflow-body mx-6 bg-white border border-coolgray-20 overflow-hidden flex flex-col">
         <div className="flex-1 p-8 max-w-3xl mx-auto w-full flex flex-col justify-center min-h-0 overflow-y-auto">
           <h2 className="text-2xl font-bold text-coolgray-90 mb-6 shrink-0">새 프로젝트</h2>
 

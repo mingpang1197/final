@@ -1,6 +1,6 @@
 /**
  * Figma 워크플로 공통 레이아웃.
- * 상단(제목·stepper·네비)은 남는 높이를 차지하고, 본문은 고정 높이.
+ * 상단은 콘텐츠 높이만 사용하고, 화면이 줄면 본문(고정)을 제외한 나머지 높이 안에서 줄어듦.
  */
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -29,10 +29,9 @@ export function WorkflowLayout({
   footerExtra,
 }: WorkflowLayoutProps) {
   return (
-    <div className="h-full min-h-0 flex flex-col bg-coolgray-10 overflow-y-auto">
-      {/* 상단: 뷰포트에서 본문을 제외한 나머지 높이 */}
-      <div className="flex-1 min-h-0 flex flex-col">
-        <header className="shrink-0 px-6 pt-4 pb-3">
+    <div className="workflow-page bg-coolgray-10">
+      <div className="workflow-top">
+        <header className="px-6 pt-4 pb-3">
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-[42px] font-bold leading-tight text-coolgray-90 tracking-tight">
               {projectTitle}
@@ -45,7 +44,7 @@ export function WorkflowLayout({
           </div>
         </header>
 
-        <div className="mx-6 shrink-0 bg-white border border-coolgray-20 border-b-0">
+        <div className="mx-6 bg-white border border-coolgray-20 border-b-0">
           <StepIndicator current={step} />
 
           {(prevNav || nextNav) && (
@@ -83,11 +82,7 @@ export function WorkflowLayout({
         </div>
       </div>
 
-      {/* 본문: 고정 높이 */}
-      <div
-        className="shrink-0 mx-6 mb-4 bg-white border border-coolgray-20 flex flex-col overflow-hidden"
-        style={{ height: "var(--workflow-body-height)" }}
-      >
+      <div className="workflow-body mx-6 bg-white border border-coolgray-20 flex flex-col overflow-hidden">
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">{children}</div>
         {footerExtra}
       </div>
