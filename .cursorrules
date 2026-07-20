@@ -73,7 +73,11 @@ POST   /api/documents/{doc_id}/translation/detect-placements
 - Request (optional, 서버 문서 유실 시 복구): { full_text, doc_type, filename, pages, summary? }
 
 GET    /api/documents/{doc_id}/export.docx
-- Word 다운로드 (POST body로 segments 등 전달 가능)
+- Word 다운로드
+
+POST   /api/documents/{doc_id}/export.docx
+- Word 생성·다운로드 (3×3 표 2단 레이아웃, segments·image_base64 지원)
+- Request (optional): ExportRequest (segments, summary, filename 등)
 
 GET    /api/documents/{doc_id}/export.pdf
 - PDF 미리보기 (inline, POST body로 segments 등 전달 가능)

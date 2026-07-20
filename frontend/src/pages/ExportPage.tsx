@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { TranslationSegment } from "../api/client";
-import { downloadPdf, fetchExportPdf } from "../api/client";
+import { downloadDocx, downloadPdf, fetchExportPdf } from "../api/client";
 import { IconArrowRight } from "../components/ui/icons";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { getCachedUpload } from "../utils/docCache";
@@ -25,6 +25,7 @@ export function ExportPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingWord, setExportingWord] = useState(false);
   const [error, setError] = useState("");
   const previewUrlRef = useRef<string | null>(null);
 
@@ -128,6 +129,20 @@ export function ExportPage() {
     };
   }, []);
 
+  async function handleExportWord() {
+    if (!id || segments.length === 0) return;
+    setExportingWord(true);
+    setError("");
+    try {
+      const payload = await buildExportPayload();
+      await downloadDocx(id, payload);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Word 추출 실패");
+    } finally {
+      setExportingWord(false);
+    }
+  }
+
   async function handleExport() {
     if (!id || segments.length === 0) return;
     setExporting(true);
@@ -177,19 +192,33 @@ export function ExportPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 shrink-0 w-full max-w-[556px]">
+          <p className="text-center text-sm text-coolgray-60 shrink-0 max-w-[720px]">
+            그림·본문 2단 레이아웃은 <strong className="font-medium text-coolgray-80">Word 추출</strong>을
+            권장합니다. PDF는 미리보기용입니다.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-4 shrink-0 w-full max-w-[720px]">
+            <button
+              type="button"
+              onClick={handleExportWord}
+              disabled={exportingWord || previewLoading || segments.length === 0}
+              className="inline-flex h-14 min-w-[220px] flex-1 items-center justify-center gap-2 bg-primary-60 border-2 border-primary-60 px-4 text-white text-xl font-medium tracking-wide hover:bg-primary-90 disabled:opacity-50 transition-colors"
+            >
+              {exportingWord ? "추출 중..." : "Word 추출하기"}
+              <IconArrowRight className="size-6 text-white" />
+            </button>
             <button
               type="button"
               onClick={handleExport}
               disabled={exporting || previewLoading || segments.length === 0}
-              className="inline-flex h-14 min-w-[270px] flex-1 items-center justify-center gap-2 bg-primary-60 border-2 border-primary-60 px-4 text-white text-xl font-medium tracking-wide hover:bg-primary-90 disabled:opacity-50 transition-colors"
+              className="inline-flex h-14 min-w-[220px] flex-1 items-center justify-center gap-2 border-2 border-primary-60 px-4 text-primary-60 text-xl font-medium tracking-wide hover:bg-primary-60/5 disabled:opacity-50 transition-colors"
             >
               {exporting ? "추출 중..." : "PDF 추출하기"}
-              <IconArrowRight className="size-6 text-white" />
+              <IconArrowRight className="size-6 text-primary-60" />
             </button>
             <Link
               to="/"
-              className="inline-flex h-14 min-w-[270px] flex-1 items-center justify-center border-2 border-primary-60 px-4 text-primary-60 text-xl font-medium tracking-wide hover:bg-primary-60/5 transition-colors text-center"
+              className="inline-flex h-14 min-w-[220px] flex-1 items-center justify-center border-2 border-coolgray-40 px-4 text-coolgray-70 text-xl font-medium tracking-wide hover:bg-coolgray-10 transition-colors text-center"
             >
               업로드 화면으로 돌아가기
             </Link>
