@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/
+frontend/node_modules/
+frontend/dist/
+.cursor/
+Untitled
+*.docx
+*.pdf
