@@ -65,6 +65,55 @@ export function formatHeadingDisplay(line: string): string {
   return line.replace(/^#+\s*/, "").trim();
 }
 
+export function normalizeSectionHeading(text: string): string {
+  return text.trim().replace(/^#+\s*/, "").trim();
+}
+
+/** 그림 탭·추출 공통 — section_heading 우선, 없으면 line_index. */
+export function resolvePlacementForSection(
+  placements: ImagePlacement[],
+  section: TranslationSection,
+): ImagePlacement | undefined {
+  if (section.heading) {
+    const target = normalizeSectionHeading(section.heading);
+    const byHeading = placements.find(
+      (p) => p.section_heading && normalizeSectionHeading(p.section_heading) === target,
+    );
+    if (byHeading) return byHeading;
+  }
+  return placements.find((p) => p.line_index === section.startLineIndex);
+}
+
+/** 추출용 — 섹션당 1개, 사용자 배치(section_heading) 우선. */
+export function filterPlacementsForExport(
+  text: string,
+  placements: ImagePlacement[],
+): ImagePlacement[] {
+  if (!placements.length) return [];
+  const enriched = enrichPlacementsWithHeadings(text, placements);
+  const sections = parseTranslationSections(text);
+  const headingIndices = new Set(
+    sections.filter((s) => s.heading).map((s) => s.startLineIndex),
+  );
+
+  const manual = enriched.filter((p) => p.section_heading);
+  if (manual.length > 0) {
+    const byHeading = new Map<string, ImagePlacement>();
+    for (const p of manual) {
+      byHeading.set(normalizeSectionHeading(p.section_heading!), p);
+    }
+    return Array.from(byHeading.values()).sort((a, b) => a.line_index - b.line_index);
+  }
+
+  const byIndex = new Map<number, ImagePlacement>();
+  for (const p of enriched) {
+    if (headingIndices.has(p.line_index)) {
+      byIndex.set(p.line_index, p);
+    }
+  }
+  return Array.from(byIndex.values()).sort((a, b) => a.line_index - b.line_index);
+}
+
 /** 기존 배치에 section_heading이 없으면 line_index로 채운다 (export 정렬용). */
 export function enrichPlacementsWithHeadings(
   text: string,

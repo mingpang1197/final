@@ -22,6 +22,7 @@ from backend.services.export_layout import (
     align_placements_to_sections,
     is_image_placeholder,
     parse_export_sections,
+    prepare_placements_for_export,
 )
 from backend.services.image_assets import resolve_placement_image
 from backend.services.image_matcher import MAX_IMAGES_PER_TEXT, find_images_for_line
@@ -187,15 +188,11 @@ def _section_block_html(
             blocks.append(heading_html)
 
     img_tags: list[str] = []
-    seen: set[str] = set()
-    for placement in section_placements:
-        key = f"{placement.image_file}:{placement.image_url or ''}"
-        if key in seen:
-            continue
+    placement = section_placements[0] if section_placements else None
+    if placement:
         tag = _placement_to_img_tag(placement)
         if tag:
             img_tags.append(tag)
-            seen.add(key)
 
     body_html = _lines_to_html(section.body_lines)
     row_open = '<div class="section-row">'
@@ -230,7 +227,8 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
 
     blocks: list[str] = []
     sections = parse_export_sections(body)
-    placements = _collect_placements(doc) or []
+    raw_placements = _collect_placements(doc) or []
+    placements = prepare_placements_for_export(body, raw_placements)
     has_section_layout = any(section.heading for section in sections)
 
     if has_section_layout:

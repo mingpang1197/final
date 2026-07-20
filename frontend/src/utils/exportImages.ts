@@ -3,6 +3,7 @@
  * (Vercel 등에서 서버 측 이미지 경로 해석 실패 방지)
  */
 import type { ImagePlacement, TranslationSegment } from "../api/client";
+import { filterPlacementsForExport } from "./translationSections";
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -40,8 +41,11 @@ export async function enrichSegmentsForExport(
 ): Promise<TranslationSegment[]> {
   return Promise.all(
     segments.map(async (segment) => {
-      const placements = segment.image_placements ?? [];
-      if (!placements.length) return segment;
+      const placements = filterPlacementsForExport(
+        segment.easy_text,
+        segment.image_placements ?? [],
+      );
+      if (!placements.length) return { ...segment, image_placements: [] };
       const encoded = await Promise.all(placements.map(encodePlacementImage));
       return { ...segment, image_placements: encoded };
     }),

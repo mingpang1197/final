@@ -20,6 +20,7 @@ from backend.services.export_layout import (
     align_placements_to_sections,
     is_image_placeholder,
     parse_export_sections,
+    prepare_placements_for_export,
 )
 from backend.services.image_assets import resolve_placement_image
 from backend.models.schemas import DocumentResponse, ImagePlacement
@@ -245,7 +246,8 @@ def export_to_docx(doc: DocumentResponse, *, include_meta: bool = False) -> byte
 
     body = _collect_body_text(doc)
     if body:
-        placements = _collect_placements(doc)
+        raw_placements = _collect_placements(doc) or []
+        placements = prepare_placements_for_export(body, raw_placements)
         if placements:
             _export_text_with_placements(word, body, placements)
         else:

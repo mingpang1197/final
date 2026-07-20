@@ -15,6 +15,7 @@ import { PromptBar } from "../components/PromptBar";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
+import { filterPlacementsForExport } from "../utils/translationSections";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
 import {
   getWorkflowSnapshot,
@@ -23,10 +24,17 @@ import {
 } from "../utils/workflowCache";
 
 function sanitizeSegments(segments: TranslationSegment[]): TranslationSegment[] {
-  return segments.map((s) => ({
-    ...s,
-    easy_text: s.easy_text ? sanitizeTranslationText(s.easy_text) : s.easy_text,
-  }));
+  return segments.map((s) => {
+    const easy_text = s.easy_text ? sanitizeTranslationText(s.easy_text) : s.easy_text;
+    return {
+      ...s,
+      easy_text,
+      image_placements: filterPlacementsForExport(
+        easy_text ?? "",
+        s.image_placements ?? [],
+      ),
+    };
+  });
 }
 
 function segmentsToText(segments: TranslationSegment[]): string {

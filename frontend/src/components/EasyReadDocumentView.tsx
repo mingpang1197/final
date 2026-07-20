@@ -6,7 +6,9 @@ import type { ImageCatalogItem, ImagePlacement } from "../api/client";
 import {
   formatHeadingDisplay,
   isSectionHeading,
+  normalizeSectionHeading,
   parseTranslationSections,
+  resolvePlacementForSection,
   sectionsToTranslationText,
   type TranslationSection,
 } from "../utils/translationSections";
@@ -35,13 +37,6 @@ function renderBoldText(text: string) {
     }
     return <span key={i}>{part.replace(/\*\*/g, "")}</span>;
   });
-}
-
-function placementForSection(
-  placements: ImagePlacement[],
-  startLineIndex: number,
-): ImagePlacement | undefined {
-  return placements.find((p) => p.line_index === startLineIndex);
 }
 
 interface EasyReadDocumentViewProps {
@@ -76,9 +71,16 @@ export function EasyReadDocumentView({
     onTextChange(sectionsToTranslationText(next));
   }
 
-  function setSectionPlacement(startLineIndex: number, item: ImageCatalogItem, sectionHeading: string | null) {
+function setSectionPlacement(startLineIndex: number, item: ImageCatalogItem, sectionHeading: string | null) {
     if (!onPlacementsChange) return;
-    const without = placements.filter((p) => p.line_index !== startLineIndex);
+    const headingKey = sectionHeading ? normalizeSectionHeading(sectionHeading) : null;
+    const without = placements.filter((p) => {
+      if (p.line_index === startLineIndex) return false;
+      if (headingKey && p.section_heading && normalizeSectionHeading(p.section_heading) === headingKey) {
+        return false;
+      }
+      return true;
+    });
     onPlacementsChange([
       ...without,
       {
@@ -117,7 +119,7 @@ export function EasyReadDocumentView({
           key={`${section.startLineIndex}-${sectionIndex}`}
           section={section}
           mode={mode}
-          placement={placementForSection(placements, section.startLineIndex)}
+          placement={resolvePlacementForSection(placements, section)}
           dragOver={dragOverSection === sectionIndex}
           disabled={disabled}
           onDragEnter={() => mode === "images" && setDragOverSection(sectionIndex)}

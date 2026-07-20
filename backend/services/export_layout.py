@@ -67,6 +67,41 @@ def _normalize_heading(text: str) -> str:
     return text.strip().lstrip("#").strip()
 
 
+def prepare_placements_for_export(body: str, placements: list) -> list:
+    """섹션당 1개 배치만 유지. 사용자 배치(section_heading)를 자동 감지보다 우선."""
+    from backend.models.schemas import ImagePlacement
+
+    if not placements:
+        return []
+
+    sections = parse_export_sections(body)
+    heading_indices = {s.start_line_index for s in sections if s.heading}
+    typed = [p if isinstance(p, ImagePlacement) else ImagePlacement(**p) for p in placements]
+
+    manual = [p for p in typed if p.section_heading]
+    if manual:
+        by_heading: dict[str, ImagePlacement] = {}
+        for placement in manual:
+            by_heading[_normalize_heading(placement.section_heading)] = placement
+        return list(by_heading.values())
+
+    by_index: dict[int, ImagePlacement] = {}
+    for placement in typed:
+        if placement.line_index in heading_indices:
+            by_index[placement.line_index] = placement
+    return list(by_index.values())
+
+
+def _pick_best_placement(placements: list) -> object:
+    from backend.models.schemas import ImagePlacement
+
+    typed = [p if isinstance(p, ImagePlacement) else ImagePlacement(**p) for p in placements]
+    with_heading = [p for p in typed if p.section_heading]
+    if with_heading:
+        return with_heading[-1]
+    return typed[-1]
+
+
 def align_placements_to_sections(
     body: str,
     placements: list,
@@ -125,5 +160,9 @@ def align_placements_to_sections(
         nearest = min(sections, key=lambda s: abs(s.start_line_index - placement.line_index))
         by_section[nearest.start_line_index].append(placement)
         used.add(placement.id)
+
+    for start_idx, section_placements in by_section.items():
+        if len(section_placements) > 1:
+            by_section[start_idx] = [_pick_best_placement(section_placements)]
 
     return by_section
