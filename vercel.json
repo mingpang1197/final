@@ -4,14 +4,16 @@
   "outputDirectory": "frontend/dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.py" },
+    { "source": "/images/(.*)", "destination": "/api/index.py" },
     { "source": "/health", "destination": "/api/index.py" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|images/).*)", "destination": "/index.html" }
   ],
   "functions": {
     "api/index.py": {
       "maxDuration": 120,
       "memory": 1024,
-      "excludeFiles": "{frontend/**,images/**,samples/**,data/**,scripts/**,.cursor/**,**/*.pdf,**/*.docx,**/*.md,node_modules/**}"
+      "includeFiles": "images/**",
+      "excludeFiles": "{frontend/**,samples/**,data/**,scripts/**,.cursor/**,**/*.pdf,**/*.docx,**/*.md,node_modules/**}"
     }
   }
 }

@@ -1,4 +1,4 @@
-import { cpSync, copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { cpSync, copyFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const dist = join("frontend", "dist");
@@ -27,5 +27,10 @@ mkdirSync(join(dist, "images"), { recursive: true });
 if (existsSync("images")) {
   cpSync("images", join(dist, "images"), { recursive: true });
 }
-
-console.log("Prepared backend/static and frontend/dist/images");
+const pngCount = existsSync(join(dist, "images"))
+  ? readdirSync(join(dist, "images")).filter((f) => f.endsWith(".png")).length
+  : 0;
+console.log(`Prepared backend/static; dist/images has ${pngCount} PNG files`);
+if (pngCount === 0) {
+  console.warn("WARN: dist/images is empty — images will be served via /api fallback");
+}

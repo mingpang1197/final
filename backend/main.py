@@ -58,7 +58,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if IMAGES_DIR.exists() and not IS_VERCEL:
+if IMAGES_DIR.exists():
     app.mount("/images", StaticFiles(directory=str(IMAGES_DIR)), name="images")
 
 app.include_router(documents.router, prefix="/api")
