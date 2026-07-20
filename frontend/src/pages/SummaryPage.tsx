@@ -2,7 +2,7 @@
  * AI 요약 편집 페이지 (워크플로 2단계) — Figma 요약 80% UI.
  */
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   getDocument,
   getPage,
@@ -12,7 +12,6 @@ import {
 } from "../api/client";
 import { PageNavigator } from "../components/PageNavigator";
 import { PromptBar } from "../components/PromptBar";
-import { IconChevronRight } from "../components/ui/icons";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import {
   ensurePayload,
@@ -198,6 +197,7 @@ export function SummaryPage() {
   return (
     <WorkflowLayout
       step="summary"
+      headerVariant="compact"
       projectTitle={
         <>
           ER<span className="text-primary-60">AI</span>
@@ -206,70 +206,56 @@ export function SummaryPage() {
       filename={filenameLabel}
       error={error || undefined}
     >
-      <div className="flex-1 flex flex-col min-h-0 px-5 pt-3 pb-5">
-        {id && (
-          <div className="flex justify-end mb-2 shrink-0">
-            <Link
-              to={`/documents/${id}/translate`}
-              className="inline-flex items-center gap-1 h-10 px-2 text-primary-60 hover:underline font-medium text-base"
-            >
-              번역
-              <IconChevronRight className="size-6" />
-            </Link>
-          </div>
-        )}
-
-        <div className="flex-1 grid grid-cols-2 gap-5 min-h-0">
-          <div className="min-h-0 flex flex-col bg-white overflow-hidden">
-            {sourcePreviewUrl && sourceReady ? (
-              <>
-                <iframe
-                  title="업로드 원문"
-                  src={sourcePreviewUrl}
-                  className="w-full flex-1 min-h-[420px] border-0"
-                />
-                <div className="px-3 py-2 text-xs text-coolgray-60 flex justify-between border-t border-coolgray-20 shrink-0">
-                  <span className="truncate">{sourceFilename || filename}</span>
-                  <a
-                    href={sourcePreviewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary-60 hover:underline shrink-0 ml-2"
-                  >
-                    새 탭
-                  </a>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 min-h-0 flex flex-col border border-coolgray-30 bg-white">
-                <PageNavigator current={pageNum} total={pageCount} onChange={setPageNum} />
-                <pre className="flex-1 overflow-auto whitespace-pre-wrap text-base p-4 leading-relaxed min-h-0">
-                  {originalPage}
-                </pre>
+      <div className="flex-1 grid grid-cols-2 gap-5 min-h-0 px-5 pt-4 pb-5">
+        <div className="min-h-0 flex flex-col bg-white overflow-hidden rounded-sm">
+          {sourcePreviewUrl && sourceReady ? (
+            <>
+              <iframe
+                title="업로드 원문"
+                src={sourcePreviewUrl}
+                className="w-full flex-1 min-h-[480px] border-0"
+              />
+              <div className="px-3 py-2 text-xs text-coolgray-60 flex justify-between border-t border-coolgray-20 shrink-0">
+                <span className="truncate">{sourceFilename || filename}</span>
+                <a
+                  href={sourcePreviewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary-60 hover:underline shrink-0 ml-2"
+                >
+                  새 탭
+                </a>
               </div>
-            )}
+            </>
+          ) : (
+            <div className="flex-1 min-h-0 flex flex-col border border-coolgray-30 bg-white">
+              <PageNavigator current={pageNum} total={pageCount} onChange={setPageNum} />
+              <pre className="flex-1 overflow-auto whitespace-pre-wrap text-base p-4 leading-relaxed min-h-0">
+                {originalPage}
+              </pre>
+            </div>
+          )}
+        </div>
+
+        <div className="min-h-0 flex flex-col gap-3">
+          <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
+
+          <div className="flex-1 min-h-[409px] flex flex-col border border-coolgray-40 overflow-hidden">
+            <textarea
+              className="flex-1 min-h-0 w-full px-4 py-3 bg-coolgray-10 border-b border-coolgray-30 text-base resize-none overflow-auto leading-relaxed outline-none text-coolgray-90 placeholder:text-coolgray-60 placeholder:text-center"
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              placeholder={summaryPlaceholder}
+            />
           </div>
 
-          <div className="min-h-0 flex flex-col gap-3">
-            <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
-
-            <div className="flex-1 min-h-[320px] flex flex-col border border-coolgray-40 overflow-hidden">
-              <textarea
-                className="flex-1 min-h-0 w-full px-4 py-3 bg-coolgray-10 border-b border-coolgray-30 text-base resize-none overflow-auto leading-relaxed outline-none text-coolgray-90 placeholder:text-coolgray-60 placeholder:text-center"
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                placeholder={summaryPlaceholder}
-              />
-            </div>
-
-            <div className="shrink-0">
-              <PromptBar
-                value={prompt}
-                onChange={setPrompt}
-                onSubmit={applyPrompt}
-                loading={loading}
-              />
-            </div>
+          <div className="shrink-0">
+            <PromptBar
+              value={prompt}
+              onChange={setPrompt}
+              onSubmit={applyPrompt}
+              loading={loading}
+            />
           </div>
         </div>
       </div>

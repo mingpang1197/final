@@ -10,6 +10,7 @@ interface WorkflowLayoutProps {
   step: WorkflowStep;
   filename?: string;
   projectTitle?: ReactNode;
+  headerVariant?: "default" | "compact";
   prevNav?: { label: string; to: string };
   nextNav?: { label: string; to: string };
   error?: string;
@@ -21,28 +22,43 @@ export function WorkflowLayout({
   step,
   filename,
   projectTitle = "Easy-Read 판결문 작성 보조",
+  headerVariant = "default",
   prevNav,
   nextNav,
   error,
   children,
   footerExtra,
 }: WorkflowLayoutProps) {
+  const compact = headerVariant === "compact";
+
   return (
     <div className="min-h-screen bg-coolgray-10 flex flex-col">
-      <div className="px-6 pt-6 pb-0">
-        <div className="flex items-start justify-between gap-6 mb-6">
-          <h1 className="text-[42px] font-bold leading-tight text-coolgray-90 tracking-tight">
+      <div className={`px-6 ${compact ? "pt-4 pb-0" : "pt-6 pb-0"}`}>
+        <div className={`flex items-start justify-between gap-6 ${compact ? "mb-3" : "mb-6"}`}>
+          <h1
+            className={`font-bold leading-tight text-coolgray-90 tracking-tight ${
+              compact ? "text-[32px]" : "text-[42px]"
+            }`}
+          >
             {projectTitle}
           </h1>
           {filename && (
-            <span className="text-primary-60 font-medium text-base tracking-wide shrink-0 pt-2">
+            <span
+              className={`text-primary-60 font-medium text-base tracking-wide shrink-0 ${
+                compact ? "pt-1" : "pt-2"
+              }`}
+            >
               {filename}
             </span>
           )}
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col mx-6 mb-6 min-h-0 bg-white border border-coolgray-20 overflow-hidden">
+      <div
+        className={`flex-1 flex flex-col mx-6 min-h-0 bg-white border border-coolgray-20 overflow-hidden ${
+          compact ? "mb-4" : "mb-6"
+        }`}
+      >
         <StepIndicator current={step} />
 
         {(prevNav || nextNav) && (
