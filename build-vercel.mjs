@@ -1,3 +1,9 @@
+/**
+ * Vercel 배포용 정적 파일 준비 스크립트.
+ *
+ * 역할: vite build 결과물을 backend/static으로 복사하고 images/를 dist에 동기화한다.
+ * 연관 파일: frontend/vite.config.ts, frontend/dist, backend/static
+ */
 import { cpSync, copyFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 

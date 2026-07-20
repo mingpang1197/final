@@ -1,6 +1,11 @@
-"""Easy-Read translation checklist validation."""
-
 from __future__ import annotations
+
+"""이지리드 작성 체크리스트 자동 검증.
+
+역할: checklist.yaml 규칙에 따라 번역본의 문장·용어·형식을 점검한다.
+주요 기능: validate_easy_read, format_checklist_for_prompt(AI 수정용).
+관계: config(PROMPTS_DIR), translator(번역 후·수정 루프).
+"""
 
 import re
 from pathlib import Path

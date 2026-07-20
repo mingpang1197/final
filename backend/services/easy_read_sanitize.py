@@ -1,6 +1,11 @@
-"""Strip LLM revision meta sections from easy-read translation text."""
-
 from __future__ import annotations
+
+"""LLM 출력에서 메타 섹션 제거.
+
+역할: Solar가 추가한 '수정된 이지리드 번역본'·'수정 사항' 등 메타 블록을 본문에서 제거한다.
+주요 기능: sanitize_translation_text.
+관계: translator, image_matcher(미리보기 줄 정리 시).
+"""
 
 import re
 

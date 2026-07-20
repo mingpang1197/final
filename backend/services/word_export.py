@@ -1,6 +1,11 @@
-"""Export Easy-Read document to Word with Easy-Read typography."""
-
 from __future__ import annotations
+
+"""이지리드 문서 Word(.docx) 내보내기.
+
+역할: DocumentResponse를 Easy-Read 타이포그래피 규칙에 맞는 Word 파일로 변환한다.
+주요 기능: export_to_docx (제목·본문·이미지·쪽번호).
+관계: image_assets, image_matcher, models/schemas, routers/documents(export API).
+"""
 
 import io
 import re

@@ -1,3 +1,8 @@
+/**
+ * 다중 페이지 OCR 텍스트 페이지 이동 UI (Figma 스타일).
+ */
+import { IconChevronLeft, IconChevronRight } from "./ui/icons";
+
 interface PageNavigatorProps {
   current: number;
   total: number;
@@ -7,25 +12,25 @@ interface PageNavigatorProps {
 export function PageNavigator({ current, total, onChange }: PageNavigatorProps) {
   if (total <= 1) return null;
   return (
-    <div className="flex items-center justify-center gap-3 py-2 text-sm">
+    <div className="flex items-center justify-center gap-2 py-2 text-base">
       <button
         type="button"
         disabled={current <= 1}
         onClick={() => onChange(current - 1)}
-        className="px-3 py-1 rounded border border-slate-300 disabled:opacity-40"
+        className="inline-flex items-center gap-1 px-2 py-1 text-coolgray-60 disabled:opacity-40 hover:text-primary-60"
       >
-        이전
+        <IconChevronLeft className="size-5" />
       </button>
-      <span>
+      <span className="font-medium text-coolgray-90">
         {current} / {total}
       </span>
       <button
         type="button"
         disabled={current >= total}
         onClick={() => onChange(current + 1)}
-        className="px-3 py-1 rounded border border-slate-300 disabled:opacity-40"
+        className="inline-flex items-center gap-1 px-2 py-1 text-coolgray-60 disabled:opacity-40 hover:text-primary-60"
       >
-        다음
+        <IconChevronRight className="size-5" />
       </button>
     </div>
   );

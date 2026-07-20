@@ -1,6 +1,11 @@
-"""Upstage Document OCR + Solar chat with mock fallback."""
-
 from __future__ import annotations
+
+"""Upstage OCR·Solar Chat API 클라이언트.
+
+역할: 문서 OCR(텍스트 추출)과 Solar LLM 채팅 완성을 호출한다.
+주요 기능: PDF/이미지 OCR, mock 모드 폴백, chat_completion(요약·번역에 사용).
+관계: config(settings), pdf_extract(로컬 PDF), routers/documents·services/translator(호출).
+"""
 
 import base64
 import logging

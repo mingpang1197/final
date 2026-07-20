@@ -1,3 +1,9 @@
+/**
+ * Vite 빌드·개발 서버 설정.
+ *
+ * 역할: React·Tailwind 플러그인, API/이미지 프록시, 법률 일러스트 dist 복사.
+ * 연관 파일: frontend/src/main.tsx, build-vercel.mjs, backend (8001 포트)
+ */
 import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { defineConfig } from "vite";

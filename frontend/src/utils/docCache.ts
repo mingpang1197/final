@@ -1,3 +1,10 @@
+/**
+ * 업로드 직후 문서 메타데이터 sessionStorage 캐시.
+ *
+ * 역할: 서버 동기화 전·재시도 시 OCR 결과와 원본 blob URL을 임시 보관한다.
+ * 주요 기능: cacheUpload/getCachedUpload, summarize·PATCH용 ensurePayload 변환.
+ * 연관 파일: api/client.ts, pages/UploadPage.tsx, pages/SummaryPage.tsx, pages/TranslatePage.tsx
+ */
 import type { DocType, EnsurePayload, UploadResult } from "../api/client";
 
 export interface CachedUpload extends UploadResult {

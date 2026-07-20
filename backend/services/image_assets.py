@@ -1,6 +1,11 @@
-"""Resolve illustration files locally or from Vercel static CDN."""
-
 from __future__ import annotations
+
+"""일러스트 파일 경로 해석.
+
+역할: 로컬 images/ 또는 Vercel CDN·캐시에서 PNG 파일 경로를 반환한다.
+주요 기능: resolve_image_path (로컬 우선, Vercel 시 CDN 다운로드 캐시).
+관계: config(IMAGES_DIR, IS_VERCEL), word_export(Word 삽입 시 사용).
+"""
 
 import os
 from functools import lru_cache

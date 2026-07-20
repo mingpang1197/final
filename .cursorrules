@@ -63,3 +63,5 @@ POST   /api/documents/{doc_id}/translation/detect-placements
 
 GET    /api/documents/{doc_id}/export.docx
 - Word 다운로드
+PATCH  /api/documents/{doc_id}/doc-type
+- 사건 유형 수동 변경 (criminal|civil|family|administrative)

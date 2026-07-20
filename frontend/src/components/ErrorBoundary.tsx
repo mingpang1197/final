@@ -1,3 +1,10 @@
+/**
+ * React 렌더링 오류 경계 컴포넌트.
+ *
+ * 역할: 하위 트리 렌더 오류를 잡아 앱 전체 크래시를 방지한다.
+ * 주요 기능: 오류 메시지 표시, 새로고침 버튼 제공.
+ * 연관 파일: main.tsx
+ */
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 interface Props {

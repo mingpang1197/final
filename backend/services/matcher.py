@@ -1,6 +1,11 @@
-"""LEGAL_DB fuzzy matching and entity substitution."""
-
 from __future__ import annotations
+
+"""LEGAL_DB 퍼지 매칭 및 당사자명 치환.
+
+역할: 판결문 문장을 db_rules와 매칭해 DB 번역·이미지를 찾고, 플레이스홀더 이름을 실명으로 바꾼다.
+주요 기능: translate_with_db, match_sentence (rapidfuzz).
+관계: db_rules(LEGAL_DB), translator(1차 DB 매칭), models/schemas(TranslationSegment).
+"""
 
 import re
 import sys

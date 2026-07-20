@@ -1,6 +1,11 @@
-"""Match LEGAL_DB illustrations to easy-read text (only when PNG exists on disk)."""
-
 from __future__ import annotations
+
+"""이지리드 텍스트 ↔ LEGAL_DB 이미지 매칭.
+
+역할: 쉬운 글 본문에서 키워드를 찾아 일러스트 배치·카탈로그를 제공한다.
+주요 기능: detect_image_placements, list_image_catalog, find_matching_images.
+관계: db_rules(LEGAL_DB), easy_read_sanitize, word_export·translator(호출).
+"""
 
 import re
 import sys

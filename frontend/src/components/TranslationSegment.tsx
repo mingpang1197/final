@@ -1,3 +1,10 @@
+/**
+ * 번역 세그먼트 편집·미리보기 컴포넌트.
+ *
+ * 역할: 쉬운 글 한 블록을 편집하고 줄 단위로 법률 일러스트를 배치한다.
+ * 주요 기능: 미리보기 렌더, textarea 편집, ImagePicker·PlacementBlock.
+ * 연관 파일: api/client.ts, utils/sanitizeTranslation.ts, pages/TranslatePage.tsx
+ */
 import { useEffect, useMemo, useState } from "react";
 import type { ImageCatalogItem, ImagePlacement, TranslationSegment } from "../api/client";
 import { getImageCatalog } from "../api/client";
@@ -72,20 +79,20 @@ function ImagePicker({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg max-h-[80vh] flex flex-col rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h3 className="font-semibold text-slate-800">그림 선택</h3>
-          <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-800">
+      <div className="w-full max-w-lg max-h-[80vh] flex flex-col rounded-xl bg-white shadow-xl border border-coolgray-20">
+        <div className="flex items-center justify-between border-b border-coolgray-20 px-4 py-3">
+          <h3 className="font-semibold text-coolgray-90">그림 선택</h3>
+          <button type="button" onClick={onClose} className="text-coolgray-60 hover:text-coolgray-90">
             닫기
           </button>
         </div>
-        <div className="p-4 border-b">
+        <div className="p-4 border-b border-coolgray-20">
           <input
             type="search"
             placeholder="제목 또는 파일명 검색"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="w-full h-10 px-3 bg-coolgray-10 border-b border-coolgray-30 text-sm outline-none focus:border-primary-60"
             autoFocus
           />
         </div>
@@ -101,7 +108,7 @@ function ImagePicker({
                   <button
                     type="button"
                     onClick={() => onSelect(item)}
-                    className="w-full rounded-lg border border-slate-200 p-2 text-left hover:border-blue-400 hover:bg-blue-50"
+                    className="w-full rounded-lg border border-coolgray-20 p-2 text-left hover:border-primary-60 hover:bg-coolgray-10"
                   >
                     <img
                       src={item.url}
@@ -136,7 +143,7 @@ function PlacementBlock({
   const url = `/images/${placement.image_file}`;
 
   return (
-    <div className="my-2 flex gap-3 rounded-lg border border-blue-100 bg-blue-50/60 p-2">
+    <div className="my-2 flex gap-3 rounded-lg border border-primary-60/20 bg-coolgray-10 p-2">
       <img
         src={url}
         alt={placement.title || "시각자료"}
@@ -151,7 +158,7 @@ function PlacementBlock({
             type="button"
             disabled={placement.line_index <= 0}
             onClick={() => onMove(-1)}
-            className="rounded border border-slate-300 bg-white px-2 py-0.5 text-xs disabled:opacity-40"
+            className="rounded border border-coolgray-30 bg-white px-2 py-0.5 text-xs disabled:opacity-40"
           >
             ↑ 위 줄
           </button>
@@ -159,7 +166,7 @@ function PlacementBlock({
             type="button"
             disabled={placement.line_index >= lineCount - 1}
             onClick={() => onMove(1)}
-            className="rounded border border-slate-300 bg-white px-2 py-0.5 text-xs disabled:opacity-40"
+            className="rounded border border-coolgray-30 bg-white px-2 py-0.5 text-xs disabled:opacity-40"
           >
             ↓ 아래 줄
           </button>
@@ -255,7 +262,7 @@ export function TranslationSegmentView({
 
   return (
     <div
-      className={`flex flex-col gap-3 p-3 border border-slate-200 rounded-lg bg-white ${
+      className={`flex flex-col gap-3 p-3 border border-coolgray-20 rounded-lg bg-white ${
         fill ? "flex-1 min-h-0 h-full" : ""
       }`}
     >
@@ -295,7 +302,7 @@ export function TranslationSegmentView({
                 <button
                   type="button"
                   onClick={() => setPickerTarget({ mode: "add", lineIndex: idx })}
-                  className="mt-1 text-xs text-blue-600 hover:underline"
+                  className="mt-1 text-xs text-primary-60 hover:underline"
                 >
                   + 이 줄에 그림 추가
                 </button>
@@ -304,7 +311,7 @@ export function TranslationSegmentView({
           </div>
         )}
         <textarea
-          className={`w-full p-3 border border-slate-300 rounded-lg text-[15px] leading-relaxed resize-none ${
+          className={`w-full p-3 border border-coolgray-30 rounded-lg text-[15px] leading-relaxed resize-none ${
             fill ? "flex-1 min-h-0" : "min-h-[120px]"
           }`}
           value={segment.easy_text}

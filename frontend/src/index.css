@@ -1,5 +1,24 @@
+/*
+ * 전역 스타일시트.
+ * 역할: Tailwind CSS 로드, Figma 디자인 토큰, body 기본 설정.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
 @import "tailwindcss";
 
+@theme {
+  --color-primary-60: #0f62fe;
+  --color-primary-90: #001d6c;
+  --color-coolgray-10: #f2f4f8;
+  --color-coolgray-20: #dde1e6;
+  --color-coolgray-30: #c1c7cd;
+  --color-coolgray-40: #a2a9b0;
+  --color-coolgray-60: #697077;
+  --color-coolgray-90: #21272a;
+  --color-success: #25a249;
+  --color-alert: #da1e28;
+  --font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif;
+}
+
 body {
-  @apply bg-slate-50 text-slate-900 min-h-screen;
+  @apply bg-coolgray-10 text-coolgray-90 min-h-screen font-sans;
 }

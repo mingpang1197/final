@@ -1,3 +1,10 @@
+"""판결문 표현 → 쉬운 글·이미지 매핑 데이터.
+
+역할: LEGAL_DB 딕셔너리로 판결문 원문(또는 유사 문장)과 이지리드 번역·일러스트를 연결한다.
+주요 기능: 형사·민사 등 판결 표현별 easy_text, image_file, title 제공.
+관계: services/matcher(문장 매칭), services/image_matcher(이미지 배치·카탈로그).
+"""
+
 LEGAL_DB = {
   "이 사건 소를 각하한다.": [
     {

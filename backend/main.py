@@ -1,3 +1,12 @@
+"""FastAPI 앱 진입점.
+
+역할: Easy-Read 판결문 API 서버를 생성하고 라우터·미들웨어·정적 파일을 등록한다.
+주요 기능: DB 초기화(lifespan), CORS, Vercel 경로 복원, /api/documents 라우터 마운트,
+          SPA 빌드·이미지 정적 서빙, 헬스체크.
+관계: config(설정), database(init_db), routers/documents(문서 API).
+      api/index.py(Vercel)에서 이 app 객체를 import한다.
+"""
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlparse
@@ -14,6 +23,8 @@ from backend.database import init_db
 from backend.routers import documents
 
 STATIC_DIR = BACKEND_DIR / "static"
+
+# --- Vercel 경로 복원 미들웨어 ---
 
 
 class VercelPathMiddleware(BaseHTTPMiddleware):
@@ -34,6 +45,9 @@ class VercelPathMiddleware(BaseHTTPMiddleware):
                 if parsed.query:
                     request.scope["query_string"] = parsed.query.encode()
         return await call_next(request)
+
+
+# --- 앱 생성 및 미들웨어 ---
 
 
 @asynccontextmanager
@@ -63,11 +77,15 @@ if IMAGES_DIR.exists():
 
 app.include_router(documents.router, prefix="/api")
 
+# --- 헬스체크 ---
+
 
 @app.get("/health")
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "mock_mode": settings.use_mock}
+
+# --- SPA 정적 파일 서빙 ---
 
 
 def _static_file(relative: str) -> Path | None:

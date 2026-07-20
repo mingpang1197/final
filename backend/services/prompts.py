@@ -1,6 +1,11 @@
-"""Load summary and writing rule YAML prompts."""
-
 from __future__ import annotations
+
+"""AI 프롬프트 조립 (YAML 기반).
+
+역할: 판결 유형별 요약·이지리드 작성 규칙 YAML을 읽어 Solar system prompt를 만든다.
+주요 기능: build_summary_system_prompt, build_translation_system_prompt.
+관계: config(PROMPTS_DIR), models/schemas(DocType), upstage·translator(소비).
+"""
 
 from pathlib import Path
 from typing import Any

@@ -1,6 +1,11 @@
-"""Local PDF text extraction (fallback when OCR API unavailable)."""
-
 from __future__ import annotations
+
+"""로컬 PDF 텍스트 추출 (OCR API 미사용 시 폴백).
+
+역할: PyMuPDF(fitz)로 PDF에서 페이지별 텍스트를 추출한다.
+주요 기능: extract_pdf_pages (텍스트 부족 시 None 반환).
+관계: upstage.extract_text_from_file(PDF 처리 시 1차 시도).
+"""
 
 from pathlib import Path
 

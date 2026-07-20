@@ -1,3 +1,10 @@
+"""애플리케이션 설정 및 경로 상수.
+
+역할: .env 기반 Settings, 데이터·업로드·DB·이미지·프롬프트 디렉터리 경로를 정의한다.
+주요 기능: Upstage API 키·mock 모드, Vercel/로컬 환경별 DATA_DIR 분기, 디렉터리 자동 생성.
+관계: database, services, routers가 settings와 경로 상수를 import한다.
+"""
+
 from pathlib import Path
 import os
 

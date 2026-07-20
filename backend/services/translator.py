@@ -1,6 +1,11 @@
-"""Translation orchestration: LEGAL_DB + Solar fallback + checklist."""
-
 from __future__ import annotations
+
+"""쉬운 글(이지리드) 번역 오케스트레이션.
+
+역할: 요약 → LEGAL_DB 매칭 + Solar 번역 + 체크리스트 검사·자동 수정을 조율한다.
+주요 기능: translate_summary, refine_translation, run_checklist.
+관계: matcher, prompts, upstage, checklist, image_matcher, routers/documents.
+"""
 
 import uuid
 
