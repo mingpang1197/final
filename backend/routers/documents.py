@@ -30,6 +30,7 @@ from backend.models.schemas import (
     ChecklistReport,
     DocTypeUpdate,
     DocumentResponse,
+    DocumentEnsureRequest,
     ExportRequest,
     ImageCatalogItem,
     ImagePlacement,
@@ -233,6 +234,31 @@ async def _resolve_document(doc_id: str, body: ExportRequest | None) -> Document
         return await get_document(doc_id)
     return None
 
+
+async def _ensure_doc_from_request(
+    doc_id: str,
+    body: DocumentEnsureRequest | None,
+) -> DocumentResponse:
+    doc = await get_document(doc_id)
+    if doc:
+        return doc
+    if not body or not body.full_text:
+        raise HTTPException(404, "문서를 찾을 수 없습니다.")
+    pages = body.pages or [body.full_text]
+    await ensure_document(
+        doc_id,
+        filename=body.filename or "upload.pdf",
+        doc_type=body.doc_type or "unknown",
+        pages=pages,
+        full_text=body.full_text,
+    )
+    if body.summary is not None and body.summary.strip():
+        await update_summary(doc_id, body.summary)
+    doc = await get_document(doc_id)
+    if not doc:
+        raise HTTPException(404, "문서를 복구하지 못했습니다.")
+    return doc
+
 # --- 업로드·조회 ---
 
 
@@ -407,10 +433,11 @@ async def refine_summary(doc_id: str, body: RefineRequest) -> DocumentResponse:
 
 
 @router.post("/{doc_id}/translate", response_model=DocumentResponse)
-async def translate_document(doc_id: str) -> DocumentResponse:
-    doc = await get_document(doc_id)
-    if not doc:
-        raise HTTPException(404, "문서를 찾을 수 없습니다.")
+async def translate_document(
+    doc_id: str,
+    body: DocumentEnsureRequest | None = None,
+) -> DocumentResponse:
+    doc = await _ensure_doc_from_request(doc_id, body)
     if not doc.summary:
         raise HTTPException(400, "먼저 요약을 생성하세요.")
     if doc.translation_segments:
@@ -424,10 +451,11 @@ async def translate_document(doc_id: str) -> DocumentResponse:
 
 
 @router.post("/{doc_id}/translation/detect-placements", response_model=list[ImagePlacement])
-async def detect_translation_placements(doc_id: str) -> list[ImagePlacement]:
-    doc = await get_document(doc_id)
-    if not doc:
-        raise HTTPException(404, "문서를 찾을 수 없습니다.")
+async def detect_translation_placements(
+    doc_id: str,
+    body: DocumentEnsureRequest | None = None,
+) -> list[ImagePlacement]:
+    doc = await _ensure_doc_from_request(doc_id, body)
     text = doc.translation_text or "\n\n".join(
         s.easy_text for s in doc.translation_segments if s.easy_text
     )
@@ -448,6 +476,11 @@ async def patch_translation(doc_id: str, body: TranslationUpdate) -> DocumentRes
             pages=pages,
             full_text=body.full_text,
         )
+        doc = await get_document(doc_id)
+    if not doc:
+        raise HTTPException(404, "문서를 찾을 수 없습니다.")
+    if body.summary is not None and body.summary.strip():
+        await update_summary(doc_id, body.summary)
         doc = await get_document(doc_id)
     if not doc:
         raise HTTPException(404, "문서를 찾을 수 없습니다.")

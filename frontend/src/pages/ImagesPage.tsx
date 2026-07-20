@@ -6,7 +6,6 @@ import { Link, useParams } from "react-router-dom";
 import type { ImageCatalogItem, ImagePlacement, TranslationSegment } from "../api/client";
 import {
   detectImagePlacements,
-  getDocument,
   getImageCatalog,
   refineTranslation,
   updateTranslation,
@@ -16,7 +15,7 @@ import { TranslationSegmentView } from "../components/TranslationSegment";
 import { IconChevronLeft, IconChevronRight } from "../components/ui/icons";
 import { PanePanel } from "../components/ui/PanePanel";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
-import { ensurePayload, getCachedUpload } from "../utils/docCache";
+import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
 import {
@@ -49,14 +48,16 @@ export function ImagesPage() {
     setError("");
     const workflow = getWorkflowSnapshot(id);
 
+    const ensure = buildEnsureContext(id);
+
     try {
-      const doc = await getDocument(id);
+      const doc = await loadDocumentWithRecovery(id);
       setFilename(doc.filename);
       let segs = sanitizeSegments(resolveTranslationSegments(id, doc.translation_segments));
       const main = segs[0];
       if (main?.easy_text && !(main.image_placements?.length ?? 0)) {
         try {
-          const placements = await detectImagePlacements(id);
+          const placements = await detectImagePlacements(id, ensure);
           if (placements.length) {
             segs = segs.map((s, i) =>
               i === 0 ? { ...s, image_placements: placements } : s,
@@ -105,8 +106,12 @@ export function ImagesPage() {
     if (!id || segments.length === 0) return;
     setSaveStatus("saving");
     try {
-      const cached = getCachedUpload(id);
-      await updateTranslation(id, segments, ensurePayload(cached));
+      const ensure = buildEnsureContext(id);
+      if (ensure) {
+        await updateTranslation(id, segments, ensure);
+      } else {
+        await updateTranslation(id, segments);
+      }
       saveWorkflowSnapshot(id, { translation_segments: segments });
       setSaveStatus("saved");
     } catch (err) {

@@ -4,7 +4,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
-  getDocument,
   getPage,
   refineSummary,
   summarize,
@@ -18,6 +17,7 @@ import {
   getCachedUpload,
   summarizeFallbackBody,
 } from "../utils/docCache";
+import { loadDocumentWithRecovery } from "../utils/documentLoader";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
 import {
   getWorkflowSnapshot,
@@ -52,16 +52,7 @@ export function SummaryPage() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   async function loadDocumentWithRetry(docId: string) {
-    let lastErr: unknown;
-    for (let i = 0; i < 5; i += 1) {
-      try {
-        return await getDocument(docId);
-      } catch (err) {
-        lastErr = err;
-        await new Promise((resolve) => setTimeout(resolve, 250 * (i + 1)));
-      }
-    }
-    throw lastErr;
+    return loadDocumentWithRecovery(docId);
   }
 
   const persistSummary = useCallback(async () => {

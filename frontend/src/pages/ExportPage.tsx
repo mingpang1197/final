@@ -6,14 +6,19 @@ import { Link, useParams } from "react-router-dom";
 import type { ChecklistReport, TranslationSegment } from "../api/client";
 import {
   downloadDocx,
-  getDocument,
   runChecklist,
 } from "../api/client";
 import { ChecklistPanel } from "../components/ChecklistPanel";
 import { IconChevronLeft } from "../components/ui/icons";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { getCachedUpload } from "../utils/docCache";
+import { loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
+import {
+  getWorkflowSnapshot,
+  resolveSummary,
+  resolveTranslationSegments,
+} from "../utils/workflowCache";
 
 export function ExportPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,17 +35,18 @@ export function ExportPage() {
     if (!id) return;
     setError("");
     try {
-      const doc = await getDocument(id);
+      const doc = await loadDocumentWithRecovery(id);
       setFilename(doc.filename);
-      setSummary(doc.summary || "");
-      setSegments(doc.translation_segments);
+      setSummary(resolveSummary(id, doc.summary));
+      const segs = resolveTranslationSegments(id, doc.translation_segments);
+      setSegments(segs);
       const text =
         doc.translation_text ||
-        doc.translation_segments.map((s) => s.easy_text).filter(Boolean).join("\n\n");
+        segs.map((s) => s.easy_text).filter(Boolean).join("\n\n");
       setPreviewText(text ? sanitizeTranslationText(text) : "");
       if (doc.checklist) {
         setChecklist(doc.checklist);
-      } else {
+      } else if (segs.length > 0) {
         setLoading(true);
         try {
           const report = await runChecklist(id);
@@ -52,6 +58,19 @@ export function ExportPage() {
         }
       }
     } catch (err) {
+      const workflow = getWorkflowSnapshot(id);
+      const cached = getCachedUpload(id);
+      const segs = resolveTranslationSegments(id, workflow?.translation_segments ?? []);
+      if (segs.length) {
+        setFilename(workflow?.filename ?? cached?.filename ?? "");
+        setSummary(resolveSummary(id, workflow?.summary));
+        setSegments(segs);
+        const text =
+          workflow?.translation_text ??
+          segs.map((s) => s.easy_text).filter(Boolean).join("\n\n");
+        setPreviewText(text ? sanitizeTranslationText(text) : "");
+        return;
+      }
       setError(err instanceof Error ? err.message : "문서를 불러오지 못했습니다");
     }
   }, [id]);

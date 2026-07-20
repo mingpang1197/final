@@ -39,18 +39,22 @@ HEAD   /api/documents/{doc_id}/source
 POST   /api/documents/{doc_id}/summarize
 - AI 요약 생성
 - Query: force(boolean)
+- Request (optional, 서버 문서 유실 시 복구): { full_text, doc_type, filename, pages }
 
 PATCH  /api/documents/{doc_id}/summary
 - 요약 수동 수정
+- Request: { summary, full_text?, doc_type?, filename?, pages? }
 
 POST   /api/documents/{doc_id}/summary/refine
 - AI로 요약 수정
 
 POST   /api/documents/{doc_id}/translate
 - 쉬운 글 생성
+- Request (optional, 서버 문서 유실 시 복구): { full_text, doc_type, filename, pages, summary? }
 
 PATCH  /api/documents/{doc_id}/translation
 - 쉬운 글 수정
+- Request: { segments, full_text?, doc_type?, filename?, pages?, summary? }
 
 POST   /api/documents/{doc_id}/translation/refine
 - AI로 쉬운 글 수정
@@ -60,8 +64,7 @@ POST   /api/documents/{doc_id}/translation/checklist
 
 POST   /api/documents/{doc_id}/translation/detect-placements
 - 이미지 배치 추천
+- Request (optional, 서버 문서 유실 시 복구): { full_text, doc_type, filename, pages, summary? }
 
 GET    /api/documents/{doc_id}/export.docx
-- Word 다운로드
-PATCH  /api/documents/{doc_id}/doc-type
-- 사건 유형 수동 변경 (criminal|civil|family|administrative)
+- Word 다운로드 (POST body로 segments 등 전달 가능)

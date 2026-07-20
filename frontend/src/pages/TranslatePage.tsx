@@ -6,7 +6,6 @@ import { Link, useParams } from "react-router-dom";
 import type { ImagePlacement, TranslationSegment } from "../api/client";
 import {
   detectImagePlacements,
-  getDocument,
   refineTranslation,
   translate,
   updateTranslation,
@@ -16,7 +15,7 @@ import { TranslationSegmentView } from "../components/TranslationSegment";
 import { IconChevronLeft, IconChevronRight } from "../components/ui/icons";
 import { PanePanel } from "../components/ui/PanePanel";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
-import { ensurePayload, getCachedUpload } from "../utils/docCache";
+import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
 import {
@@ -48,8 +47,10 @@ export function TranslatePage() {
     setError("");
     const workflow = getWorkflowSnapshot(id);
 
+    const ensure = buildEnsureContext(id);
+
     try {
-      const doc = await getDocument(id);
+      const doc = await loadDocumentWithRecovery(id);
       setFilename(doc.filename);
       setSummary(resolveSummary(id, doc.summary));
       const resolved = resolveTranslationSegments(id, doc.translation_segments);
@@ -58,7 +59,7 @@ export function TranslatePage() {
         const main = segs[0];
         if (main?.easy_text && !(main.image_placements?.length ?? 0)) {
           try {
-            const placements = await detectImagePlacements(id);
+            const placements = await detectImagePlacements(id, ensure);
             if (placements.length) {
               segs = segs.map((s, i) =>
                 i === 0 ? { ...s, image_placements: placements } : s,
@@ -77,7 +78,7 @@ export function TranslatePage() {
       } else {
         setLoading(true);
         try {
-          const updated = await translate(id);
+          const updated = await translate(id, ensure);
           const segs = sanitizeSegments(updated.translation_segments);
           setSegments(segs);
           saveWorkflowSnapshot(id, {
@@ -111,8 +112,15 @@ export function TranslatePage() {
     if (!id || segments.length === 0) return;
     setSaveStatus("saving");
     try {
-      const cached = getCachedUpload(id);
-      await updateTranslation(id, segments, ensurePayload(cached));
+      const ensure = buildEnsureContext(id);
+      if (ensure) {
+        await updateTranslation(id, segments, {
+          ...ensure,
+          summary: summary || ensure.summary,
+        });
+      } else {
+        await updateTranslation(id, segments);
+      }
       saveWorkflowSnapshot(id, {
         translation_segments: segments,
         translation_text: segments.map((s) => s.easy_text).filter(Boolean).join("\n\n"),

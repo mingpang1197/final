@@ -84,11 +84,23 @@ export interface UploadResult {
   full_text?: string;
 }
 
+async function parseErrorResponse(res: Response): Promise<string> {
+  const text = await res.text();
+  if (!text) return res.statusText;
+  try {
+    const body = JSON.parse(text) as { detail?: unknown };
+    if (typeof body.detail === "string") return body.detail;
+    if (body.detail != null) return JSON.stringify(body.detail);
+  } catch {
+    /* not JSON */
+  }
+  return text;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, init);
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || res.statusText);
+    throw new Error(await parseErrorResponse(res));
   }
   if (res.headers.get("content-type")?.includes("application/json")) {
     return res.json();
@@ -160,8 +172,15 @@ export async function refineSummary(id: string, prompt: string): Promise<Documen
   });
 }
 
-export async function translate(id: string): Promise<Document> {
-  return request<Document>(`/documents/${id}/translate`, { method: "POST" });
+export async function translate(
+  id: string,
+  ensure?: EnsurePayload & { summary?: string },
+): Promise<Document> {
+  return request<Document>(`/documents/${id}/translate`, {
+    method: "POST",
+    headers: ensure ? { "Content-Type": "application/json" } : undefined,
+    body: ensure ? JSON.stringify(ensure) : undefined,
+  });
 }
 
 export async function updateTranslation(
@@ -216,8 +235,7 @@ export async function downloadDocx(id: string, payload: ExportPayload): Promise<
     }),
   });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || res.statusText);
+    throw new Error(await parseErrorResponse(res));
   }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
@@ -235,8 +253,13 @@ export async function getImageCatalog(query = ""): Promise<ImageCatalogItem[]> {
   return request<ImageCatalogItem[]>(`/documents/catalog/images${q}`);
 }
 
-export async function detectImagePlacements(docId: string): Promise<ImagePlacement[]> {
+export async function detectImagePlacements(
+  docId: string,
+  ensure?: EnsurePayload & { summary?: string },
+): Promise<ImagePlacement[]> {
   return request<ImagePlacement[]>(`/documents/${docId}/translation/detect-placements`, {
     method: "POST",
+    headers: ensure ? { "Content-Type": "application/json" } : undefined,
+    body: ensure ? JSON.stringify(ensure) : undefined,
   });
 }

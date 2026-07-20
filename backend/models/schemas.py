@@ -96,6 +96,16 @@ class SummarizeRequest(BaseModel):
     pages: list[str] | None = None
 
 
+class DocumentEnsureRequest(BaseModel):
+    """서버리스 환경에서 문서 메타가 유실됐을 때 클라이언트가 복구하는 페이로드."""
+
+    full_text: str | None = None
+    doc_type: DocType | None = None
+    filename: str | None = None
+    pages: list[str] | None = None
+    summary: str | None = None
+
+
 class DocTypeUpdate(BaseModel):
     doc_type: DocType
 
