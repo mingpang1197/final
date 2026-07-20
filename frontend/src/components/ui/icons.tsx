@@ -63,10 +63,21 @@ export function IconUploadCloud({ className = "size-8" }: { className?: string }
   );
 }
 
-export function IconChat({ className = "size-10" }: { className?: string }) {
+export function IconChatSolid({ className = "size-10" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="white" aria-hidden>
-      <path d="M4 4H20V16H8L4 20V4Z" />
+    <svg className={className} viewBox="0 0 40 40" fill="none" aria-hidden>
+      <path
+        d="M8 10C8 8.34315 9.34315 7 11 7H25C26.6569 7 28 8.34315 28 10V22C28 23.6569 26.6569 25 25 25H16L10 29V25H11C9.34315 25 8 23.6569 8 22V10Z"
+        fill="white"
+      />
+      <rect x="14" y="15" width="3" height="3" rx="0.5" fill="#0F62FE" />
+      <rect x="18.5" y="15" width="3" height="3" rx="0.5" fill="#0F62FE" />
+      <rect x="23" y="15" width="3" height="3" rx="0.5" fill="#0F62FE" />
     </svg>
   );
+}
+
+/** @deprecated IconChatSolid 사용 */
+export function IconChat({ className = "size-10" }: { className?: string }) {
+  return <IconChatSolid className={className} />;
 }

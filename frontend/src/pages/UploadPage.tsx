@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { type DocType, uploadDocument, updateDocType } from "../api/client";
 import { ExistingProjectsTable } from "../components/ui/ExistingProjectsTable";
+import { ChatbotWidget } from "../components/ui/ChatbotWidget";
 import { IconUploadCloud } from "../components/ui/icons";
 import { StepIndicator } from "../components/ui/StepIndicator";
 import { UploadCaseTypeBar } from "../components/ui/UploadCaseTypeBar";
@@ -145,6 +146,8 @@ export function UploadPage() {
           <ExistingProjectsTable />
         </div>
       </div>
+
+      <ChatbotWidget />
     </div>
   );
 }

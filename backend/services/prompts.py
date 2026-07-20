@@ -12,7 +12,7 @@ from typing import Any
 
 import yaml
 
-from backend.config import PROMPTS_DIR
+from backend.config import DATA_DIR, PROMPTS_DIR
 from backend.models.schemas import DocType
 
 DOC_TYPE_FILES: dict[DocType, str] = {
@@ -191,3 +191,23 @@ def _format_examples(examples: list[Any]) -> str:
         blocks.append(f"[판결원문]\n{ex.get('source', '').strip()}")
         blocks.append(f"[이지리드]\n{ex.get('easy_read', '').strip()}")
     return "\n\n".join(blocks)
+
+
+CHATBOT_PROMPT_OVERRIDE = DATA_DIR / "chatbot_prompt.yaml"
+
+
+def load_chatbot_prompt() -> str:
+    """챗봇 system prompt — 사용자 수정본(data/) 우선, 없으면 기본 YAML."""
+    if CHATBOT_PROMPT_OVERRIDE.exists():
+        data = _load_yaml(CHATBOT_PROMPT_OVERRIDE)
+        custom = (data.get("system_prompt") or "").strip()
+        if custom:
+            return custom
+    data = _load_yaml(PROMPTS_DIR / "chatbot.yaml")
+    return (data.get("system_prompt") or "당신은 ERAI 판결문 보조 챗봇입니다.").strip()
+
+
+def save_chatbot_prompt(system_prompt: str) -> None:
+    CHATBOT_PROMPT_OVERRIDE.parent.mkdir(parents=True, exist_ok=True)
+    with CHATBOT_PROMPT_OVERRIDE.open("w", encoding="utf-8") as f:
+        yaml.safe_dump({"system_prompt": system_prompt.strip()}, f, allow_unicode=True, sort_keys=False)

@@ -166,8 +166,28 @@ def _split_pages(text: str) -> list[str]:
 
 
 async def chat_completion(system: str, user: str, *, max_tokens: int = 4096) -> str:
+    return await chat_completion_messages(
+        [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        max_tokens=max_tokens,
+    )
+
+
+async def chat_completion_messages(
+    messages: list[dict[str, str]],
+    *,
+    max_tokens: int = 4096,
+    temperature: float = 0.2,
+) -> str:
     if settings.use_mock:
-        return _mock_chat(system, user)
+        user_parts = [m["content"] for m in messages if m.get("role") == "user"]
+        system_parts = [m["content"] for m in messages if m.get("role") == "system"]
+        return _mock_chat(
+            system_parts[-1] if system_parts else "",
+            user_parts[-1] if user_parts else "",
+        )
 
     async with httpx.AsyncClient(timeout=180.0) as client:
         response = await client.post(
@@ -178,11 +198,8 @@ async def chat_completion(system: str, user: str, *, max_tokens: int = 4096) -> 
             },
             json={
                 "model": settings.solar_model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                "temperature": 0.2,
+                "messages": messages,
+                "temperature": temperature,
                 "max_tokens": max_tokens,
             },
         )
@@ -212,6 +229,26 @@ def _mock_summarize_from_text(text: str) -> str:
 
 
 def _mock_chat(system: str, user: str) -> str:
+    if "ERAI" in system or "## 사용자 질문" in user:
+        if "웹 검색 결과" in user:
+            return (
+                "웹 검색을 참고한 답변입니다. (mock)\n\n"
+                "이지리드(Easy Read)는 어려운 판결문을 쉬운 말과 그림으로 바꿔 주는 형식입니다. "
+                "ERAI 서비스에서는 업로드 → 요약 → 번역 → 그림 → 추출 순서로 진행합니다."
+            )
+        if "DB 자료" in user and "(DB에서 관련" not in user.split("## DB 자료")[1][:80]:
+            return (
+                "DB 자료를 바탕으로 답변드립니다. (mock)\n\n"
+                "'징역'은 일정 기간 감옥에 머물러야 한다는 뜻입니다. "
+                "이지리드에서는 '감옥에 ○년 동안 있어야 합니다'처럼 쉽게 풀어 씁니다."
+            )
+        if "NEED_WEB_SEARCH" in user.upper():
+            return "NEED_WEB_SEARCH"
+        return (
+            "안녕하세요! ERAI 챗봇입니다. (mock)\n"
+            "판결문·이지리드·서비스 사용법을 물어보세요."
+        )
+
     if "체크리스트" in user and "현재 번역본" in user:
         body = user.split("## 현재 번역본")[-1].strip()
         return body.split("\n\n(모의")[0].strip()

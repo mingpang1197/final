@@ -263,3 +263,38 @@ export async function detectImagePlacements(
     body: ensure ? JSON.stringify(ensure) : undefined,
   });
 }
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatResponse {
+  reply: string;
+  sources: string[];
+}
+
+export async function sendChatMessage(
+  message: string,
+  history: ChatMessage[] = [],
+  docId?: string,
+): Promise<ChatResponse> {
+  const path = docId ? `/chat/documents/${docId}` : "/chat";
+  return request<ChatResponse>(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, history }),
+  });
+}
+
+export async function getChatPrompt(): Promise<{ system_prompt: string }> {
+  return request<{ system_prompt: string }>("/chat/prompt");
+}
+
+export async function updateChatPrompt(systemPrompt: string): Promise<{ system_prompt: string }> {
+  return request<{ system_prompt: string }>("/chat/prompt", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ system_prompt: systemPrompt }),
+  });
+}

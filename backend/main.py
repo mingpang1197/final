@@ -20,7 +20,7 @@ from starlette.requests import Request
 
 from backend.config import BACKEND_DIR, IMAGES_DIR, IS_VERCEL, settings
 from backend.database import init_db
-from backend.routers import documents
+from backend.routers import chat, documents
 
 STATIC_DIR = BACKEND_DIR / "static"
 
@@ -76,6 +76,7 @@ if IMAGES_DIR.exists():
     app.mount("/images", StaticFiles(directory=str(IMAGES_DIR)), name="images")
 
 app.include_router(documents.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
 
 # --- 헬스체크 ---
 

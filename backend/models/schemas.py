@@ -124,3 +124,26 @@ class ImageCatalogItem(BaseModel):
     image_file: str
     title: str
     url: str
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list[ChatMessage] = Field(default_factory=list)
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    sources: list[str] = Field(default_factory=list)
+
+
+class ChatPromptResponse(BaseModel):
+    system_prompt: str
+
+
+class ChatPromptUpdate(BaseModel):
+    system_prompt: str

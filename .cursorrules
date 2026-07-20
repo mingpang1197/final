@@ -68,3 +68,21 @@ POST   /api/documents/{doc_id}/translation/detect-placements
 
 GET    /api/documents/{doc_id}/export.docx
 - Word 다운로드 (POST body로 segments 등 전달 가능)
+
+POST   /api/chat
+- ERAI 챗봇 (Solar) — DB(LEGAL_DB) 우선, 부족 시 웹 검색
+- Request: { message, history?: [{ role: "user"|"assistant", content }] }
+- Response: { reply, sources: ["db"|"document"|"web"|"solar"] }
+
+POST   /api/chat/documents/{doc_id}
+- 문서 맥락 포함 챗봇
+- Request/Response: POST /api/chat 와 동일
+
+GET    /api/chat/prompt
+- 챗봇 system prompt 조회
+- Response: { system_prompt }
+
+PATCH  /api/chat/prompt
+- 챗봇 system prompt 수정 (data/chatbot_prompt.yaml 저장)
+- Request: { system_prompt }
+- Response: { system_prompt }

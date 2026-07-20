@@ -3,7 +3,7 @@
  */
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { IconChat } from "./icons";
+import { ChatbotWidget } from "./ChatbotWidget";
 import { StepIndicator, type WorkflowStep } from "./StepIndicator";
 
 interface WorkflowLayoutProps {
@@ -101,14 +101,7 @@ export function WorkflowLayout({
         {footerExtra}
       </div>
 
-      <button
-        type="button"
-        className="fixed bottom-6 right-6 size-16 rounded-full bg-primary-60 border-2 border-primary-60 flex items-center justify-center shadow-lg hover:bg-primary-90 transition-colors"
-        aria-label="도움말"
-        title="도움말 (준비 중)"
-      >
-        <IconChat className="size-8" />
-      </button>
+      <ChatbotWidget docId={docId} />
     </div>
   );
 }
