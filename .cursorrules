@@ -69,6 +69,14 @@ POST   /api/documents/{doc_id}/translation/detect-placements
 GET    /api/documents/{doc_id}/export.docx
 - Word 다운로드 (POST body로 segments 등 전달 가능)
 
+GET    /api/documents/{doc_id}/export.pdf
+- PDF 미리보기 (inline, POST body로 segments 등 전달 가능)
+
+POST   /api/documents/{doc_id}/export.pdf
+- PDF 생성·다운로드
+- Query: download(boolean) — true면 attachment, false면 inline 미리보기
+- Request (optional): ExportRequest (segments, summary, filename 등)
+
 POST   /api/chat
 - ERAI 챗봇 (Solar) — DB(LEGAL_DB) 우선, 부족 시 웹 검색
 - Request: { message, history?: [{ role: "user"|"assistant", content }] }

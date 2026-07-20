@@ -34,7 +34,7 @@ export function WorkflowLayout({
   const compact = headerVariant === "compact";
 
   return (
-    <div className="min-h-screen bg-coolgray-10 flex flex-col">
+    <div className="h-screen overflow-hidden bg-coolgray-10 flex flex-col">
       <div className={`px-6 ${compact ? "pt-4 pb-0" : "pt-6 pb-0"}`}>
         <div className={`flex items-start justify-between gap-6 ${compact ? "mb-3" : "mb-6"}`}>
           <h1

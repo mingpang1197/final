@@ -195,10 +195,10 @@ export function TranslatePage() {
       filename={filenameLabel}
       error={error || undefined}
     >
-      <div className="flex-1 grid grid-cols-2 gap-5 min-h-0 px-5 pt-4 pb-5">
-        <div className="min-h-0 flex flex-col gap-3">
+      <div className="flex-1 grid grid-cols-2 gap-5 min-h-0 overflow-hidden px-5 pt-4 pb-5">
+        <div className="min-h-0 flex flex-col gap-3 overflow-hidden">
           <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
-          <div className="flex-1 min-h-[399px] flex flex-col border border-coolgray-40 overflow-hidden bg-white">
+          <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-white">
             <pre
               className={`flex-1 min-h-0 w-full px-4 py-3 text-base overflow-auto whitespace-pre-wrap leading-relaxed text-coolgray-90 ${
                 summaryPlaceholder ? "text-coolgray-60 text-center flex items-center justify-center" : ""
@@ -209,10 +209,10 @@ export function TranslatePage() {
           </div>
         </div>
 
-        <div className="min-h-0 flex flex-col gap-3">
+        <div className="min-h-0 flex flex-col gap-3 overflow-hidden">
           <p className="text-center text-base text-primary-90 shrink-0">번역문</p>
 
-          <div className="flex-1 min-h-[399px] flex flex-col border border-coolgray-40 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden">
             <textarea
               className="flex-1 min-h-0 w-full px-4 py-3 bg-coolgray-10 border-b border-coolgray-30 text-base resize-none overflow-auto leading-relaxed outline-none text-coolgray-90 placeholder:text-coolgray-60 placeholder:text-center disabled:opacity-60"
               value={translationText}

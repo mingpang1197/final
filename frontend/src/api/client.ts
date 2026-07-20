@@ -213,6 +213,11 @@ export function exportDocxUrl(id: string): string {
   return `${API_BASE}/documents/${id}/export.docx`;
 }
 
+export function exportPdfUrl(id: string, download = false): string {
+  const q = download ? "?download=true" : "";
+  return `${API_BASE}/documents/${id}/export.pdf${q}`;
+}
+
 export interface ExportPayload {
   segments: TranslationSegment[];
   translation_text?: string;
@@ -223,16 +228,52 @@ export interface ExportPayload {
   pages?: string[];
 }
 
+function buildExportBody(payload: ExportPayload) {
+  return {
+    ...payload,
+    translation_text:
+      payload.translation_text ??
+      payload.segments.map((s) => s.easy_text).filter(Boolean).join("\n\n"),
+  };
+}
+
+export async function fetchExportPdf(id: string, payload: ExportPayload): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/documents/${id}/export.pdf`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildExportBody(payload)),
+  });
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res));
+  }
+  return res.blob();
+}
+
+export async function downloadPdf(id: string, payload: ExportPayload): Promise<void> {
+  const res = await fetch(`${API_BASE}/documents/${id}/export.pdf?download=true`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildExportBody(payload)),
+  });
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res));
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `easyread_${id.slice(0, 8)}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function downloadDocx(id: string, payload: ExportPayload): Promise<void> {
   const res = await fetch(`${API_BASE}/documents/${id}/export.docx`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      ...payload,
-      translation_text:
-        payload.translation_text ??
-        payload.segments.map((s) => s.easy_text).filter(Boolean).join("\n\n"),
-    }),
+    body: JSON.stringify(buildExportBody(payload)),
   });
   if (!res.ok) {
     throw new Error(await parseErrorResponse(res));

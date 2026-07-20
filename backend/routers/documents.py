@@ -41,7 +41,7 @@ from backend.models.schemas import (
     UploadResponse,
 )
 from backend.services.image_matcher import detect_image_placements, list_image_catalog
-from backend.services import parser, prompts, translator, upstage, word_export
+from backend.services import parser, prompts, translator, upstage, word_export, pdf_export
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -546,4 +546,45 @@ async def _export_docx(doc_id: str, body: ExportRequest | None) -> Response:
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="easyread_{doc_id[:8]}.docx"'},
+    )
+
+
+# --- PDF 내보내기 ---
+
+
+@router.get("/{doc_id}/export.pdf")
+async def export_pdf_get(doc_id: str) -> Response:
+    return await _export_pdf(doc_id, None, inline=True)
+
+
+@router.post("/{doc_id}/export.pdf")
+async def export_pdf_post(
+    doc_id: str,
+    body: ExportRequest | None = None,
+    download: bool = Query(False),
+) -> Response:
+    return await _export_pdf(doc_id, body, inline=not download)
+
+
+async def _export_pdf(
+    doc_id: str,
+    body: ExportRequest | None,
+    *,
+    inline: bool,
+) -> Response:
+    doc = await _resolve_document(doc_id, body)
+    doc = _doc_for_export(doc_id, doc, body)
+    if not doc:
+        raise HTTPException(404, "문서를 찾을 수 없습니다.")
+    if not doc.translation_text and not doc.summary and not doc.translation_segments:
+        raise HTTPException(400, "내보낼 내용이 없습니다.")
+
+    content = pdf_export.export_to_pdf(doc)
+    disposition = "inline" if inline else "attachment"
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'{disposition}; filename="easyread_{doc_id[:8]}.pdf"'
+        },
     )

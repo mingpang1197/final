@@ -1,19 +1,14 @@
 /**
- * Word 출력 페이지 (워크플로 5단계) — Figma 출력 UI.
+ * PDF 추출 페이지 (워크플로 5단계) — Figma 추출 80% ERAI UI.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import type { ChecklistReport, TranslationSegment } from "../api/client";
-import {
-  downloadDocx,
-  runChecklist,
-} from "../api/client";
-import { ChecklistPanel } from "../components/ChecklistPanel";
-import { IconChevronLeft } from "../components/ui/icons";
+import type { TranslationSegment } from "../api/client";
+import { downloadPdf, fetchExportPdf } from "../api/client";
+import { IconArrowRight } from "../components/ui/icons";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { getCachedUpload } from "../utils/docCache";
 import { loadDocumentWithRecovery } from "../utils/documentLoader";
-import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import {
   getWorkflowSnapshot,
   resolveSummary,
@@ -25,11 +20,11 @@ export function ExportPage() {
   const [filename, setFilename] = useState("");
   const [summary, setSummary] = useState("");
   const [segments, setSegments] = useState<TranslationSegment[]>([]);
-  const [previewText, setPreviewText] = useState("");
-  const [checklist, setChecklist] = useState<ChecklistReport | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
+  const previewUrlRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -38,25 +33,7 @@ export function ExportPage() {
       const doc = await loadDocumentWithRecovery(id);
       setFilename(doc.filename);
       setSummary(resolveSummary(id, doc.summary));
-      const segs = resolveTranslationSegments(id, doc.translation_segments);
-      setSegments(segs);
-      const text =
-        doc.translation_text ||
-        segs.map((s) => s.easy_text).filter(Boolean).join("\n\n");
-      setPreviewText(text ? sanitizeTranslationText(text) : "");
-      if (doc.checklist) {
-        setChecklist(doc.checklist);
-      } else if (segs.length > 0) {
-        setLoading(true);
-        try {
-          const report = await runChecklist(id);
-          setChecklist(report);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : "체크리스트 검사 실패");
-        } finally {
-          setLoading(false);
-        }
-      }
+      setSegments(resolveTranslationSegments(id, doc.translation_segments));
     } catch (err) {
       const workflow = getWorkflowSnapshot(id);
       const cached = getCachedUpload(id);
@@ -65,10 +42,6 @@ export function ExportPage() {
         setFilename(workflow?.filename ?? cached?.filename ?? "");
         setSummary(resolveSummary(id, workflow?.summary));
         setSegments(segs);
-        const text =
-          workflow?.translation_text ??
-          segs.map((s) => s.easy_text).filter(Boolean).join("\n\n");
-        setPreviewText(text ? sanitizeTranslationText(text) : "");
         return;
       }
       setError(err instanceof Error ? err.message : "문서를 불러오지 못했습니다");
@@ -79,36 +52,72 @@ export function ExportPage() {
     load().catch(console.error);
   }, [load]);
 
-  async function handleRecheck() {
-    if (!id) return;
-    setLoading(true);
-    setError("");
-    try {
-      const report = await runChecklist(id);
-      setChecklist(report);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "체크리스트 검사 실패");
-    } finally {
-      setLoading(false);
+  const buildExportPayload = useCallback(() => {
+    const cached = id ? getCachedUpload(id) : null;
+    return {
+      segments,
+      summary,
+      filename,
+      doc_type: cached?.doc_type,
+      full_text: cached?.full_text,
+      pages: cached?.pages,
+    };
+  }, [id, segments, summary, filename]);
+
+  useEffect(() => {
+    if (!id || segments.length === 0) {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
+      setPreviewUrl(null);
+      return;
     }
-  }
+
+    let cancelled = false;
+    setPreviewLoading(true);
+    setError("");
+
+    fetchExportPdf(id, buildExportPayload())
+      .then((blob) => {
+        if (cancelled) return;
+        if (previewUrlRef.current) {
+          URL.revokeObjectURL(previewUrlRef.current);
+        }
+        const url = URL.createObjectURL(blob);
+        previewUrlRef.current = url;
+        setPreviewUrl(url);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "PDF 미리보기 생성 실패");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, segments, buildExportPayload]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+    };
+  }, []);
 
   async function handleExport() {
     if (!id || segments.length === 0) return;
     setExporting(true);
     setError("");
     try {
-      const cached = getCachedUpload(id);
-      await downloadDocx(id, {
-        segments,
-        summary,
-        filename,
-        doc_type: cached?.doc_type,
-        full_text: cached?.full_text,
-        pages: cached?.pages,
-      });
+      await downloadPdf(id, buildExportPayload());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Word 출력 실패");
+      setError(err instanceof Error ? err.message : "PDF 추출 실패");
     } finally {
       setExporting(false);
     }
@@ -118,52 +127,54 @@ export function ExportPage() {
     <WorkflowLayout
       step="export"
       docId={id}
-      projectTitle="프로젝트 이름"
+      headerVariant="compact"
+      projectTitle={
+        <>
+          ER<span className="text-primary-60">AI</span>
+        </>
+      }
       filename={filename || "파일명"}
       error={error || undefined}
     >
-      <div className="flex-1 flex flex-col min-h-0 px-5 pt-2 pb-6">
-        {id && (
-          <Link
-            to={`/documents/${id}/images`}
-            className="inline-flex items-center gap-1 h-10 px-2 mb-2 text-coolgray-60 hover:text-primary-60 font-medium text-base w-fit shrink-0"
-          >
-            <IconChevronLeft className="size-6" />
-            그림
-          </Link>
-        )}
-
-        <div className="flex-1 flex flex-col items-center gap-5 min-h-0">
-          <details className="w-full max-w-[1025px] shrink-0 group">
-            <summary className="text-sm text-coolgray-60 cursor-pointer hover:text-primary-60 list-none flex items-center gap-1">
-              <span className="group-open:rotate-90 transition-transform inline-block">›</span>
-              품질 체크리스트
-              {checklist && (
-                <span className="text-coolgray-40">
-                  (통과 {checklist.summary.pass} · 주의 {checklist.summary.warn} · 수정{" "}
-                  {checklist.summary.fail})
-                </span>
-              )}
-            </summary>
-            <div className="mt-2">
-              <ChecklistPanel checklist={checklist} onRecheck={handleRecheck} loading={loading} />
-            </div>
-          </details>
-
-          <div className="w-full max-w-[1025px] flex-1 min-h-[420px] border border-coolgray-40 bg-white overflow-auto">
-            <pre className="p-6 text-base whitespace-pre-wrap leading-relaxed text-coolgray-90 min-h-full">
-              {previewText || "(번역 내용이 없습니다)"}
-            </pre>
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-5 pt-4 pb-5">
+        <div className="flex-1 flex flex-col items-center gap-4 min-h-0 overflow-hidden w-full max-w-[916px] mx-auto">
+          <div className="w-full flex-1 min-h-0 border border-coolgray-30 bg-[#323639] overflow-hidden rounded-sm shadow-inner">
+            {previewLoading ? (
+              <div className="h-full flex items-center justify-center text-white/80 text-base">
+                PDF 미리보기 생성 중...
+              </div>
+            ) : previewUrl ? (
+              <iframe
+                title="PDF 미리보기"
+                src={`${previewUrl}#toolbar=1&navpanes=0`}
+                className="w-full h-full border-0 bg-[#323639]"
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center text-white/70 text-base px-6 text-center">
+                {segments.length === 0
+                  ? "번역 내용이 없어 PDF를 생성할 수 없습니다."
+                  : "PDF 미리보기를 불러올 수 없습니다."}
+              </div>
+            )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={exporting || segments.length === 0}
-            className="w-[317px] h-12 shrink-0 bg-primary-60 border-2 border-primary-60 text-white text-xl font-medium hover:bg-primary-90 disabled:opacity-50 transition-colors"
-          >
-            {exporting ? "출력 중..." : "추출하기"}
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-4 shrink-0 w-full max-w-[556px]">
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting || previewLoading || segments.length === 0}
+              className="inline-flex h-14 min-w-[270px] flex-1 items-center justify-center gap-2 bg-primary-60 border-2 border-primary-60 px-4 text-white text-xl font-medium tracking-wide hover:bg-primary-90 disabled:opacity-50 transition-colors"
+            >
+              {exporting ? "추출 중..." : "PDF 추출하기"}
+              <IconArrowRight className="size-6 text-white" />
+            </button>
+            <Link
+              to="/"
+              className="inline-flex h-14 min-w-[270px] flex-1 items-center justify-center border-2 border-primary-60 px-4 text-primary-60 text-xl font-medium tracking-wide hover:bg-primary-60/5 transition-colors text-center"
+            >
+              업로드 화면으로 돌아가기
+            </Link>
+          </div>
         </div>
       </div>
     </WorkflowLayout>
