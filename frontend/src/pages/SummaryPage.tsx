@@ -15,7 +15,6 @@ import {
 } from "../api/client";
 import { PageNavigator } from "../components/PageNavigator";
 import { PromptBar } from "../components/PromptBar";
-import { A4Sheet } from "../components/ui/A4Sheet";
 import { DocTypePills } from "../components/ui/DocTypePills";
 import { PanePanel } from "../components/ui/PanePanel";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
@@ -235,23 +234,14 @@ export function SummaryPage() {
 
       <div className="flex-1 grid grid-cols-2 gap-3 p-3 min-h-0 h-full">
         <PanePanel title="원문">
-          <div className="flex flex-col flex-1 min-h-0 gap-1">
-            {!sourcePreviewUrl || !sourceReady ? (
-              <PageNavigator current={pageNum} total={pageCount} onChange={setPageNum} />
-            ) : null}
-            <A4Sheet>
-              {sourcePreviewUrl && sourceReady ? (
-                <iframe
-                  title="업로드 원문"
-                  src={sourcePreviewUrl}
-                  className="w-full h-full min-h-0 border-0 block"
-                />
-              ) : (
-                <pre className="a4-sheet-body whitespace-pre-wrap">{originalPage}</pre>
-              )}
-            </A4Sheet>
-            {sourcePreviewUrl && sourceReady ? (
-              <div className="shrink-0 px-1 py-0.5 text-xs text-coolgray-60 flex justify-between">
+          {sourcePreviewUrl && sourceReady ? (
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <iframe
+                title="업로드 원문"
+                src={sourcePreviewUrl}
+                className="w-full flex-1 min-h-0 border-0"
+              />
+              <div className="px-2 py-1 text-xs text-coolgray-60 flex justify-between border-t border-coolgray-20">
                 <span className="truncate">{sourceFilename || filename}</span>
                 <a
                   href={sourcePreviewUrl}
@@ -262,28 +252,31 @@ export function SummaryPage() {
                   새 탭
                 </a>
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <>
+              <PageNavigator current={pageNum} total={pageCount} onChange={setPageNum} />
+              <pre className="flex-1 overflow-auto whitespace-pre-wrap text-sm p-3 bg-coolgray-10 border border-coolgray-20 rounded min-h-0">
+                {originalPage}
+              </pre>
+            </>
+          )}
         </PanePanel>
 
         <PanePanel title="요약문">
-          <div className="flex flex-col flex-1 min-h-0">
-            <A4Sheet>
-              <textarea
-                className="w-full h-full min-h-0 resize-none overflow-auto border-0 outline-none bg-transparent p-5 text-[15px] leading-[1.75] text-coolgray-90"
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                placeholder={loading ? "요약 생성 중..." : ""}
-              />
-            </A4Sheet>
-            <div className="shrink-0 mt-2 pt-2 border-t border-coolgray-20">
-              <PromptBar
-                value={prompt}
-                onChange={setPrompt}
-                onSubmit={applyPrompt}
-                loading={loading}
-              />
-            </div>
+          <textarea
+            className="flex-1 min-h-0 p-3 border border-coolgray-30 rounded text-base resize-none overflow-auto bg-white leading-relaxed"
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            placeholder={loading ? "요약 생성 중..." : ""}
+          />
+          <div className="shrink-0 mt-3 pt-3 border-t border-coolgray-20">
+            <PromptBar
+              value={prompt}
+              onChange={setPrompt}
+              onSubmit={applyPrompt}
+              loading={loading}
+            />
           </div>
         </PanePanel>
       </div>
