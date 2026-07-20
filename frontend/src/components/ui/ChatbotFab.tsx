@@ -14,7 +14,7 @@ export function ChatbotFab({ onClick, className = "" }: ChatbotFabProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`fixed bottom-6 right-6 z-50 w-16 h-[62px] rounded-full bg-primary-60 border-2 border-primary-60 flex items-center justify-center shadow-lg hover:bg-primary-90 transition-colors ${className}`}
+      className={`fixed bottom-6 right-6 z-50 w-16 h-[62px] rounded-full bg-primary-60 border-2 border-primary-60 flex items-center justify-center hover:opacity-90 transition-opacity ${className}`}
       aria-label="챗봇"
       title="챗봇 열기"
     >

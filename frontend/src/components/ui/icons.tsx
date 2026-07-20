@@ -63,16 +63,22 @@ export function IconUploadCloud({ className = "size-8" }: { className?: string }
   );
 }
 
+/** Figma 3187:7301 — heroicons Solid chat (흰 말풍선 + 파란 점 3개) */
 export function IconChatSolid({ className = "size-10" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 40 40" fill="none" aria-hidden>
+    <svg
+      className={className}
+      viewBox="0 0 32 28"
+      fill="none"
+      aria-hidden
+      xmlns="http://www.w3.org/2000/svg"
+    >
       <path
-        d="M8 10C8 8.34315 9.34315 7 11 7H25C26.6569 7 28 8.34315 28 10V22C28 23.6569 26.6569 25 25 25H16L10 29V25H11C9.34315 25 8 23.6569 8 22V10Z"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M32 14C32 21.732 24.8366 28 16 28C13.0167 28 10.2242 27.2856 7.83354 26.0416L0 28L2.67661 21.7546C0.985602 19.5346 0 16.868 0 14C0 6.26801 7.16344 0 16 0C24.8366 0 32 6.26801 32 14ZM10 12H6V16H10V12ZM26 12H22V16H26V12ZM14 12H18V16H14V12Z"
         fill="white"
       />
-      <rect x="14" y="15" width="3" height="3" rx="0.5" fill="#0F62FE" />
-      <rect x="18.5" y="15" width="3" height="3" rx="0.5" fill="#0F62FE" />
-      <rect x="23" y="15" width="3" height="3" rx="0.5" fill="#0F62FE" />
     </svg>
   );
 }
