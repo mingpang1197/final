@@ -20,6 +20,9 @@ export function UploadPage() {
           ...result,
           pages: result.pages,
           full_text: result.full_text,
+          source_blob_url: URL.createObjectURL(file),
+          source_filename: file.name,
+          source_mime_type: file.type || undefined,
         });
       }
       navigate(`/documents/${result.id}/summary`);
@@ -41,7 +44,7 @@ export function UploadPage() {
         <input
           type="file"
           className="hidden"
-          accept=".pdf,.png,.jpg,.jpeg,.txt"
+          accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx,.hwp,.hwpx"
           disabled={loading}
           onChange={handleFile}
         />

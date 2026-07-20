@@ -16,10 +16,24 @@ import {
 } from "../utils/docCache";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
 
+function getFileExt(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
+}
+
+function canPreviewSource(filename: string, mimeType?: string): boolean {
+  const ext = getFileExt(filename);
+  if (mimeType?.startsWith("image/")) return true;
+  return ["pdf", "txt", "png", "jpg", "jpeg", "doc", "docx", "hwp", "hwpx"].includes(ext);
+}
+
 export function SummaryPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [originalPage, setOriginalPage] = useState("");
+  const [sourcePreviewUrl, setSourcePreviewUrl] = useState<string | null>(null);
+  const [sourceReady, setSourceReady] = useState(false);
+  const [sourceFilename, setSourceFilename] = useState<string>("");
   const [pageNum, setPageNum] = useState(1);
   const [pageCount, setPageCount] = useState(1);
   const [summary, setSummary] = useState("");
@@ -28,6 +42,19 @@ export function SummaryPage() {
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  async function loadDocumentWithRetry(docId: string) {
+    let lastErr: unknown;
+    for (let i = 0; i < 5; i += 1) {
+      try {
+        return await getDocument(docId);
+      } catch (err) {
+        lastErr = err;
+        await new Promise((resolve) => setTimeout(resolve, 250 * (i + 1)));
+      }
+    }
+    throw lastErr;
+  }
 
   const persistSummary = useCallback(async () => {
     if (!id || !summary.trim()) return;
@@ -50,7 +77,7 @@ export function SummaryPage() {
     const cached = getCachedUpload(id);
 
     try {
-      const doc = await getDocument(id);
+      const doc = await loadDocumentWithRetry(id);
       setFilename(doc.filename);
       setPageCount(doc.page_count);
       setSummary(doc.summary || "");
@@ -83,7 +110,7 @@ export function SummaryPage() {
           setLoading(false);
         }
       } else {
-        setError("문서를 불러오지 못했습니다. 다시 업로드해 주세요.");
+        setError("문서를 불러오지 못했습니다. 잠시 후 자동으로 다시 시도하거나 새로고침해 주세요.");
       }
     }
   }, [id]);
@@ -95,14 +122,46 @@ export function SummaryPage() {
   useEffect(() => {
     if (!id) return;
     const cached = getCachedUpload(id);
-    if (cached?.pages?.length) {
-      setOriginalPage(cached.pages[pageNum - 1] || "");
-      return;
-    }
-    getPage(id, pageNum)
-      .then(setOriginalPage)
-      .catch(() => setOriginalPage("(페이지를 불러오지 못했습니다)"));
-  }, [id, pageNum]);
+    const previewName = filename || cached?.filename || "";
+    setSourceFilename(previewName);
+    setSourceReady(false);
+
+    const loadTextFallback = () => {
+      if (cached?.pages?.length) {
+        setOriginalPage(cached.pages[pageNum - 1] || "");
+        return;
+      }
+      getPage(id, pageNum)
+        .then(setOriginalPage)
+        .catch(() => setOriginalPage("(페이지를 불러오지 못했습니다)"));
+    };
+
+    const serverUrl = `/api/documents/${id}/source`;
+    fetch(serverUrl, { method: "HEAD" })
+      .then((res) => {
+        if (res.ok) {
+          setSourcePreviewUrl(serverUrl);
+          setSourceReady(true);
+          return;
+        }
+        if (previewName && cached?.source_blob_url && canPreviewSource(previewName, cached?.source_mime_type)) {
+          setSourcePreviewUrl(cached.source_blob_url);
+          setSourceReady(true);
+          return;
+        }
+        setSourcePreviewUrl(null);
+        loadTextFallback();
+      })
+      .catch(() => {
+        if (previewName && cached?.source_blob_url && canPreviewSource(previewName, cached?.source_mime_type)) {
+          setSourcePreviewUrl(cached.source_blob_url);
+          setSourceReady(true);
+          return;
+        }
+        setSourcePreviewUrl(null);
+        loadTextFallback();
+      });
+  }, [id, pageNum, filename]);
 
   async function saveSummary() {
     await persistSummary();
@@ -159,18 +218,41 @@ export function SummaryPage() {
       )}
 
       <div className="flex-1 grid grid-cols-2 gap-0 min-h-0">
-        <section className="flex flex-col border-r border-slate-200 p-4 bg-slate-50">
+        <section className="flex flex-col border-r border-slate-200 p-4 bg-slate-50 min-h-0 overflow-hidden">
           <h2 className="text-center text-sm font-medium text-slate-500 mb-2">(원문)</h2>
-          <PageNavigator current={pageNum} total={pageCount} onChange={setPageNum} />
-          <pre className="flex-1 overflow-auto whitespace-pre-wrap text-sm p-3 bg-white border rounded-lg">
-            {originalPage}
-          </pre>
+          {sourcePreviewUrl && sourceReady ? (
+            <div className="flex-1 min-h-0 bg-white border rounded-lg overflow-hidden flex flex-col">
+              <iframe
+                title="업로드 원문"
+                src={sourcePreviewUrl}
+                className="w-full h-full min-h-0 border-0 block"
+              />
+              <div className="px-3 py-2 border-t text-xs text-slate-500 flex items-center justify-between">
+                <span className="truncate">{sourceFilename || filename}</span>
+                <a
+                  href={sourcePreviewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 hover:underline shrink-0"
+                >
+                  새 탭으로 열기
+                </a>
+              </div>
+            </div>
+          ) : (
+            <>
+              <PageNavigator current={pageNum} total={pageCount} onChange={setPageNum} />
+              <pre className="flex-1 overflow-auto whitespace-pre-wrap text-sm p-3 bg-white border rounded-lg min-h-0">
+                {originalPage}
+              </pre>
+            </>
+          )}
         </section>
 
         <section className="flex flex-col p-4 min-h-0 overflow-hidden">
           <h2 className="text-center text-sm font-medium text-slate-500 mb-2 shrink-0">(요약본)</h2>
           <textarea
-            className="flex-1 min-h-0 p-3 border border-slate-300 rounded-lg text-sm resize-none overflow-auto"
+            className="flex-1 min-h-0 p-3 border border-slate-300 rounded-lg text-sm resize-none overflow-auto bg-white"
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
             placeholder={loading ? "요약 생성 중..." : ""}

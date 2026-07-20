@@ -3,6 +3,9 @@ import type { DocType, EnsurePayload, UploadResult } from "../api/client";
 export interface CachedUpload extends UploadResult {
   pages: string[];
   full_text: string;
+  source_blob_url?: string;
+  source_filename?: string;
+  source_mime_type?: string;
 }
 
 const KEY_PREFIX = "easyread:doc:";

@@ -160,7 +160,7 @@ def _split_pages(text: str) -> list[str]:
     return [text.strip()] if text.strip() else [""]
 
 
-async def chat_completion(system: str, user: str) -> str:
+async def chat_completion(system: str, user: str, *, max_tokens: int = 4096) -> str:
     if settings.use_mock:
         return _mock_chat(system, user)
 
@@ -178,6 +178,7 @@ async def chat_completion(system: str, user: str) -> str:
                     {"role": "user", "content": user},
                 ],
                 "temperature": 0.2,
+                "max_tokens": max_tokens,
             },
         )
         response.raise_for_status()

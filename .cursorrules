@@ -1,0 +1,61 @@
+# 프로젝트 개발 지침 & API 명세 규칙
+
+## [개발 규칙]
+1. 기존 API의 URL, Method, Request, Response를 임의로 변경하지 않는다.
+2. 새로운 API를 추가하면 API 명세도 함께 업데이트한다.
+3. 기존 API를 수정하면 변경된 명세도 함께 수정한다.
+4. API 명세가 프론트와의 계약(Contract)이므로 코드보다 명세를 우선한다.
+5. API를 추가하거나 수정한 후에는 항상 최신 API 명세서를 답변에 출력한다.
+
+## [현재 API 명세]
+
+GET    /api/health
+- 서버 상태 확인
+
+GET    /api/documents/catalog/images
+- 이미지 카탈로그 조회
+
+POST   /api/documents/upload
+- 문서 업로드(OCR)
+- Request: multipart/form-data(file)
+- Response: id, filename, doc_type, page_count, pages, full_text
+
+GET    /api/documents/{doc_id}
+- 문서 조회
+
+GET    /api/documents/{doc_id}/pages/{page_num}
+- 특정 페이지 조회
+
+GET    /api/documents/{doc_id}/source
+- 업로드 원본 파일 inline 제공 (PDF/이미지 미리보기)
+
+HEAD   /api/documents/{doc_id}/source
+- 원본 파일 존재 여부 확인
+
+POST   /api/documents/{doc_id}/summarize
+- AI 요약 생성
+- Query: force(boolean)
+
+PATCH  /api/documents/{doc_id}/summary
+- 요약 수동 수정
+
+POST   /api/documents/{doc_id}/summary/refine
+- AI로 요약 수정
+
+POST   /api/documents/{doc_id}/translate
+- 쉬운 글 생성
+
+PATCH  /api/documents/{doc_id}/translation
+- 쉬운 글 수정
+
+POST   /api/documents/{doc_id}/translation/refine
+- AI로 쉬운 글 수정
+
+POST   /api/documents/{doc_id}/translation/checklist
+- 쉬운 글 체크리스트 검사
+
+POST   /api/documents/{doc_id}/translation/detect-placements
+- 이미지 배치 추천
+
+GET    /api/documents/{doc_id}/export.docx
+- Word 다운로드
