@@ -146,15 +146,15 @@ export function SummaryPage() {
           </pre>
         </section>
 
-        <section className="flex flex-col p-4 min-h-0">
-          <h2 className="text-center text-sm font-medium text-slate-500 mb-2">(요약본)</h2>
+        <section className="flex flex-col p-4 min-h-0 overflow-hidden">
+          <h2 className="text-center text-sm font-medium text-slate-500 mb-2 shrink-0">(요약본)</h2>
           <textarea
-            className="flex-[2] min-h-0 p-3 border border-slate-300 rounded-lg text-sm resize-none"
+            className="flex-1 min-h-0 p-3 border border-slate-300 rounded-lg text-sm resize-none overflow-auto"
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
             placeholder={loading ? "요약 생성 중..." : ""}
           />
-          <div className="flex-[1] min-h-[120px] mt-3">
+          <div className="shrink-0 mt-3 pt-3 border-t border-slate-200">
             <PromptBar
               value={prompt}
               onChange={setPrompt}
