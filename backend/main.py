@@ -1,12 +1,33 @@
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from backend.config import IMAGES_DIR, settings
 from backend.database import init_db
 from backend.routers import documents
+
+
+class VercelPathMiddleware(BaseHTTPMiddleware):
+    """Restore original URL path when Vercel rewrites to /api/index.py."""
+
+    async def dispatch(self, request: Request, call_next):
+        original = request.headers.get("x-vercel-original-url") or request.headers.get(
+            "x-forwarded-uri"
+        )
+        path = request.url.path
+        if original and path in {"/api", "/api/index", "/api/index.py"}:
+            parsed = urlparse(original)
+            if parsed.path and parsed.path != path:
+                request.scope["path"] = parsed.path
+                request.scope["raw_path"] = parsed.path.encode()
+                if parsed.query:
+                    request.scope["query_string"] = parsed.query.encode()
+        return await call_next(request)
 
 
 @asynccontextmanager
@@ -21,6 +42,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(VercelPathMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],

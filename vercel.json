@@ -4,7 +4,8 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "pip install -r requirements.txt",
   "rewrites": [
-    { "source": "/health", "destination": "/api/index" },
+    { "source": "/api/(.*)", "destination": "/api/index.py" },
+    { "source": "/health", "destination": "/api/index.py" },
     { "source": "/((?!api/|images/|assets/|favicon\\.svg).*)", "destination": "/index.html" }
   ],
   "functions": {
