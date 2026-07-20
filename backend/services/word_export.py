@@ -3,7 +3,7 @@ from __future__ import annotations
 """이지리드 문서 Word(.docx) 내보내기.
 
 역할: DocumentResponse를 Easy-Read 타이포그래피 규칙에 맞는 Word 파일로 변환한다.
-주요 기능: export_to_docx — 소제목 + 3×3 표(왼쪽 그림 / 오른쪽 본문, 가이드 그림 45).
+주요 기능: export_to_docx — 소제목 + 항목별 글상자(투명 테두리) 2단(왼쪽 그림 / 오른쪽 본문).
 관계: export_layout, image_assets, models/schemas, routers/documents(export API).
 """
 
@@ -14,6 +14,7 @@ import tempfile
 from pathlib import Path
 
 from docx import Document
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_ROW_HEIGHT_RULE
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -116,6 +117,45 @@ def _remove_table_borders(table) -> None:
     tbl_pr.append(borders)
 
 
+def _set_cell_borders_transparent(cell) -> None:
+    """글상자처럼 셀 테두리를 투명(nil) 처리."""
+    tc_pr = cell._tc.get_or_add_tcPr()
+    borders = OxmlElement("w:tcBorders")
+    for edge in ("top", "left", "bottom", "right"):
+        element = OxmlElement(f"w:{edge}")
+        element.set(qn("w:val"), "nil")
+        borders.append(element)
+    tc_pr.append(borders)
+
+
+def _set_cell_vertical_align(cell, *, top: bool = True) -> None:
+    cell.vertical_alignment = (
+        WD_CELL_VERTICAL_ALIGNMENT.TOP if top else WD_CELL_VERTICAL_ALIGNMENT.CENTER
+    )
+
+
+def _set_cell_margins(cell, *, top: int = 0, bottom: int = 0, left: int = 0, right: int = 0) -> None:
+    tc_pr = cell._tc.get_or_add_tcPr()
+    tc_mar = OxmlElement("w:tcMar")
+    for edge, value in (("top", top), ("left", left), ("bottom", bottom), ("right", right)):
+        node = OxmlElement(f"w:{edge}")
+        node.set(qn("w:w"), str(value))
+        node.set(qn("w:type"), "dxa")
+        tc_mar.append(node)
+    tc_pr.append(tc_mar)
+
+
+def _reset_cell_paragraphs(cell) -> None:
+    while len(cell.paragraphs) > 1:
+        cell._element.remove(cell.paragraphs[-1]._element)
+    paragraph = cell.paragraphs[0]
+    paragraph.clear()
+    paragraph.paragraph_format.space_before = Pt(0)
+    paragraph.paragraph_format.space_after = Pt(0)
+    paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+    paragraph.paragraph_format.line_spacing = 1.0
+
+
 def _set_cell_shading(cell, fill_hex: str) -> None:
     shading = OxmlElement("w:shd")
     shading.set(qn("w:fill"), fill_hex)
@@ -192,14 +232,20 @@ def _add_heading_paragraph(doc: Document, line: str) -> None:
     _set_run_font(run, HEADING_PT, bold=True)
 
 
-def _add_body_paragraph_to_cell(cell, line: str) -> None:
+def _add_body_paragraph_to_cell(cell, line: str, *, first: bool = False) -> None:
     stripped = line.strip()
     if not stripped or _SKIP_LINE.match(stripped):
         return
     if is_image_placeholder(stripped):
         return
-    p = cell.add_paragraph()
+    if first and cell.paragraphs and not cell.paragraphs[0].text.strip():
+        p = cell.paragraphs[0]
+        p.clear()
+    else:
+        p = cell.add_paragraph()
     _apply_body_format(p)
+    if first:
+        p.paragraph_format.space_before = Pt(0)
     _add_runs_to_paragraph(p, stripped, size_pt=BODY_PT)
 
 
@@ -207,41 +253,54 @@ def _add_picture_to_cell(cell, placement: ImagePlacement) -> None:
     img_path = _resolve_placement_path(placement)
     if not img_path:
         return
-    p = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
+    _reset_cell_paragraphs(cell)
+    p = cell.paragraphs[0]
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = p.add_run()
     run.add_picture(str(img_path), width=IMAGE_DISPLAY_WIDTH)
 
 
-def _add_section_table(
+def _add_item_text_boxes(
     doc: Document,
     placement: ImagePlacement | None,
     body_lines: list[str],
 ) -> None:
-    """가이드 3×3 표: 여백 행 + (그림 | 간격 | 본문) + 여백 행."""
-    table = doc.add_table(rows=3, cols=3)
+    """항목 1개 = 글상자 2개(그림 | 본문)를 한 줄 표에 넣고, 테두리는 투명."""
+    table = doc.add_table(rows=1, cols=2)
+    table.autofit = False
+    table.allow_autofit = False
     _remove_table_borders(table)
-    _set_column_widths(table, [IMAGE_COL_WIDTH, GAP_COL_WIDTH, BODY_COL_WIDTH])
+    _set_column_widths(table, [IMAGE_COL_WIDTH, BODY_COL_WIDTH + GAP_COL_WIDTH])
 
-    for row_index in (0, 2):
-        for col_index in range(3):
-            _set_cell_shading(table.rows[row_index].cells[col_index], "FFFFFF")
+    row = table.rows[0]
+    row.height_rule = WD_ROW_HEIGHT_RULE.AUTO
+    image_cell = row.cells[0]
+    body_cell = row.cells[1]
 
-    image_cell = table.rows[1].cells[0]
-    gap_cell = table.rows[1].cells[1]
-    body_cell = table.rows[1].cells[2]
+    for cell in (image_cell, body_cell):
+        _set_cell_borders_transparent(cell)
+        _set_cell_vertical_align(cell, top=True)
+        _reset_cell_paragraphs(cell)
 
     _set_cell_shading(image_cell, IMAGE_CELL_FILL)
-    _set_cell_shading(gap_cell, "FFFFFF")
     _set_cell_shading(body_cell, "FFFFFF")
+    _set_cell_margins(image_cell, top=80, bottom=80, left=80, right=40)
+    _set_cell_margins(body_cell, top=80, bottom=80, left=80, right=0)
 
     if placement:
         _add_picture_to_cell(image_cell, placement)
+    else:
+        p = image_cell.paragraphs[0]
+        run = p.add_run("\u00a0")
+        _set_run_font(run, BODY_PT)
 
+    first = True
     for line in body_lines:
-        _add_body_paragraph_to_cell(body_cell, line)
+        _add_body_paragraph_to_cell(body_cell, line, first=first)
+        first = False
 
     spacer = doc.add_paragraph()
+    spacer.paragraph_format.space_before = Pt(0)
     spacer.paragraph_format.space_after = Pt(12)
 
 
@@ -269,7 +328,7 @@ def _export_easy_read_layout(
             placement = by_item.get(item.start_line_index)
             if placement is not None and not isinstance(placement, ImagePlacement):
                 placement = ImagePlacement(**placement)  # type: ignore[arg-type]
-            _add_section_table(doc, placement, item.lines)
+            _add_item_text_boxes(doc, placement, item.lines)
 
 
 def _add_rich_paragraph(doc: Document, line: str) -> None:
