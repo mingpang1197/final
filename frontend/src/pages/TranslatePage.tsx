@@ -5,12 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { TranslationSegment } from "../api/client";
 import {
-  detectImagePlacements,
   refineTranslation,
   translate,
   updateTranslation,
 } from "../api/client";
 import { PromptBar } from "../components/PromptBar";
+import { EasyReadDocumentView } from "../components/EasyReadDocumentView";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
@@ -57,20 +57,7 @@ export function TranslatePage() {
       setSummary(resolveSummary(id, doc.summary));
       const resolved = resolveTranslationSegments(id, doc.translation_segments);
       if (resolved.length) {
-        let segs = sanitizeSegments(resolved);
-        const main = segs[0];
-        if (main?.easy_text && !(main.image_placements?.length ?? 0)) {
-          try {
-            const placements = await detectImagePlacements(id, ensure);
-            if (placements.length) {
-              segs = segs.map((s, i) =>
-                i === 0 ? { ...s, image_placements: placements } : s,
-              );
-            }
-          } catch {
-            /* ignore detect errors for legacy docs */
-          }
-        }
+        const segs = sanitizeSegments(resolved);
         setSegments(segs);
         saveWorkflowSnapshot(id, {
           translation_segments: segs,
@@ -212,14 +199,17 @@ export function TranslatePage() {
         <div className="min-h-0 flex flex-col gap-3 overflow-hidden">
           <p className="text-center text-base text-primary-90 shrink-0">번역문</p>
 
-          <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden">
-            <textarea
-              className="flex-1 min-h-0 w-full px-4 py-3 bg-coolgray-10 border-b border-coolgray-30 text-base resize-none overflow-auto leading-relaxed outline-none text-coolgray-90 placeholder:text-coolgray-60 placeholder:text-center disabled:opacity-60"
-              value={translationText}
-              onChange={(e) => editTranslationText(e.target.value)}
-              placeholder={translationPlaceholder}
-              disabled={loading && segments.length === 0}
-            />
+          <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-coolgray-10">
+            <div className="flex-1 min-h-0 overflow-auto px-4 py-4">
+              <EasyReadDocumentView
+                text={translationText}
+                mode="translate"
+                fill
+                placeholder={translationPlaceholder}
+                disabled={loading && segments.length === 0}
+                onTextChange={editTranslationText}
+              />
+            </div>
           </div>
 
           <div className="shrink-0">

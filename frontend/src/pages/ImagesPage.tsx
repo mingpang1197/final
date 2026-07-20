@@ -9,7 +9,7 @@ import {
   getImageCatalog,
   updateTranslation,
 } from "../api/client";
-import { TranslationSegmentView } from "../components/TranslationSegment";
+import { DraggableCatalogItem, EasyReadDocumentView } from "../components/EasyReadDocumentView";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
@@ -41,7 +41,9 @@ export function ImagesPage() {
   const [catalogItems, setCatalogItems] = useState<ImageCatalogItem[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
 
+  const mainSegment = segments[0];
   const translationText = useMemo(() => segmentsToText(segments), [segments]);
+  const placements = mainSegment?.image_placements ?? [];
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -56,10 +58,10 @@ export function ImagesPage() {
       const main = segs[0];
       if (main?.easy_text && !(main.image_placements?.length ?? 0)) {
         try {
-          const placements = await detectImagePlacements(id, ensure);
-          if (placements.length) {
+          const detected = await detectImagePlacements(id, ensure);
+          if (detected.length) {
             segs = segs.map((s, i) =>
-              i === 0 ? { ...s, image_placements: placements } : s,
+              i === 0 ? { ...s, image_placements: detected } : s,
             );
           }
         } catch {
@@ -121,9 +123,10 @@ export function ImagesPage() {
 
   useDebouncedSave(segments, persistTranslation);
 
-  function editPlacements(segId: string, placements: ImagePlacement[]) {
+  function editPlacements(next: ImagePlacement[]) {
+    if (!mainSegment) return;
     setSegments((prev) =>
-      prev.map((s) => (s.id === segId ? { ...s, image_placements: placements } : s)),
+      prev.map((s) => (s.id === mainSegment.id ? { ...s, image_placements: next } : s)),
     );
   }
 
@@ -158,17 +161,14 @@ export function ImagesPage() {
                 {translationPlaceholder}
               </pre>
             ) : (
-              <div className="flex-1 min-h-0 overflow-auto px-4 py-3">
-                {segments.map((seg) => (
-                  <TranslationSegmentView
-                    key={seg.id}
-                    segment={seg}
-                    onEdit={() => {}}
-                    onPlacementsChange={editPlacements}
-                    fill={segments.length === 1}
-                    imagesOnly
-                  />
-                ))}
+              <div className="flex-1 min-h-0 overflow-auto px-4 py-4">
+                <EasyReadDocumentView
+                  text={translationText}
+                  placements={placements}
+                  mode="images"
+                  fill
+                  onPlacementsChange={editPlacements}
+                />
               </div>
             )}
           </div>
@@ -193,19 +193,16 @@ export function ImagesPage() {
               ) : (
                 <ul className="grid grid-cols-2 gap-3">
                   {catalogItems.map((item) => (
-                    <li
-                      key={item.image_file}
-                      className="rounded border border-coolgray-20 p-2 bg-white"
-                    >
+                    <DraggableCatalogItem key={item.image_file} item={item}>
                       <img
                         src={item.url}
                         alt={item.title}
-                        className="mx-auto h-24 w-full object-contain"
+                        className="mx-auto h-24 w-full object-contain pointer-events-none"
                       />
-                      <p className="mt-2 text-xs text-coolgray-90 line-clamp-2 text-center">
+                      <p className="mt-2 text-xs text-coolgray-90 line-clamp-2 text-center pointer-events-none">
                         {item.title}
                       </p>
-                    </li>
+                    </DraggableCatalogItem>
                   ))}
                 </ul>
               )}
