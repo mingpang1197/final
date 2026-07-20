@@ -7,13 +7,12 @@ const MOCK_ROWS = [
   { id: 1, name: "사건 1", subtitle: "Senior Designer" },
   { id: 2, name: "사건 2", subtitle: "Senior Designer" },
   { id: 3, name: "사건 3", subtitle: "Senior Designer" },
-  { id: 4, name: "사건 4", subtitle: "Senior Designer" },
 ];
 
 export function ExistingProjectsTable() {
   return (
-    <section className="mx-5 mb-6">
-      <h2 className="text-2xl font-bold text-coolgray-90 mb-4">기존 프로젝트</h2>
+    <section className="mx-5 mb-6 mt-6">
+      <h2 className="text-lg font-bold text-coolgray-90 mb-4">기존 프로젝트</h2>
 
       <div className="border border-coolgray-20 bg-white overflow-hidden">
         <div className="overflow-x-auto">

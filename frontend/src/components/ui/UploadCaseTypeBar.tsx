@@ -20,7 +20,7 @@ export function UploadCaseTypeBar({ active, disabled, onChange }: UploadCaseType
   const activeType = active !== "unknown" ? active : null;
 
   return (
-    <div className="mx-5 mt-4 mb-2 flex items-center gap-3 rounded-xl border border-coolgray-20 bg-coolgray-10 h-[58px] px-4 shrink-0">
+    <div className="mx-5 mt-3 mb-1 flex items-center gap-3 rounded-xl border border-coolgray-20 bg-coolgray-10 h-[58px] px-4 shrink-0">
       <span className="text-lg font-bold text-coolgray-90 shrink-0">사건유형</span>
       <div className="flex flex-wrap items-center gap-2.5">
         {UPLOAD_DOC_TYPES.map(({ value, label }) => {

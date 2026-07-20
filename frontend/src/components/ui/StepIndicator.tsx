@@ -56,7 +56,10 @@ export function StepIndicator({ current, docId }: StepIndicatorProps) {
         if (done) {
           borderClass = "border-t-[3px] border-primary-90 bg-coolgray-10";
         } else if (active) {
-          borderClass = "border-t-[3px] border-coolgray-90 bg-white";
+          borderClass =
+            step.id === "upload"
+              ? "border-t-[3px] border-primary-90 bg-white"
+              : "border-t-[3px] border-coolgray-90 bg-white";
         }
 
         const content = (

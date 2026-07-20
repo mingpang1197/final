@@ -1,7 +1,7 @@
 /**
- * 문서 업로드 페이지 (워크플로 1단계) — Figma 업로드 최종 UI.
+ * 문서 업로드 페이지 (워크플로 1단계) — Figma 업로드 80% ERAI UI.
  */
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { type DocType, uploadDocument, updateDocType } from "../api/client";
 import { ExistingProjectsTable } from "../components/ui/ExistingProjectsTable";
@@ -9,17 +9,27 @@ import { ChatbotWidget } from "../components/ui/ChatbotWidget";
 import { IconUploadCloud } from "../components/ui/icons";
 import { StepIndicator } from "../components/ui/StepIndicator";
 import { UploadCaseTypeBar } from "../components/ui/UploadCaseTypeBar";
-import { cacheUpload, getLastDocId } from "../utils/docCache";
+import { cacheUpload, getCachedUpload, getLastDocId } from "../utils/docCache";
 import { saveSourceFile } from "../utils/sourceStore";
 
 export function UploadPage() {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastDocId = getLastDocId();
   const [docType, setDocType] = useState<Exclude<DocType, "unknown">>("criminal");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
+
+  const filenameLabel = useMemo(() => {
+    if (pendingFile?.name) return pendingFile.name;
+    if (lastDocId) {
+      const cached = getCachedUpload(lastDocId);
+      if (cached?.filename) return cached.filename;
+    }
+    return "파일명";
+  }, [pendingFile, lastDocId]);
 
   async function handleUpload(file: File) {
     setLoading(true);
@@ -72,27 +82,32 @@ export function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-coolgray-10 flex flex-col">
-      <header className="px-6 pt-6 pb-4">
-        <h1 className="text-[42px] font-bold leading-tight text-coolgray-90">
-          ERAI(Easy Read As ~)
-        </h1>
+    <div className="h-screen overflow-hidden bg-coolgray-10 flex flex-col">
+      <header className="px-6 pt-4 pb-0 shrink-0">
+        <div className="flex items-start justify-between gap-6 mb-3">
+          <h1 className="text-[32px] font-bold leading-tight text-coolgray-90 tracking-tight">
+            ER<span className="text-primary-60">AI</span>
+          </h1>
+          <span className="text-primary-60 font-medium text-base tracking-wide shrink-0 pt-1 truncate max-w-[40vw]">
+            {filenameLabel}
+          </span>
+        </div>
       </header>
 
-      <div className="flex-1 mx-6 mb-6 bg-white border border-coolgray-20 overflow-hidden flex flex-col">
-        <StepIndicator current="upload" docId={getLastDocId() ?? undefined} />
+      <div className="flex-1 flex flex-col mx-6 mb-4 min-h-0 bg-white border border-coolgray-20 overflow-hidden">
+        <StepIndicator current="upload" docId={lastDocId ?? undefined} />
         <UploadCaseTypeBar active={docType} disabled={loading} onChange={setDocType} />
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <section className="mx-5 mt-4">
-            <h2 className="text-2xl font-bold text-coolgray-90 mb-4">새 프로젝트</h2>
+            <h2 className="text-lg font-bold text-coolgray-90 mb-3">새 프로젝트</h2>
 
             <div className="rounded-xl border border-[#e6e7ea] bg-coolgray-10 p-6">
               <div
-                className={`mx-auto max-w-3xl rounded-lg border border-dashed p-8 flex flex-col items-center gap-3 transition-colors ${
+                className={`mx-auto max-w-[649px] rounded-lg border border-dashed p-8 flex flex-col items-center gap-3 transition-colors ${
                   dragOver
                     ? "border-primary-60 bg-blue-50"
-                    : "border-coolgray-30 bg-[#dde1e6]"
+                    : "border-primary-60 bg-coolgray-20"
                 }`}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -101,7 +116,7 @@ export function UploadPage() {
                 onDragLeave={() => setDragOver(false)}
                 onDrop={onDrop}
               >
-                <IconUploadCloud className="size-8" />
+                <IconUploadCloud className="size-8 text-primary-60" />
                 <div className="text-center">
                   <p className="text-base font-medium text-coolgray-90">
                     {pendingFile ? pendingFile.name : "Drop file or browse"}
@@ -128,7 +143,7 @@ export function UploadPage() {
                 />
               </div>
 
-              <div className="mx-auto max-w-xl mt-4">
+              <div className="mx-auto max-w-[538px] mt-4">
                 <button
                   type="button"
                   disabled={loading || !pendingFile}
