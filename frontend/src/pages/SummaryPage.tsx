@@ -1,8 +1,8 @@
 /**
- * AI 요약 편집 페이지 (워크플로 2단계) — Figma UI.
+ * AI 요약 편집 페이지 (워크플로 2단계) — Figma 요약 80% UI.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   getDocument,
   getPage,
@@ -12,7 +12,7 @@ import {
 } from "../api/client";
 import { PageNavigator } from "../components/PageNavigator";
 import { PromptBar } from "../components/PromptBar";
-import { PanePanel } from "../components/ui/PanePanel";
+import { IconChevronRight } from "../components/ui/icons";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import {
   ensurePayload,
@@ -182,64 +182,96 @@ export function SummaryPage() {
     }
   }
 
-  const saveLabel =
-    saveStatus === "saving" ? "저장 중..." : saveStatus === "saved" ? "저장됨" : "";
+  const filenameLabel = [
+    filename || "파일명",
+    saveStatus === "saving" ? "저장 중..." : saveStatus === "saved" ? "저장됨" : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const summaryPlaceholder = loading
+    ? "요약 생성 중..."
+    : summary.trim()
+      ? ""
+      : "요약 결과";
 
   return (
     <WorkflowLayout
       step="summary"
-      filename={filename ? `${filename}${saveLabel ? ` · ${saveLabel}` : ""}` : undefined}
-      prevNav={id ? { label: "업로드", to: "/" } : undefined}
-      nextNav={id ? { label: "번역", to: `/documents/${id}/translate` } : undefined}
+      projectTitle={
+        <>
+          ER<span className="text-primary-60">AI</span>
+        </>
+      }
+      filename={filenameLabel}
       error={error || undefined}
     >
-      <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
-        <PanePanel title="원문">
-          {sourcePreviewUrl && sourceReady ? (
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              <iframe
-                title="업로드 원문"
-                src={sourcePreviewUrl}
-                className="w-full flex-1 min-h-0 border-0"
-              />
-              <div className="px-2 py-1 text-xs text-coolgray-60 flex justify-between border-t border-coolgray-20">
-                <span className="truncate">{sourceFilename || filename}</span>
-                <a
-                  href={sourcePreviewUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary-60 hover:underline shrink-0"
-                >
-                  새 탭
-                </a>
-              </div>
-            </div>
-          ) : (
-            <>
-              <PageNavigator current={pageNum} total={pageCount} onChange={setPageNum} />
-              <pre className="flex-1 overflow-auto whitespace-pre-wrap text-sm p-3 bg-coolgray-10 border border-coolgray-20 rounded min-h-0">
-                {originalPage}
-              </pre>
-            </>
-          )}
-        </PanePanel>
-
-        <PanePanel title="요약문">
-          <textarea
-            className="flex-1 min-h-0 p-3 border border-coolgray-30 rounded text-base resize-none overflow-auto bg-white leading-relaxed"
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            placeholder={loading ? "요약 생성 중..." : ""}
-          />
-          <div className="shrink-0 mt-4 pt-4 border-t border-coolgray-20">
-            <PromptBar
-              value={prompt}
-              onChange={setPrompt}
-              onSubmit={applyPrompt}
-              loading={loading}
-            />
+      <div className="flex-1 flex flex-col min-h-0 px-5 pt-3 pb-5">
+        {id && (
+          <div className="flex justify-end mb-2 shrink-0">
+            <Link
+              to={`/documents/${id}/translate`}
+              className="inline-flex items-center gap-1 h-10 px-2 text-primary-60 hover:underline font-medium text-base"
+            >
+              번역
+              <IconChevronRight className="size-6" />
+            </Link>
           </div>
-        </PanePanel>
+        )}
+
+        <div className="flex-1 grid grid-cols-2 gap-5 min-h-0">
+          <div className="min-h-0 flex flex-col bg-white overflow-hidden">
+            {sourcePreviewUrl && sourceReady ? (
+              <>
+                <iframe
+                  title="업로드 원문"
+                  src={sourcePreviewUrl}
+                  className="w-full flex-1 min-h-[420px] border-0"
+                />
+                <div className="px-3 py-2 text-xs text-coolgray-60 flex justify-between border-t border-coolgray-20 shrink-0">
+                  <span className="truncate">{sourceFilename || filename}</span>
+                  <a
+                    href={sourcePreviewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary-60 hover:underline shrink-0 ml-2"
+                  >
+                    새 탭
+                  </a>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 min-h-0 flex flex-col border border-coolgray-30 bg-white">
+                <PageNavigator current={pageNum} total={pageCount} onChange={setPageNum} />
+                <pre className="flex-1 overflow-auto whitespace-pre-wrap text-base p-4 leading-relaxed min-h-0">
+                  {originalPage}
+                </pre>
+              </div>
+            )}
+          </div>
+
+          <div className="min-h-0 flex flex-col gap-3">
+            <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
+
+            <div className="flex-1 min-h-[320px] flex flex-col border border-coolgray-40 overflow-hidden">
+              <textarea
+                className="flex-1 min-h-0 w-full px-4 py-3 bg-coolgray-10 border-b border-coolgray-30 text-base resize-none overflow-auto leading-relaxed outline-none text-coolgray-90 placeholder:text-coolgray-60 placeholder:text-center"
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                placeholder={summaryPlaceholder}
+              />
+            </div>
+
+            <div className="shrink-0">
+              <PromptBar
+                value={prompt}
+                onChange={setPrompt}
+                onSubmit={applyPrompt}
+                loading={loading}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </WorkflowLayout>
   );

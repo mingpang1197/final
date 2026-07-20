@@ -1,8 +1,8 @@
 /**
- * 이지리드 번역 편집 페이지 (워크플로 3단계) — Figma UI.
+ * 이지리드 번역 편집 페이지 (워크플로 3단계) — Figma 번역 최종 UI.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import type { ImagePlacement, TranslationSegment } from "../api/client";
 import {
   detectImagePlacements,
@@ -13,6 +13,7 @@ import {
 } from "../api/client";
 import { PromptBar } from "../components/PromptBar";
 import { TranslationSegmentView } from "../components/TranslationSegment";
+import { IconChevronLeft, IconChevronRight } from "../components/ui/icons";
 import { PanePanel } from "../components/ui/PanePanel";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { ensurePayload, getCachedUpload } from "../utils/docCache";
@@ -38,33 +39,40 @@ export function TranslatePage() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const doc = await getDocument(id);
-    setFilename(doc.filename);
-    setSummary(doc.summary || "");
-    if (doc.translation_segments.length) {
-      let segs = sanitizeSegments(doc.translation_segments);
-      const main = segs[0];
-      if (main?.easy_text && !(main.image_placements?.length ?? 0)) {
-        try {
-          const placements = await detectImagePlacements(id);
-          if (placements.length) {
-            segs = segs.map((s, i) =>
-              i === 0 ? { ...s, image_placements: placements } : s,
-            );
+    setError("");
+    try {
+      const doc = await getDocument(id);
+      setFilename(doc.filename);
+      setSummary(doc.summary || "");
+      if (doc.translation_segments.length) {
+        let segs = sanitizeSegments(doc.translation_segments);
+        const main = segs[0];
+        if (main?.easy_text && !(main.image_placements?.length ?? 0)) {
+          try {
+            const placements = await detectImagePlacements(id);
+            if (placements.length) {
+              segs = segs.map((s, i) =>
+                i === 0 ? { ...s, image_placements: placements } : s,
+              );
+            }
+          } catch {
+            /* ignore detect errors for legacy docs */
           }
-        } catch {
-          /* ignore detect errors for legacy docs */
+        }
+        setSegments(segs);
+      } else {
+        setLoading(true);
+        try {
+          const updated = await translate(id);
+          setSegments(sanitizeSegments(updated.translation_segments));
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "번역 생성 실패");
+        } finally {
+          setLoading(false);
         }
       }
-      setSegments(segs);
-    } else {
-      setLoading(true);
-      try {
-        const updated = await translate(id);
-        setSegments(sanitizeSegments(updated.translation_segments));
-      } finally {
-        setLoading(false);
-      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "문서를 불러오지 못했습니다");
     }
   }, [id]);
 
@@ -102,62 +110,98 @@ export function TranslatePage() {
   async function applyPrompt() {
     if (!id || !prompt.trim()) return;
     setLoading(true);
+    setError("");
     try {
       const doc = await refineTranslation(id, prompt);
       setSegments(sanitizeSegments(doc.translation_segments));
       setPrompt("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 수정 실패");
     } finally {
       setLoading(false);
     }
   }
 
-  const saveLabel =
-    saveStatus === "saving" ? "저장 중..." : saveStatus === "saved" ? "저장됨" : "";
+  const filenameLabel = [
+    filename || "파일명",
+    saveStatus === "saving" ? "저장 중..." : saveStatus === "saved" ? "저장됨" : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <WorkflowLayout
       step="translate"
-      filename={filename ? `${filename}${saveLabel ? ` · ${saveLabel}` : ""}` : undefined}
-      prevNav={id ? { label: "요약", to: `/documents/${id}/summary` } : undefined}
-      nextNav={id ? { label: "그림", to: `/documents/${id}/images` } : undefined}
+      projectTitle="프로젝트 이름"
+      filename={filenameLabel}
       error={error || undefined}
     >
-      <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
-        <PanePanel title="요약문">
-          <pre className="flex-1 overflow-auto whitespace-pre-wrap text-sm p-3 bg-coolgray-10 border border-coolgray-20 rounded leading-relaxed">
-            {summary}
-          </pre>
-        </PanePanel>
+      <div className="flex-1 flex flex-col min-h-0 px-5 pt-2 pb-5">
+        <div className="grid grid-cols-2 gap-4 mb-2 shrink-0">
+          {id ? (
+            <Link
+              to={`/documents/${id}/summary`}
+              className="inline-flex items-center gap-1 h-10 px-2 text-coolgray-60 hover:text-primary-60 font-medium text-base w-fit"
+            >
+              <IconChevronLeft className="size-6" />
+              요약
+            </Link>
+          ) : (
+            <span />
+          )}
+          {id ? (
+            <Link
+              to={`/documents/${id}/images`}
+              className="inline-flex items-center gap-1 h-10 px-2 text-primary-60 hover:underline font-medium text-base justify-self-end"
+            >
+              그림
+              <IconChevronRight className="size-6" />
+            </Link>
+          ) : (
+            <span />
+          )}
+        </div>
 
-        <PanePanel title="번역문">
-          <div
-            className={`flex-1 min-h-0 flex flex-col ${
-              segments.length === 1 ? "overflow-hidden" : "overflow-auto gap-2"
-            }`}
-          >
-            {loading && segments.length === 0 ? (
-              <p className="text-sm text-coolgray-60">번역 생성 중...</p>
-            ) : (
-              segments.map((seg) => (
-                <TranslationSegmentView
-                  key={seg.id}
-                  segment={seg}
-                  onEdit={editSegment}
-                  onPlacementsChange={editPlacements}
-                  fill={segments.length === 1}
-                />
-              ))
-            )}
+        <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
+          <PanePanel title="요약문" className="min-h-[480px]">
+            <pre className="flex-1 overflow-auto whitespace-pre-wrap text-base p-0 bg-white leading-relaxed min-h-0">
+              {summary || "(요약문 없음)"}
+            </pre>
+          </PanePanel>
+
+          <div className="flex flex-col min-h-0 gap-4">
+            <PanePanel title="번역문" className="flex-1 min-h-[360px]">
+              <div
+                className={`flex-1 min-h-0 flex flex-col -mx-4 -mb-4 px-4 pb-4 ${
+                  segments.length === 1 ? "overflow-hidden" : "overflow-auto gap-2"
+                }`}
+              >
+                {loading && segments.length === 0 ? (
+                  <p className="text-base text-coolgray-60">번역 생성 중...</p>
+                ) : (
+                  segments.map((seg) => (
+                    <TranslationSegmentView
+                      key={seg.id}
+                      segment={seg}
+                      onEdit={editSegment}
+                      onPlacementsChange={editPlacements}
+                      fill={segments.length === 1}
+                    />
+                  ))
+                )}
+              </div>
+            </PanePanel>
+
+            <div className="shrink-0 pt-2">
+              <PromptBar
+                value={prompt}
+                onChange={setPrompt}
+                onSubmit={applyPrompt}
+                loading={loading}
+              />
+            </div>
           </div>
-          <div className="shrink-0 mt-4 pt-4 border-t border-coolgray-20">
-            <PromptBar
-              value={prompt}
-              onChange={setPrompt}
-              onSubmit={applyPrompt}
-              loading={loading}
-            />
-          </div>
-        </PanePanel>
+        </div>
       </div>
     </WorkflowLayout>
   );

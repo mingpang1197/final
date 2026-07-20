@@ -62,12 +62,12 @@ export function StepIndicator({ current }: StepIndicatorProps) {
                 {step.label}
               </p>
               {active && (
-                <p className="text-xs text-alert mt-0.5 truncate">진행 중</p>
+                <p className="text-xs text-alert mt-0.5 truncate">진행중</p>
               )}
               {done && (
                 <p className="text-xs text-coolgray-60 mt-0.5 truncate">완료</p>
               )}
-              {pending && step.id === "export" && (
+              {pending && (
                 <p className="text-xs text-coolgray-40 mt-0.5 truncate">이전 단계 완료 후</p>
               )}
             </div>

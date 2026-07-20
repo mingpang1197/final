@@ -9,7 +9,7 @@ import { StepIndicator, type WorkflowStep } from "./StepIndicator";
 interface WorkflowLayoutProps {
   step: WorkflowStep;
   filename?: string;
-  projectTitle?: string;
+  projectTitle?: ReactNode;
   prevNav?: { label: string; to: string };
   nextNav?: { label: string; to: string };
   error?: string;
