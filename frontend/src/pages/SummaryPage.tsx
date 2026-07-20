@@ -193,7 +193,7 @@ export function SummaryPage() {
       nextNav={id ? { label: "번역", to: `/documents/${id}/translate` } : undefined}
       error={error || undefined}
     >
-      <div className="h-full grid grid-cols-2 gap-4 p-4 min-h-0">
+      <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
         <PanePanel title="원문">
           {sourcePreviewUrl && sourceReady ? (
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">

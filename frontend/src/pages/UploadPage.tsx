@@ -55,26 +55,19 @@ export function UploadPage() {
   }
 
   return (
-    <div className="h-full min-h-0 flex flex-col bg-coolgray-10 overflow-y-auto">
-      <div className="flex-1 min-h-0 flex flex-col">
-        <header className="shrink-0 px-6 pt-4 pb-3">
-          <h1 className="text-[42px] font-bold leading-tight text-coolgray-90">
-            Easy-Read 판결문 작성 보조
-          </h1>
-        </header>
-
-        <div className="mx-6 shrink-0 bg-white border border-coolgray-20 border-b-0">
-          <StepIndicator current="upload" />
-          <DocTypePills active={docType} disabled={loading} onChange={setDocType} />
-        </div>
+    <div className="min-h-screen bg-coolgray-10 flex flex-col">
+      <div className="px-6 pt-6 pb-0">
+        <h1 className="text-[42px] font-bold leading-tight text-coolgray-90 mb-6">
+          Easy-Read 판결문 작성 보조
+        </h1>
       </div>
 
-      <div
-        className="shrink-0 mx-6 mb-4 bg-white border border-coolgray-20 overflow-hidden flex flex-col"
-        style={{ height: "var(--workflow-body-height)" }}
-      >
-        <div className="flex-1 p-8 max-w-3xl mx-auto w-full flex flex-col justify-center min-h-0 overflow-y-auto">
-          <h2 className="text-2xl font-bold text-coolgray-90 mb-6 shrink-0">새 프로젝트</h2>
+      <div className="flex-1 mx-6 mb-6 bg-white border border-coolgray-20 overflow-hidden flex flex-col">
+        <StepIndicator current="upload" />
+        <DocTypePills active={docType} disabled={loading} onChange={setDocType} />
+
+        <div className="p-8 max-w-3xl mx-auto flex-1 w-full">
+          <h2 className="text-2xl font-bold text-coolgray-90 mb-6">새 프로젝트</h2>
 
           <div
             className={`rounded-xl border-2 border-dashed p-12 flex flex-col items-center gap-4 transition-colors ${
@@ -117,7 +110,7 @@ export function UploadPage() {
           </div>
 
           {error && (
-            <p className="mt-4 text-sm text-alert text-center shrink-0">{error}</p>
+            <p className="mt-4 text-sm text-alert text-center">{error}</p>
           )}
         </div>
       </div>

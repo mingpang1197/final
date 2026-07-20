@@ -96,7 +96,7 @@ export function ExportPage() {
       prevNav={id ? { label: "그림", to: `/documents/${id}/images` } : undefined}
       error={error || undefined}
     >
-      <div className="h-full flex flex-col p-6 gap-4 min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col p-6 gap-4 min-h-0">
         <ChecklistPanel checklist={checklist} onRecheck={handleRecheck} loading={loading} />
 
         <div className="flex-1 min-h-0 border border-coolgray-40 rounded bg-white overflow-hidden flex flex-col">
