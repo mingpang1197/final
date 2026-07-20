@@ -2,20 +2,23 @@ from __future__ import annotations
 
 """이지리드 문서 PDF 내보내기.
 
-역할: DocumentResponse를 Easy-Read 타이포그래피 규칙에 맞는 PDF로 변환한다.
-주요 기능: export_to_pdf (본문·이미지·2단 섹션 레이아웃).
-관계: word_export(본문 수집), image_assets, export_layout, routers/documents.
+역할: Word(.docx) export 결과를 PDF로 변환해 미리보기·다운로드에 사용한다.
+주요 기능: export_to_pdf — Word 완성 → docx→pdf (실패 시 HTML/PyMuPDF 폴백).
+관계: word_export, docx_to_pdf, routers/documents.
 """
 
 import base64
 import html
 import io
+import logging
 import mimetypes
 import os
 import re
 from pathlib import Path
 
 import fitz  # PyMuPDF
+
+logger = logging.getLogger(__name__)
 
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.export_layout import (
@@ -300,6 +303,19 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
 
 
 def export_to_pdf(doc: DocumentResponse) -> bytes:
+    """Word export → PDF 변환 (Word 인쇄와 동일 레이아웃)."""
+    from backend.services import word_export
+    from backend.services.docx_to_pdf import DocxToPdfError, convert_docx_bytes_to_pdf
+
+    docx_bytes = word_export.export_to_docx(doc)
+    try:
+        return convert_docx_bytes_to_pdf(docx_bytes)
+    except DocxToPdfError as exc:
+        logger.warning("Word→PDF conversion failed (%s); falling back to HTML PDF", exc)
+        return _legacy_export_to_pdf(doc)
+
+
+def _legacy_export_to_pdf(doc: DocumentResponse) -> bytes:
     story_html, story_css = _build_html(doc)
     _, archive = _font_css()
     story = fitz.Story(html=story_html, user_css=story_css, archive=archive)

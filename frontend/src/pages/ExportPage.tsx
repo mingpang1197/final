@@ -193,8 +193,8 @@ export function ExportPage() {
           </div>
 
           <p className="text-center text-sm text-coolgray-60 shrink-0 max-w-[720px]">
-            그림·본문 2단 레이아웃은 <strong className="font-medium text-coolgray-80">Word 추출</strong>을
-            권장합니다. PDF는 미리보기용입니다.
+            PDF 미리보기·추출은 <strong className="font-medium text-coolgray-80">Word 완성 후 PDF 변환</strong>
+            과정을 거칩니다. Word와 동일한 2단 레이아웃이 적용됩니다.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 shrink-0 w-full max-w-[720px]">
