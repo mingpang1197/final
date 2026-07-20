@@ -265,7 +265,24 @@ def _add_item_text_boxes(
     placement: ImagePlacement | None,
     body_lines: list[str],
 ) -> None:
-    """항목 1개 = 글상자 2개(그림 | 본문)를 한 줄 표에 넣고, 테두리는 투명."""
+    """항목 1개 = (그림 | 본문) 2단. 그림 없으면 본문만 출력."""
+    if not placement:
+        first = True
+        for line in body_lines:
+            stripped = line.strip()
+            if not stripped or _SKIP_LINE.match(stripped) or is_image_placeholder(stripped):
+                continue
+            p = doc.add_paragraph()
+            _apply_body_format(p)
+            if first:
+                p.paragraph_format.space_before = Pt(0)
+                first = False
+            _add_runs_to_paragraph(p, stripped, size_pt=BODY_PT)
+        spacer = doc.add_paragraph()
+        spacer.paragraph_format.space_before = Pt(0)
+        spacer.paragraph_format.space_after = Pt(12)
+        return
+
     table = doc.add_table(rows=1, cols=2)
     table.autofit = False
     table.allow_autofit = False
@@ -287,12 +304,7 @@ def _add_item_text_boxes(
     _set_cell_margins(image_cell, top=80, bottom=80, left=80, right=40)
     _set_cell_margins(body_cell, top=80, bottom=80, left=80, right=0)
 
-    if placement:
-        _add_picture_to_cell(image_cell, placement)
-    else:
-        p = image_cell.paragraphs[0]
-        run = p.add_run("\u00a0")
-        _set_run_font(run, BODY_PT)
+    _add_picture_to_cell(image_cell, placement)
 
     first = True
     for line in body_lines:

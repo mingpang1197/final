@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { TranslationSegment } from "../api/client";
-import { downloadDocx, downloadPdf, fetchExportDocx } from "../api/client";
+import { downloadPdf, fetchExportDocx } from "../api/client";
 import { DocxPreviewPanel } from "../components/DocxPreviewPanel";
 import { IconArrowRight } from "../components/ui/icons";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
@@ -27,7 +27,6 @@ export function ExportPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewReady, setPreviewReady] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [exportingWord, setExportingWord] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -102,7 +101,7 @@ export function ExportPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Word 미리보기 생성 실패");
+          setError(err instanceof Error ? err.message : "미리보기 생성 실패");
         }
       })
       .finally(() => {
@@ -113,20 +112,6 @@ export function ExportPage() {
       cancelled = true;
     };
   }, [id, segments, buildExportPayload]);
-
-  async function handleExportWord() {
-    if (!id || segments.length === 0) return;
-    setExportingWord(true);
-    setError("");
-    try {
-      const payload = await buildExportPayload();
-      await downloadDocx(id, payload);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Word 추출 실패");
-    } finally {
-      setExportingWord(false);
-    }
-  }
 
   async function handleExportPdf() {
     if (!id || segments.length === 0 || !previewReady) return;
@@ -166,7 +151,7 @@ export function ExportPage() {
           <div className="w-full flex-1 min-h-0 border border-coolgray-30 overflow-hidden rounded-sm shadow-inner bg-[#e8e8e8]">
             {previewLoading ? (
               <div className="h-full flex items-center justify-center text-coolgray-60 text-base">
-                Word 미리보기 생성 중...
+                미리보기 생성 중...
               </div>
             ) : previewBlob ? (
               <DocxPreviewPanel
@@ -178,36 +163,20 @@ export function ExportPage() {
               <div className="h-full flex items-center justify-center text-coolgray-60 text-base px-6 text-center">
                 {segments.length === 0
                   ? "번역 내용이 없어 미리보기를 생성할 수 없습니다."
-                  : "Word 미리보기를 불러올 수 없습니다."}
+                  : "미리보기를 불러올 수 없습니다."}
               </div>
             )}
           </div>
 
-          <p className="text-center text-sm text-coolgray-60 shrink-0 max-w-[720px]">
-            미리보기는 <strong className="font-medium text-coolgray-80">Word(.docx)</strong> 기준입니다.
-            PDF 추출은 서버에 Word가 있으면 자동 저장, 없으면{" "}
-            <strong className="font-medium text-coolgray-80">브라우저 인쇄 → Microsoft Print to PDF</strong>
-            를 사용합니다.
-          </p>
-
           <div className="flex flex-wrap items-center justify-center gap-4 shrink-0 w-full max-w-[720px]">
-            <button
-              type="button"
-              onClick={handleExportWord}
-              disabled={exportingWord || previewLoading || segments.length === 0}
-              className="inline-flex h-14 min-w-[220px] flex-1 items-center justify-center gap-2 bg-primary-60 border-2 border-primary-60 px-4 text-white text-xl font-medium tracking-wide hover:bg-primary-90 disabled:opacity-50 transition-colors"
-            >
-              {exportingWord ? "추출 중..." : "Word 추출하기"}
-              <IconArrowRight className="size-6 text-white" />
-            </button>
             <button
               type="button"
               onClick={handleExportPdf}
               disabled={exporting || previewLoading || !previewReady || segments.length === 0}
-              className="inline-flex h-14 min-w-[220px] flex-1 items-center justify-center gap-2 border-2 border-primary-60 px-4 text-primary-60 text-xl font-medium tracking-wide hover:bg-primary-60/5 disabled:opacity-50 transition-colors"
+              className="inline-flex h-14 min-w-[220px] flex-1 items-center justify-center gap-2 bg-primary-60 border-2 border-primary-60 px-4 text-white text-xl font-medium tracking-wide hover:bg-primary-90 disabled:opacity-50 transition-colors"
             >
               {exporting ? "추출 중..." : "PDF 추출하기"}
-              <IconArrowRight className="size-6 text-primary-60" />
+              <IconArrowRight className="size-6 text-white" />
             </button>
             <Link
               to="/"
