@@ -13,6 +13,7 @@ import {
 } from "../api/client";
 import { PromptBar } from "../components/PromptBar";
 import { TranslationSegmentView } from "../components/TranslationSegment";
+import { A4Sheet } from "../components/ui/A4Sheet";
 import { PanePanel } from "../components/ui/PanePanel";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { ensurePayload, getCachedUpload } from "../utils/docCache";
@@ -124,38 +125,46 @@ export function TranslatePage() {
     >
       <div className="flex-1 grid grid-cols-2 gap-3 p-3 min-h-0 h-full">
         <PanePanel title="요약문">
-          <pre className="flex-1 overflow-auto whitespace-pre-wrap text-sm p-3 bg-coolgray-10 border border-coolgray-20 rounded leading-relaxed">
-            {summary}
-          </pre>
+          <A4Sheet>
+            <pre className="a4-sheet-body whitespace-pre-wrap">{summary}</pre>
+          </A4Sheet>
         </PanePanel>
 
         <PanePanel title="번역문">
-          <div
-            className={`flex-1 min-h-0 flex flex-col ${
-              segments.length === 1 ? "overflow-hidden" : "overflow-auto gap-2"
-            }`}
-          >
+          <div className="flex flex-col flex-1 min-h-0">
             {loading && segments.length === 0 ? (
-              <p className="text-sm text-coolgray-60">번역 생성 중...</p>
-            ) : (
-              segments.map((seg) => (
+              <p className="text-sm text-coolgray-60 p-2">번역 생성 중...</p>
+            ) : segments.length === 1 ? (
+              <div className="flex-1 min-h-0 flex flex-col">
                 <TranslationSegmentView
-                  key={seg.id}
-                  segment={seg}
+                  key={segments[0].id}
+                  segment={segments[0]}
                   onEdit={editSegment}
                   onPlacementsChange={editPlacements}
-                  fill={segments.length === 1}
+                  fill
+                  a4
                 />
-              ))
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0 overflow-auto flex flex-col gap-2">
+                {segments.map((seg) => (
+                  <TranslationSegmentView
+                    key={seg.id}
+                    segment={seg}
+                    onEdit={editSegment}
+                    onPlacementsChange={editPlacements}
+                  />
+                ))}
+              </div>
             )}
-          </div>
-          <div className="shrink-0 mt-3 pt-3 border-t border-coolgray-20">
-            <PromptBar
-              value={prompt}
-              onChange={setPrompt}
-              onSubmit={applyPrompt}
-              loading={loading}
-            />
+            <div className="shrink-0 mt-2 pt-2 border-t border-coolgray-20">
+              <PromptBar
+                value={prompt}
+                onChange={setPrompt}
+                onSubmit={applyPrompt}
+                loading={loading}
+              />
+            </div>
           </div>
         </PanePanel>
       </div>

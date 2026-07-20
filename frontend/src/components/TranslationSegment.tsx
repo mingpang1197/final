@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ImageCatalogItem, ImagePlacement, TranslationSegment } from "../api/client";
 import { getImageCatalog } from "../api/client";
+import { A4Sheet } from "./ui/A4Sheet";
 import { filterPreviewLines } from "../utils/sanitizeTranslation";
 
 interface TranslationSegmentViewProps {
@@ -15,6 +16,7 @@ interface TranslationSegmentViewProps {
   onEdit: (id: string, text: string) => void;
   onPlacementsChange: (id: string, placements: ImagePlacement[]) => void;
   fill?: boolean;
+  a4?: boolean;
 }
 
 function renderBoldText(text: string) {
@@ -195,6 +197,7 @@ export function TranslationSegmentView({
   onEdit,
   onPlacementsChange,
   fill = false,
+  a4 = false,
 }: TranslationSegmentViewProps) {
   const previewLines = useMemo(
     () => filterPreviewLines(segment.easy_text),
@@ -258,6 +261,23 @@ export function TranslationSegmentView({
       changePlacementImage(pickerTarget.placementId, item);
     }
     setPickerTarget(null);
+  }
+
+  if (a4 && fill) {
+    return (
+      <>
+        <A4Sheet>
+          <textarea
+            className="w-full h-full min-h-0 resize-none overflow-auto border-0 outline-none bg-transparent p-5 text-[15px] leading-[1.75] text-coolgray-90"
+            value={segment.easy_text}
+            onChange={(e) => onEdit(segment.id, e.target.value)}
+          />
+        </A4Sheet>
+        {pickerTarget && (
+          <ImagePicker onSelect={handlePickerSelect} onClose={() => setPickerTarget(null)} />
+        )}
+      </>
+    );
   }
 
   return (
