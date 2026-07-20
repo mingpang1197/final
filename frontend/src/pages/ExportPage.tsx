@@ -13,6 +13,7 @@ import {
   getWorkflowSnapshot,
   resolveSummary,
   resolveTranslationSegments,
+  saveWorkflowSnapshot,
 } from "../utils/workflowCache";
 
 export function ExportPage() {
@@ -33,7 +34,11 @@ export function ExportPage() {
       const doc = await loadDocumentWithRecovery(id);
       setFilename(doc.filename);
       setSummary(resolveSummary(id, doc.summary));
-      setSegments(resolveTranslationSegments(id, doc.translation_segments));
+      const segs = resolveTranslationSegments(id, doc.translation_segments);
+      setSegments(segs);
+      if (segs.length) {
+        saveWorkflowSnapshot(id, { translation_segments: segs, filename: doc.filename });
+      }
     } catch (err) {
       const workflow = getWorkflowSnapshot(id);
       const cached = getCachedUpload(id);

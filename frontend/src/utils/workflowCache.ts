@@ -3,7 +3,7 @@
  *
  * 서버리스/Vercel에서 DB 조회가 실패하거나 지연될 때 탭 이동 후 재생성을 방지한다.
  */
-import type { TranslationSegment } from "../api/client";
+import type { ImagePlacement, TranslationSegment } from "../api/client";
 
 export interface WorkflowSnapshot {
   summary?: string;
@@ -46,10 +46,48 @@ export function resolveSummary(docId: string, serverSummary?: string | null): st
   return getWorkflowSnapshot(docId)?.summary?.trim() ?? "";
 }
 
+function mergePlacements(
+  server?: ImagePlacement[],
+  cached?: ImagePlacement[],
+): ImagePlacement[] {
+  const merged = new Map<number, ImagePlacement>();
+  for (const p of server ?? []) merged.set(p.line_index, p);
+  for (const p of cached ?? []) {
+    if (!merged.has(p.line_index)) merged.set(p.line_index, p);
+  }
+  return Array.from(merged.values()).sort((a, b) => a.line_index - b.line_index);
+}
+
+function mergeSegment(
+  server: TranslationSegment,
+  cached?: TranslationSegment,
+): TranslationSegment {
+  const serverPlacements = server.image_placements ?? [];
+  const cachedPlacements = cached?.image_placements ?? [];
+  const placements =
+    cachedPlacements.length > serverPlacements.length
+      ? mergePlacements(serverPlacements, cachedPlacements)
+      : serverPlacements.length > 0
+        ? serverPlacements
+        : cachedPlacements;
+  return {
+    ...server,
+    easy_text: server.easy_text || cached?.easy_text || "",
+    image_placements: placements.length ? placements : server.image_placements,
+  };
+}
+
 export function resolveTranslationSegments(
   docId: string,
   serverSegments: TranslationSegment[],
 ): TranslationSegment[] {
-  if (serverSegments.length > 0) return serverSegments;
-  return getWorkflowSnapshot(docId)?.translation_segments ?? [];
+  const cached = getWorkflowSnapshot(docId)?.translation_segments ?? [];
+  if (serverSegments.length === 0) return cached;
+  if (cached.length === 0) return serverSegments;
+
+  return serverSegments.map((seg, i) => {
+    const cachedSeg =
+      cached[i] ?? cached.find((c) => c.id === seg.id) ?? cached[0];
+    return mergeSegment(seg, cachedSeg);
+  });
 }

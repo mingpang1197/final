@@ -86,6 +86,8 @@ export function EasyReadDocumentView({
         image_file: item.image_file,
         line_index: startLineIndex,
         title: item.title,
+        image_url:
+          item.source_url || (item.url.startsWith("http") ? item.url : null) || null,
       },
     ]);
   }
@@ -242,7 +244,9 @@ function ImageSlot({
   }
 
   if (placement) {
-    const url = `/images/${placement.image_file}`;
+    const url = placement.image_url?.startsWith("http")
+      ? placement.image_url
+      : `/images/${placement.image_file}`;
     return (
       <div className="relative rounded-lg border border-coolgray-30 bg-[#f5f0e8] p-2 min-h-[140px] flex items-center justify-center">
         <img

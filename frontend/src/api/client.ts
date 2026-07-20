@@ -28,12 +28,14 @@ export interface ImagePlacement {
   image_file: string;
   line_index: number;
   title?: string | null;
+  image_url?: string | null;
 }
 
 export interface ImageCatalogItem {
   image_file: string;
   title: string;
   url: string;
+  source_url?: string | null;
 }
 
 export interface TranslationSegment {
@@ -164,11 +166,15 @@ export async function updateDocType(id: string, docType: DocType): Promise<Docum
   });
 }
 
-export async function refineSummary(id: string, prompt: string): Promise<Document> {
+export async function refineSummary(
+  id: string,
+  prompt: string,
+  summary?: string,
+): Promise<Document> {
   return request<Document>(`/documents/${id}/summary/refine`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, summary }),
   });
 }
 
@@ -195,11 +201,15 @@ export async function updateTranslation(
   });
 }
 
-export async function refineTranslation(id: string, prompt: string): Promise<Document> {
+export async function refineTranslation(
+  id: string,
+  prompt: string,
+  segments?: TranslationSegment[],
+): Promise<Document> {
   return request<Document>(`/documents/${id}/translation/refine`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, segments }),
   });
 }
 
@@ -292,6 +302,12 @@ export async function downloadDocx(id: string, payload: ExportPayload): Promise<
 export async function getImageCatalog(query = ""): Promise<ImageCatalogItem[]> {
   const q = query ? `?q=${encodeURIComponent(query)}` : "";
   return request<ImageCatalogItem[]>(`/documents/catalog/images${q}`);
+}
+
+export async function searchWebImages(query: string): Promise<ImageCatalogItem[]> {
+  return request<ImageCatalogItem[]>(
+    `/documents/catalog/images/web?q=${encodeURIComponent(query)}`,
+  );
 }
 
 export async function detectImagePlacements(

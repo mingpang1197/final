@@ -15,7 +15,7 @@ from pathlib import Path
 import fitz  # PyMuPDF
 
 from backend.models.schemas import DocumentResponse, ImagePlacement
-from backend.services.image_assets import resolve_image_path
+from backend.services.image_assets import resolve_placement_image
 from backend.services.image_matcher import (
     MAX_IMAGES_PER_TEXT,
     find_images_for_line,
@@ -122,8 +122,8 @@ def _line_to_html(line: str) -> str | None:
     return f'<p class="body">{"".join(chunks)}</p>'
 
 
-def _image_to_html(image_file: str) -> str | None:
-    img_path = resolve_image_path(image_file)
+def _image_to_html(image_file: str, image_url: str | None = None) -> str | None:
+    img_path = resolve_placement_image(image_file=image_file, image_url=image_url)
     if not img_path:
         return None
     uri = img_path.resolve().as_uri()
@@ -147,12 +147,13 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
             if line_html:
                 blocks.append(line_html)
             for placement in by_line.get(i, []):
-                if placement.image_file in inserted:
+                key = f"{placement.image_file}:{placement.image_url or ''}"
+                if key in inserted:
                     continue
-                img_html = _image_to_html(placement.image_file)
+                img_html = _image_to_html(placement.image_file, placement.image_url)
                 if img_html:
                     blocks.append(img_html)
-                    inserted.add(placement.image_file)
+                    inserted.add(key)
     else:
         in_meta_section = False
         inserted_images: set[str] = set()

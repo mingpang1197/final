@@ -16,7 +16,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 
-from backend.services.image_assets import resolve_image_path
+from backend.services.image_assets import resolve_placement_image
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.image_matcher import (
     MAX_IMAGES_PER_TEXT,
@@ -97,8 +97,8 @@ def _set_page_number_footer(section) -> None:
     _set_run_font(run_suffix, FOOTER_PT)
 
 
-def _add_picture(doc: Document, image_file: str) -> None:
-    img_path = resolve_image_path(image_file)
+def _add_picture(doc: Document, image_file: str, image_url: str | None = None) -> None:
+    img_path = resolve_placement_image(image_file=image_file, image_url=image_url)
     if not img_path:
         return
     p = doc.add_paragraph()
@@ -163,10 +163,11 @@ def _export_text_with_placements(
     for i, line in enumerate(lines):
         _add_rich_paragraph(doc, line)
         for placement in by_line.get(i, []):
-            if placement.image_file in inserted:
+            key = f"{placement.image_file}:{placement.image_url or ''}"
+            if key in inserted:
                 continue
-            _add_picture(doc, placement.image_file)
-            inserted.add(placement.image_file)
+            _add_picture(doc, placement.image_file, placement.image_url)
+            inserted.add(key)
 
 
 def _export_text(doc: Document, text: str, *, skip_meta: bool = True) -> None:

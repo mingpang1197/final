@@ -111,8 +111,14 @@ async def refine_translation(
     doc_type: DocType,
 ) -> tuple[list[TranslationSegment], str, ChecklistReport]:
     current = "\n".join(s.easy_text for s in segments)
+    preserved_placements = segments[0].image_placements if segments else []
     system = prompts.build_translation_system_prompt(doc_type)
-    user = f"현재 번역:\n{current}\n\n다음 지시에 따라 번역을 수정하세요:\n{instruction}"
+    user = (
+        f"현재 번역:\n{current}\n\n"
+        f"다음 지시에 따라 번역을 수정하세요:\n{instruction}\n\n"
+        "**수정된 이지리드 번역본**, **수정 사항 설명** 같은 메타 제목·설명은 출력하지 마세요.\n"
+        "번역본 본문만 출력하세요."
+    )
     revised = await upstage.chat_completion(system, user)
     revised = sanitize_translation_text(revised)
 
@@ -122,7 +128,7 @@ async def refine_translation(
             original=segments[0].original if segments else "",
             easy_text=revised,
             source="solar",
-            image_placements=segments[0].image_placements if segments else [],
+            image_placements=preserved_placements,
         )
     ]
     report = _build_checklist_report(revised)

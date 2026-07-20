@@ -13,7 +13,11 @@ GET    /api/health
 - 서버 상태 확인
 
 GET    /api/documents/catalog/images
-- 이미지 카탈로그 조회
+- 이미지 카탈로그 조회 (로컬 그림 DB)
+
+GET    /api/documents/catalog/images/web?q={query}
+- AI 프롬프트 웹 이미지 검색 (그림 탭)
+- Response: ImageCatalogItem[] ({ image_file, title, url, source_url? })
 
 POST   /api/documents/upload
 - 문서 업로드(OCR)
@@ -47,6 +51,7 @@ PATCH  /api/documents/{doc_id}/summary
 
 POST   /api/documents/{doc_id}/summary/refine
 - AI로 요약 수정
+- Request: { prompt, summary? } — summary: 화면의 현재 요약문 (미저장 편집 반영)
 
 POST   /api/documents/{doc_id}/translate
 - 쉬운 글 생성
@@ -58,6 +63,7 @@ PATCH  /api/documents/{doc_id}/translation
 
 POST   /api/documents/{doc_id}/translation/refine
 - AI로 쉬운 글 수정
+- Request: { prompt, segments? } — segments: 화면의 현재 번역 세그먼트 (미저장 편집·그림 배치 반영)
 
 POST   /api/documents/{doc_id}/translation/checklist
 - 쉬운 글 체크리스트 검사

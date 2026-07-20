@@ -70,7 +70,7 @@ export function SummaryPage() {
     }
   }, [id, summary]);
 
-  useDebouncedSave(summary, persistSummary);
+  const { flush: flushSummarySave } = useDebouncedSave(summary, persistSummary);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -216,7 +216,8 @@ export function SummaryPage() {
     setLoading(true);
     setError("");
     try {
-      const doc = await refineSummary(id, prompt);
+      await flushSummarySave();
+      const doc = await refineSummary(id, prompt, summary);
       const text = doc.summary || "";
       setSummary(text);
       if (text) saveWorkflowSnapshot(id, { summary: text });

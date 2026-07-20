@@ -18,6 +18,7 @@ class ImagePlacement(BaseModel):
     image_file: str
     line_index: int = 0
     title: str | None = None
+    image_url: str | None = None
 
 
 class TranslationSegment(BaseModel):
@@ -68,6 +69,8 @@ class SummaryUpdate(BaseModel):
 
 class RefineRequest(BaseModel):
     prompt: str
+    summary: str | None = None
+    segments: list[TranslationSegment] | None = None
 
 
 class TranslationUpdate(BaseModel):
@@ -124,6 +127,7 @@ class ImageCatalogItem(BaseModel):
     image_file: str
     title: str
     url: str
+    source_url: str | None = None
 
 
 class ChatMessage(BaseModel):

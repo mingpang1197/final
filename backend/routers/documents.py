@@ -41,6 +41,7 @@ from backend.models.schemas import (
     UploadResponse,
 )
 from backend.services.image_matcher import detect_image_placements, list_image_catalog
+from backend.services.image_web_search import search_web_images
 from backend.services import parser, prompts, translator, upstage, word_export, pdf_export
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -267,6 +268,13 @@ async def image_catalog(q: str = Query("")) -> list[ImageCatalogItem]:
     return [ImageCatalogItem(**item) for item in list_image_catalog(q)]
 
 
+@router.get("/catalog/images/web", response_model=list[ImageCatalogItem])
+async def image_catalog_web(q: str = Query(..., min_length=1)) -> list[ImageCatalogItem]:
+    """AI 프롬프트 기반 웹 이미지 검색 (그림 탭)."""
+    items = await search_web_images(q)
+    return [ImageCatalogItem(**item) for item in items]
+
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload_document(file: UploadFile = File(...)) -> UploadResponse:
     if not file.filename:
@@ -421,9 +429,15 @@ async def refine_summary(doc_id: str, body: RefineRequest) -> DocumentResponse:
     doc = await get_document(doc_id)
     if not doc:
         raise HTTPException(404, "문서를 찾을 수 없습니다.")
-    current = doc.summary or ""
+    current = (body.summary if body.summary is not None else doc.summary) or ""
+    if body.summary is not None and body.summary.strip():
+        await update_summary(doc_id, body.summary.strip())
     system = prompts.build_summary_system_prompt(doc.doc_type)
-    user = f"현재 요약:\n{current}\n\n다음 지시에 따라 요약을 수정하세요:\n{body.prompt}"
+    user = (
+        f"현재 요약:\n{current}\n\n"
+        f"다음 지시에 따라 요약을 수정하세요:\n{body.prompt}\n\n"
+        "**수정된 요약 본문만** 출력하세요. 설명·메타 제목은 출력하지 마세요."
+    )
     revised = await upstage.chat_completion(system, user)
     revised = await _polish_summary_text(revised)
     await update_summary(doc_id, revised)
@@ -496,8 +510,12 @@ async def refine_translation(doc_id: str, body: RefineRequest) -> DocumentRespon
     if not doc:
         raise HTTPException(404, "문서를 찾을 수 없습니다.")
     doc_type = await get_doc_type(doc_id) or "unknown"
+    segments = body.segments if body.segments is not None else doc.translation_segments
+    if body.segments is not None and body.segments:
+        text = "\n\n".join(s.easy_text for s in body.segments if s.easy_text)
+        await update_translation(doc_id, body.segments, text)
     segments, text, checklist_report = await translator.refine_translation(
-        doc.translation_segments, body.prompt, doc_type
+        segments, body.prompt, doc_type
     )
     await update_translation(doc_id, segments, text, checklist=checklist_report)
     return (await get_document(doc_id))  # type: ignore[return-value]

@@ -121,7 +121,7 @@ export function TranslatePage() {
     }
   }, [id, segments, summary]);
 
-  useDebouncedSave(segments, persistTranslation);
+  const { flush: flushTranslationSave } = useDebouncedSave(segments, persistTranslation);
 
   function editTranslationText(text: string) {
     if (segments.length === 0) return;
@@ -141,7 +141,8 @@ export function TranslatePage() {
     setLoading(true);
     setError("");
     try {
-      const doc = await refineTranslation(id, prompt);
+      await flushTranslationSave();
+      const doc = await refineTranslation(id, prompt, segments);
       const segs = sanitizeSegments(doc.translation_segments);
       setSegments(segs);
       saveWorkflowSnapshot(id, {

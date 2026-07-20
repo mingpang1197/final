@@ -7,9 +7,11 @@ import type { ImageCatalogItem, ImagePlacement, TranslationSegment } from "../ap
 import {
   detectImagePlacements,
   getImageCatalog,
+  searchWebImages,
   updateTranslation,
 } from "../api/client";
 import { DraggableCatalogItem, EasyReadDocumentView } from "../components/EasyReadDocumentView";
+import { PromptBar } from "../components/PromptBar";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
@@ -40,6 +42,9 @@ export function ImagesPage() {
   const [catalogQuery, setCatalogQuery] = useState("");
   const [catalogItems, setCatalogItems] = useState<ImageCatalogItem[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const [promptLoading, setPromptLoading] = useState(false);
+  const [webSearchActive, setWebSearchActive] = useState(false);
 
   const mainSegment = segments[0];
   const translationText = useMemo(() => segmentsToText(segments), [segments]);
@@ -88,6 +93,7 @@ export function ImagesPage() {
   }, [load]);
 
   useEffect(() => {
+    if (webSearchActive) return;
     let cancelled = false;
     setCatalogLoading(true);
     getImageCatalog(catalogQuery)
@@ -101,7 +107,7 @@ export function ImagesPage() {
     return () => {
       cancelled = true;
     };
-  }, [catalogQuery]);
+  }, [catalogQuery, webSearchActive]);
 
   const persistTranslation = useCallback(async () => {
     if (!id || segments.length === 0) return;
@@ -121,7 +127,37 @@ export function ImagesPage() {
     }
   }, [id, segments]);
 
-  useDebouncedSave(segments, persistTranslation);
+  const { flush: flushTranslationSave } = useDebouncedSave(segments, persistTranslation);
+
+  async function applyImagePrompt() {
+    if (!prompt.trim()) return;
+    setPromptLoading(true);
+    setError("");
+    setWebSearchActive(true);
+    try {
+      const results = await searchWebImages(prompt.trim());
+      setCatalogItems(results.slice(0, 40));
+      if (results.length === 0) {
+        setError("웹에서 찾은 그림이 없습니다. 다른 키워드로 시도해 보세요.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "웹 그림 검색 실패");
+    } finally {
+      setPromptLoading(false);
+    }
+  }
+
+  function handleCatalogSearchChange(value: string) {
+    setCatalogQuery(value);
+    setWebSearchActive(false);
+    setError("");
+  }
+
+  useEffect(() => {
+    return () => {
+      void flushTranslationSave();
+    };
+  }, [flushTranslationSave]);
 
   function editPlacements(next: ImagePlacement[]) {
     if (!mainSegment) return;
@@ -182,10 +218,15 @@ export function ImagesPage() {
               type="search"
               placeholder="제목 또는 파일명 검색"
               value={catalogQuery}
-              onChange={(e) => setCatalogQuery(e.target.value)}
+              onChange={(e) => handleCatalogSearchChange(e.target.value)}
               className="w-full h-12 px-4 bg-coolgray-10 border-b border-coolgray-30 text-base text-coolgray-90 placeholder:text-coolgray-60 outline-none focus:border-primary-60 shrink-0"
             />
             <div className="flex-1 min-h-0 overflow-auto px-4 py-3">
+              {webSearchActive && (
+                <p className="text-xs text-primary-60 mb-2 text-center">
+                  AI 프롬프트 웹 검색 결과 · 그림 DB로 돌아가려면 위 검색창을 사용하세요
+                </p>
+              )}
               {catalogLoading ? (
                 <p className="text-base text-coolgray-60 text-center py-8">불러오는 중...</p>
               ) : catalogItems.length === 0 ? (
@@ -206,6 +247,16 @@ export function ImagesPage() {
                   ))}
                 </ul>
               )}
+            </div>
+
+            <div className="shrink-0 px-4 pb-4 pt-2 border-t border-coolgray-30 bg-coolgray-10">
+              <PromptBar
+                value={prompt}
+                onChange={setPrompt}
+                onSubmit={applyImagePrompt}
+                loading={promptLoading}
+                placeholder="찾을 그림을 설명하세요 (예: 각하, 징역, 무죄)"
+              />
             </div>
           </div>
         </div>
