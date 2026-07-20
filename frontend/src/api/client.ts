@@ -250,6 +250,18 @@ function buildExportBody(payload: ExportPayload) {
   };
 }
 
+export async function fetchExportDocx(id: string, payload: ExportPayload): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/documents/${id}/export.docx`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildExportBody(payload)),
+  });
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res));
+  }
+  return res.blob();
+}
+
 export async function fetchExportPdf(id: string, payload: ExportPayload): Promise<Blob> {
   const res = await fetch(`${API_BASE}/documents/${id}/export.pdf`, {
     method: "POST",

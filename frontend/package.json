@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "docx-preview": "^0.4.0",
     "easyread": "file:..",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -22,3 +22,34 @@
 body {
   @apply bg-coolgray-10 text-coolgray-90 min-h-screen font-sans;
 }
+
+/* 추출 탭 — 브라우저 인쇄(Microsoft Print to PDF)용 */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #export-print-area,
+  #export-print-area * {
+    visibility: visible;
+  }
+
+  #export-print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    overflow: visible !important;
+    background: white !important;
+    padding: 0 !important;
+  }
+
+  #export-print-area .docx-wrapper {
+    box-shadow: none !important;
+    margin: 0 auto !important;
+  }
+}
+
+.export-docx-preview .docx-wrapper {
+  margin: 0 auto;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+}

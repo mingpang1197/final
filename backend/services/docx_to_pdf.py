@@ -3,7 +3,7 @@ from __future__ import annotations
 """Word(.docx) → PDF 변환.
 
 Word export 레이아웃을 그대로 유지하기 위해 HTML/PyMuPDF 대신
-완성된 docx를 PDF로 변환한다 (Word 인쇄·LibreOffice·ConvertAPI).
+완성된 docx를 PDF로 변환한다 (Word COM·LibreOffice·선택적 ConvertAPI).
 """
 
 import base64

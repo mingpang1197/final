@@ -604,7 +604,16 @@ async def _export_pdf(
     if not doc.translation_text and not doc.summary and not doc.translation_segments:
         raise HTTPException(400, "내보낼 내용이 없습니다.")
 
-    content = pdf_export.export_to_pdf(doc)
+    from backend.services.docx_to_pdf import DocxToPdfError
+
+    try:
+        content = pdf_export.export_to_pdf(doc)
+    except DocxToPdfError as exc:
+        raise HTTPException(
+            503,
+            "서버에 Word/LibreOffice PDF 변환기가 없습니다. 브라우저 인쇄(Microsoft Print to PDF)를 사용하세요.",
+        ) from exc
+
     disposition = "inline" if inline else "attachment"
     return Response(
         content=content,

@@ -303,31 +303,9 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
 
 
 def export_to_pdf(doc: DocumentResponse) -> bytes:
-    """Word export → PDF 변환 (Word 인쇄와 동일 레이아웃)."""
+    """Word export → PDF 변환. Word/LibreOffice 없으면 DocxToPdfError."""
     from backend.services import word_export
-    from backend.services.docx_to_pdf import DocxToPdfError, convert_docx_bytes_to_pdf
+    from backend.services.docx_to_pdf import convert_docx_bytes_to_pdf
 
     docx_bytes = word_export.export_to_docx(doc)
-    try:
-        return convert_docx_bytes_to_pdf(docx_bytes)
-    except DocxToPdfError as exc:
-        logger.warning("Word→PDF conversion failed (%s); falling back to HTML PDF", exc)
-        return _legacy_export_to_pdf(doc)
-
-
-def _legacy_export_to_pdf(doc: DocumentResponse) -> bytes:
-    story_html, story_css = _build_html(doc)
-    _, archive = _font_css()
-    story = fitz.Story(html=story_html, user_css=story_css, archive=archive)
-
-    mediabox = fitz.Rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT)
-    where = fitz.Rect(MARGIN, MARGIN, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - MARGIN)
-
-    def rectfn(_rect_num: int, _filled: fitz.Rect) -> tuple[fitz.Rect, fitz.Rect, fitz.Matrix]:
-        return mediabox, where, fitz.Identity
-
-    stream = io.BytesIO()
-    writer = fitz.DocumentWriter(stream)
-    story.write(writer, rectfn)
-    writer.close()
-    return stream.getvalue()
+    return convert_docx_bytes_to_pdf(docx_bytes)
