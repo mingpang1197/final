@@ -12,7 +12,7 @@ interface PanePanelProps {
 export function PanePanel({ title, children, className = "" }: PanePanelProps) {
   return (
     <section
-      className={`flex flex-col min-h-0 border border-black/80 bg-white ${className}`}
+      className={`flex flex-col h-full min-h-0 border border-black/80 bg-white ${className}`}
     >
       <div className="px-12 pt-3 pb-2 border-b border-coolgray-20">
         <h2 className="text-center text-lg font-bold text-coolgray-90">{title}</h2>
