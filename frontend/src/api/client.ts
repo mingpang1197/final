@@ -30,6 +30,8 @@ export interface ImagePlacement {
   title?: string | null;
   image_url?: string | null;
   section_heading?: string | null;
+  /** PDF 추출 POST body 전용 — 서버 파일 해석 없이 이미지 삽입 */
+  image_base64?: string | null;
 }
 
 export interface ImageCatalogItem {

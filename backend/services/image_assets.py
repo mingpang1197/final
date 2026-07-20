@@ -20,9 +20,13 @@ _WEB_CACHE_DIR = DATA_DIR / "web-image-cache"
 
 
 def resolve_image_path(image_file: str) -> Path | None:
-    local = IMAGES_DIR / image_file
-    if local.is_file():
-        return local
+    candidates = [
+        IMAGES_DIR / image_file,
+        Path(__file__).resolve().parent.parent.parent / "images" / image_file,
+    ]
+    for local in candidates:
+        if local.is_file():
+            return local
 
     if not IS_VERCEL:
         cached_web = _WEB_CACHE_DIR / image_file

@@ -82,6 +82,7 @@ POST   /api/documents/{doc_id}/export.pdf
 - PDF 생성·다운로드
 - Query: download(boolean) — true면 attachment, false면 inline 미리보기
 - Request (optional): ExportRequest (segments, summary, filename 등)
+- segments[].image_placements[].image_base64 — 추출 시 브라우저에서 인코딩한 data URL (선택)
 
 POST   /api/chat
 - ERAI 챗봇 (Solar) — DB(LEGAL_DB) 우선, 부족 시 웹 검색

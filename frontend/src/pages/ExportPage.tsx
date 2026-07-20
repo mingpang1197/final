@@ -8,6 +8,7 @@ import { downloadPdf, fetchExportPdf } from "../api/client";
 import { IconArrowRight } from "../components/ui/icons";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { getCachedUpload } from "../utils/docCache";
+import { enrichSegmentsForExport } from "../utils/exportImages";
 import { loadDocumentWithRecovery } from "../utils/documentLoader";
 import {
   getWorkflowSnapshot,
@@ -57,7 +58,7 @@ export function ExportPage() {
     load().catch(console.error);
   }, [load]);
 
-  const buildExportPayload = useCallback(() => {
+  const buildExportPayload = useCallback(async () => {
     const cached = id ? getCachedUpload(id) : null;
     const workflow = id ? getWorkflowSnapshot(id) : null;
     const cachedSegments = workflow?.translation_segments ?? [];
@@ -68,9 +69,10 @@ export function ExportPage() {
     const mergedSegments = id
       ? resolveTranslationSegments(id, baseSegments)
       : baseSegments;
+    const exportSegments = await enrichSegmentsForExport(mergedSegments);
     return {
-      segments: mergedSegments,
-      translation_text: mergedSegments.map((s) => s.easy_text).filter(Boolean).join("\n\n"),
+      segments: exportSegments,
+      translation_text: exportSegments.map((s) => s.easy_text).filter(Boolean).join("\n\n"),
       summary,
       filename,
       doc_type: cached?.doc_type,
@@ -93,7 +95,8 @@ export function ExportPage() {
     setPreviewLoading(true);
     setError("");
 
-    fetchExportPdf(id, buildExportPayload())
+    buildExportPayload()
+      .then((payload) => fetchExportPdf(id, payload))
       .then((blob) => {
         if (cancelled) return;
         if (previewUrlRef.current) {
@@ -130,7 +133,8 @@ export function ExportPage() {
     setExporting(true);
     setError("");
     try {
-      await downloadPdf(id, buildExportPayload());
+      const payload = await buildExportPayload();
+      await downloadPdf(id, payload);
     } catch (err) {
       setError(err instanceof Error ? err.message : "PDF 추출 실패");
     } finally {

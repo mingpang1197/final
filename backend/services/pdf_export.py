@@ -92,11 +92,17 @@ def _font_css() -> tuple[str, fitz.Archive]:
       vertical-align: top;
       padding: 8px 12px 8px 0;
       background: #f5f0e8;
+      min-height: 100px;
     }
     td.section-image img {
       max-width: 100%;
+      max-height: 160px;
       height: auto;
       display: block;
+      margin: 0 auto;
+    }
+    div.image-empty {
+      min-height: 100px;
     }
     td.section-body {
       vertical-align: top;
@@ -152,10 +158,19 @@ def _image_to_img_tag(image_file: str, image_url: str | None = None) -> str | No
     return f'<img src="data:{mime};base64,{encoded}" alt="" />'
 
 
-def _section_with_image_html(
+def _placement_to_img_tag(placement: ImagePlacement) -> str | None:
+    raw = (placement.image_base64 or "").strip()
+    if raw:
+        src = raw if raw.startswith("data:") else f"data:image/png;base64,{raw}"
+        return f'<img src="{src}" alt="" />'
+    return _image_to_img_tag(placement.image_file, placement.image_url)
+
+
+def _section_block_html(
     section,
     section_placements: list[ImagePlacement],
 ) -> str:
+    """소제목(전체 너비) + 2단(왼쪽 그림 / 오른쪽 본문) — 그림 탭과 동일."""
     blocks: list[str] = []
     if section.heading:
         heading_html = _line_to_html(section.heading)
@@ -168,14 +183,22 @@ def _section_with_image_html(
         key = f"{placement.image_file}:{placement.image_url or ''}"
         if key in seen:
             continue
-        tag = _image_to_img_tag(placement.image_file, placement.image_url)
+        tag = _placement_to_img_tag(placement)
         if tag:
             img_tags.append(tag)
             seen.add(key)
 
     body_html = _lines_to_html(section.body_lines)
 
-    if img_tags:
+    if section.heading:
+        image_cell = "".join(img_tags) if img_tags else '<div class="image-empty">&nbsp;</div>'
+        blocks.append(
+            "<table class=\"section-row\"><tr>"
+            f'<td class="section-image">{image_cell}</td>'
+            f'<td class="section-body">{body_html}</td>'
+            "</tr></table>"
+        )
+    elif img_tags:
         blocks.append(
             "<table class=\"section-row\"><tr>"
             f'<td class="section-image">{"".join(img_tags)}</td>'
@@ -195,12 +218,23 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
         return "<body></body>", css
 
     blocks: list[str] = []
-    placements = _collect_placements(doc)
-    if placements:
-        sections = parse_export_sections(body)
+    sections = parse_export_sections(body)
+    placements = _collect_placements(doc) or []
+    has_section_layout = any(section.heading for section in sections)
+
+    if has_section_layout:
         by_section = align_placements_to_sections(body, placements)
         for section in sections:
-            section_html = _section_with_image_html(
+            section_html = _section_block_html(
+                section,
+                by_section.get(section.start_line_index, []),
+            )
+            if section_html:
+                blocks.append(section_html)
+    elif placements:
+        by_section = align_placements_to_sections(body, placements)
+        for section in sections:
+            section_html = _section_block_html(
                 section,
                 by_section.get(section.start_line_index, []),
             )
