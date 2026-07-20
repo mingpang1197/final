@@ -1,11 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run install:frontend && npm run build --prefix frontend && cp -r images frontend/dist/images",
+  "buildCommand": "npm run build:vercel",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/health", "destination": "/api/index.py" },
-    { "source": "/((?!api/|images/|assets/|favicon\\.svg).*)", "destination": "/index.html" }
+    { "source": "/assets/(.*)", "destination": "/api/index.py" },
+    { "source": "/favicon.svg", "destination": "/api/index.py" },
+    { "source": "/documents/(.*)", "destination": "/api/index.py" },
+    { "source": "/", "destination": "/api/index.py" }
   ],
   "functions": {
     "api/index.py": {
