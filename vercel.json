@@ -2,7 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run install:frontend && npm run build --prefix frontend && cp -r images frontend/dist/images",
   "outputDirectory": "frontend/dist",
-  "installCommand": "pip install -r requirements.txt",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/health", "destination": "/api/index.py" },
@@ -11,11 +10,8 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
-      "memory": 1024
-    },
-    "api/[...path].py": {
-      "maxDuration": 60,
-      "memory": 1024
+      "memory": 1024,
+      "excludeFiles": "{frontend/**,images/**,samples/**,data/**,scripts/**,.cursor/**,**/*.pdf,**/*.docx,**/*.md,node_modules/**}"
     }
   }
 }

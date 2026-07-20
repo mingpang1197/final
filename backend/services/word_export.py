@@ -11,7 +11,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 
-from backend.config import IMAGES_DIR
+from backend.services.image_assets import resolve_image_path
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.image_matcher import (
     MAX_IMAGES_PER_TEXT,
@@ -93,8 +93,8 @@ def _set_page_number_footer(section) -> None:
 
 
 def _add_picture(doc: Document, image_file: str) -> None:
-    img_path = IMAGES_DIR / image_file
-    if not img_path.is_file():
+    img_path = resolve_image_path(image_file)
+    if not img_path:
         return
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT

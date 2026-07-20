@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-from backend.config import IMAGES_DIR, settings
+from backend.config import IMAGES_DIR, IS_VERCEL, settings
 from backend.database import init_db
 from backend.routers import documents
 
@@ -52,7 +52,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if IMAGES_DIR.exists():
+if IMAGES_DIR.exists() and not IS_VERCEL:
     app.mount("/images", StaticFiles(directory=str(IMAGES_DIR)), name="images")
 
 app.include_router(documents.router, prefix="/api")

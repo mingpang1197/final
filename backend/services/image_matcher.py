@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass
 from functools import lru_cache
 
-from backend.config import IMAGES_DIR, ROOT_DIR
+from backend.config import IMAGES_DIR, IS_VERCEL, ROOT_DIR
 from backend.models.schemas import ImagePlacement
 from backend.services.easy_read_sanitize import sanitize_translation_text
 
@@ -109,7 +109,7 @@ def _load_index() -> list[tuple[str, str | None, list[str]]]:
             image_file = entry.get("image_file")
             if not image_file or image_file in seen:
                 continue
-            if not (IMAGES_DIR / image_file).is_file():
+            if not IS_VERCEL and not (IMAGES_DIR / image_file).is_file():
                 continue
             seen.add(image_file)
             keywords = _keywords_for_entry(
@@ -192,18 +192,29 @@ def detect_image_placements(text: str) -> list[ImagePlacement]:
     return placements
 
 
+def _catalog_image_files() -> list[str]:
+    if IMAGES_DIR.is_dir():
+        return sorted(p.name for p in IMAGES_DIR.glob("*.png"))
+    seen: set[str] = set()
+    files: list[str] = []
+    for _key, entries in LEGAL_DB.items():
+        for entry in entries:
+            image_file = entry.get("image_file")
+            if image_file and image_file not in seen:
+                seen.add(image_file)
+                files.append(image_file)
+    return sorted(files)
+
+
 def list_image_catalog(query: str = "") -> list[dict[str, str]]:
     """All PNG files on disk with LEGAL_DB titles when available."""
     title_by_file: dict[str, str] = {}
-    for _image_file, title, _keywords in _load_index():
+    for image_file, title, _keywords in _load_index():
         if title:
-            title_by_file[_image_file] = title.replace("\n", " ")
+            title_by_file[image_file] = title.replace("\n", " ")
 
     items: list[dict[str, str]] = []
-    if not IMAGES_DIR.is_dir():
-        return items
-    for path in sorted(IMAGES_DIR.glob("*.png")):
-        image_file = path.name
+    for image_file in _catalog_image_files():
         title = title_by_file.get(image_file, image_file)
         if query:
             q = query.lower()
