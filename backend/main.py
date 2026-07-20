@@ -78,35 +78,33 @@ def _static_file(relative: str) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
-# Local dev only: uvicorn serves the Vite build from backend/static.
-# On Vercel, frontend/dist is served by the CDN + vercel.json rewrites — do not
-# register /assets or SPA routes here or missing bundles return JSON 404 → blank page.
-if not IS_VERCEL:
+@app.get("/")
+async def serve_root():
+    index = _static_file("index.html")
+    if index:
+        return FileResponse(index, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    raise HTTPException(status_code=404, detail="SPA build not found")
 
-    @app.get("/")
-    async def serve_root():
-        index = _static_file("index.html")
-        if index:
-            return FileResponse(index)
-        raise HTTPException(status_code=404, detail="SPA build not found")
 
-    @app.get("/assets/{asset_path:path}")
-    async def serve_assets(asset_path: str):
-        asset = _static_file(f"assets/{asset_path}")
-        if asset:
-            return FileResponse(asset)
-        raise HTTPException(status_code=404, detail="Asset not found")
+@app.get("/assets/{asset_path:path}")
+async def serve_assets(asset_path: str):
+    asset = _static_file(f"assets/{asset_path}")
+    if asset:
+        return FileResponse(asset, headers={"Cache-Control": "public, max-age=31536000, immutable"})
+    raise HTTPException(status_code=404, detail="Asset not found")
 
-    @app.get("/favicon.svg")
-    async def serve_favicon():
-        icon = _static_file("favicon.svg")
-        if icon:
-            return FileResponse(icon)
-        raise HTTPException(status_code=404, detail="Favicon not found")
 
-    @app.get("/documents/{rest:path}")
-    async def serve_spa_routes(rest: str):
-        index = _static_file("index.html")
-        if index:
-            return FileResponse(index)
-        raise HTTPException(status_code=404, detail="SPA build not found")
+@app.get("/favicon.svg")
+async def serve_favicon():
+    icon = _static_file("favicon.svg")
+    if icon:
+        return FileResponse(icon)
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+
+@app.get("/documents/{rest:path}")
+async def serve_spa_routes(rest: str):
+    index = _static_file("index.html")
+    if index:
+        return FileResponse(index, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    raise HTTPException(status_code=404, detail="SPA build not found")

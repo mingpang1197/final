@@ -6,6 +6,8 @@
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/images/(.*)", "destination": "/api/index.py" },
     { "source": "/health", "destination": "/api/index.py" },
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/documents/:path*", "destination": "/index.html" },
     { "source": "/((?!api/|images/|assets/|favicon\\.svg).*)", "destination": "/index.html" }
   ],
   "headers": [

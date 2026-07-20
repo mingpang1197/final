@@ -9,20 +9,23 @@ function copyLegalImages() {
   return {
     name: "copy-legal-images",
     closeBundle() {
-      const projectRoot = resolve(__dirname, "..");
-      const src = join(projectRoot, "images");
-      const dest = join(projectRoot, "frontend", "dist", "images");
-      if (!existsSync(src)) {
-        console.warn("[copy-legal-images] images/ not found — skip");
-        return;
-      }
-      mkdirSync(dest, { recursive: true });
-      cpSync(src, dest, { recursive: true });
-      const count = readdirSync(dest).filter((f) => f.endsWith(".png")).length;
-      console.log(`[copy-legal-images] copied ${count} PNG files to dist/images`);
-      if (count === 0) {
-        console.warn("[copy-legal-images] no PNG files copied");
-        return;
+      try {
+        const projectRoot = resolve(__dirname, "..");
+        const src = join(projectRoot, "images");
+        const dest = join(projectRoot, "frontend", "dist", "images");
+        if (!existsSync(src)) {
+          console.warn("[copy-legal-images] images/ not found — skip");
+          return;
+        }
+        mkdirSync(dest, { recursive: true });
+        cpSync(src, dest, { recursive: true });
+        const count = readdirSync(dest).filter((f) => f.endsWith(".png")).length;
+        console.log(`[copy-legal-images] copied ${count} PNG files to dist/images`);
+        if (count === 0) {
+          console.warn("[copy-legal-images] no PNG files copied");
+        }
+      } catch (err) {
+        console.warn("[copy-legal-images] copy failed — continuing build:", err);
       }
     },
   };
