@@ -137,3 +137,27 @@ def sanitize_translation_text(text: str) -> str:
     cleaned = _strip_doc_title_lines(cleaned)
     cleaned = _reorder_conclusion_before_claim(cleaned)
     return cleaned.strip()
+
+
+def extract_refined_translation(raw: str, *, fallback: str = "") -> str:
+    """LLM refine 출력에서 번역 본문만 추출."""
+    text = sanitize_translation_text(raw)
+    if not text.strip():
+        return fallback
+
+    for marker in (
+        "다음 지시에 따라 번역을 수정하세요:",
+        "다음 지시에 따라 요약을 수정하세요:",
+        "번역본 본문만 출력하세요.",
+        "**수정된 이지리드 번역본**",
+    ):
+        if marker in text:
+            text = text.split(marker, 1)[0]
+
+    if "현재 번역:" in text:
+        text = text.split("현재 번역:", 1)[-1]
+    if "현재 요약:" in text:
+        text = text.split("현재 요약:", 1)[-1]
+
+    text = text.strip()
+    return text or fallback

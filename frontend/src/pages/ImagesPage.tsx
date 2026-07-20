@@ -261,6 +261,7 @@ export function ImagesPage() {
                 onChange={setPrompt}
                 onSubmit={applyImagePrompt}
                 loading={promptLoading}
+                loadingLabel="그림 검색 중..."
                 placeholder="찾을 그림을 설명하세요 (예: 각하, 징역, 무죄)"
               />
             </div>

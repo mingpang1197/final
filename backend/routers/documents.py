@@ -42,6 +42,7 @@ from backend.models.schemas import (
 )
 from backend.services.image_matcher import detect_image_placements, list_image_catalog
 from backend.services.image_web_search import search_web_images
+from backend.services.easy_read_sanitize import extract_refined_translation
 from backend.services import parser, prompts, translator, upstage, word_export, pdf_export
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -435,10 +436,13 @@ async def refine_summary(doc_id: str, body: RefineRequest) -> DocumentResponse:
     system = prompts.build_summary_system_prompt(doc.doc_type)
     user = (
         f"현재 요약:\n{current}\n\n"
-        f"다음 지시에 따라 요약을 수정하세요:\n{body.prompt}\n\n"
-        "**수정된 요약 본문만** 출력하세요. 설명·메타 제목은 출력하지 마세요."
+        f"다음 지시에 따라 요약을 **수정**하세요:\n{body.prompt}\n\n"
+        "규칙:\n"
+        "- 사용자 지시를 **반드시 반영**하세요.\n"
+        "- **수정된 요약 본문만** 출력하세요. 설명·메타 제목은 출력하지 마세요."
     )
-    revised = await upstage.chat_completion(system, user)
+    revised = await upstage.chat_completion(system, user, max_tokens=5000, temperature=0.45)
+    revised = extract_refined_translation(revised, fallback=current)
     revised = await _polish_summary_text(revised)
     await update_summary(doc_id, revised)
     return (await get_document(doc_id))  # type: ignore[return-value]
@@ -514,9 +518,12 @@ async def refine_translation(doc_id: str, body: RefineRequest) -> DocumentRespon
     if body.segments is not None and body.segments:
         text = "\n\n".join(s.easy_text for s in body.segments if s.easy_text)
         await update_translation(doc_id, body.segments, text)
-    segments, text, checklist_report = await translator.refine_translation(
-        segments, body.prompt, doc_type
-    )
+    try:
+        segments, text, checklist_report = await translator.refine_translation(
+            segments, body.prompt, doc_type
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     await update_translation(doc_id, segments, text, checklist=checklist_report)
     return (await get_document(doc_id))  # type: ignore[return-value]
 

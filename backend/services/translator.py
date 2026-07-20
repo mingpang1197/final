@@ -11,7 +11,7 @@ import uuid
 
 from backend.models.schemas import ChecklistReport, DocType, TranslationSegment
 from backend.services import checklist, matcher, prompts, upstage
-from backend.services.easy_read_sanitize import sanitize_translation_text
+from backend.services.easy_read_sanitize import extract_refined_translation, sanitize_translation_text
 from backend.services.image_matcher import detect_image_placements
 
 
@@ -110,22 +110,37 @@ async def refine_translation(
     instruction: str,
     doc_type: DocType,
 ) -> tuple[list[TranslationSegment], str, ChecklistReport]:
-    current = "\n".join(s.easy_text for s in segments)
+    current = "\n\n".join(s.easy_text for s in segments if s.easy_text)
+    if not current.strip():
+        raise ValueError("수정할 번역본이 없습니다.")
     preserved_placements = segments[0].image_placements if segments else []
+    base_id = segments[0].id if segments else "1"
+    base_original = segments[0].original if segments else ""
     system = prompts.build_translation_system_prompt(doc_type)
     user = (
         f"현재 번역:\n{current}\n\n"
-        f"다음 지시에 따라 번역을 수정하세요:\n{instruction}\n\n"
-        "**수정된 이지리드 번역본**, **수정 사항 설명** 같은 메타 제목·설명은 출력하지 마세요.\n"
-        "번역본 본문만 출력하세요."
+        f"다음 지시에 따라 번역을 **수정**하세요:\n{instruction}\n\n"
+        "규칙:\n"
+        "- 사용자 지시를 **반드시 반영**해 전체 번역본을 다시 작성하세요.\n"
+        "- **수정된 이지리드 번역본**, **수정 사항 설명** 같은 메타 제목·설명은 출력하지 마세요.\n"
+        "- 번역본 본문만 출력하세요."
     )
-    revised = await upstage.chat_completion(system, user)
-    revised = sanitize_translation_text(revised)
+    revised = await upstage.chat_completion(system, user, max_tokens=8000, temperature=0.45)
+    revised = extract_refined_translation(revised, fallback=current)
+    if revised.strip() == current.strip():
+        revised = await upstage.chat_completion(
+            system,
+            f"{user}\n\n**중요**: 이전 출력은 지시가 반영되지 않았습니다. "
+            f"지시({instruction})를 **확실히 반영**해 다시 작성하세요.",
+            max_tokens=8000,
+            temperature=0.55,
+        )
+        revised = extract_refined_translation(revised, fallback=current)
 
     new_segments = [
         TranslationSegment(
-            id=segments[0].id if segments else "1",
-            original=segments[0].original if segments else "",
+            id=base_id,
+            original=base_original,
             easy_text=revised,
             source="solar",
             image_placements=preserved_placements,

@@ -33,12 +33,37 @@ function segmentsToText(segments: TranslationSegment[]): string {
   return segments.map((s) => s.easy_text).filter(Boolean).join("\n\n");
 }
 
+function mergeRefinedSegments(
+  doc: { translation_segments: TranslationSegment[]; translation_text?: string | null },
+): TranslationSegment[] {
+  const segs = sanitizeSegments(doc.translation_segments);
+  const text = sanitizeTranslationText(
+    doc.translation_text ?? segmentsToText(segs),
+  );
+  if (!text.trim()) return segs;
+  const base = segs[0] ?? {
+    id: "1",
+    original: "",
+    easy_text: "",
+    source: "solar" as const,
+  };
+  return [
+    {
+      ...base,
+      easy_text: text,
+      source: "solar" as const,
+      image_placements: base.image_placements ?? [],
+    },
+  ];
+}
+
 export function TranslatePage() {
   const { id } = useParams<{ id: string }>();
   const [summary, setSummary] = useState("");
   const [segments, setSegments] = useState<TranslationSegment[]>([]);
   const [prompt, setPrompt] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [refining, setRefining] = useState(false);
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -65,7 +90,7 @@ export function TranslatePage() {
           filename: doc.filename,
         });
       } else {
-        setLoading(true);
+        setGenerating(true);
         try {
           const updated = await translate(id, ensure);
           const segs = sanitizeSegments(updated.translation_segments);
@@ -78,7 +103,7 @@ export function TranslatePage() {
         } catch (err) {
           setError(err instanceof Error ? err.message : "번역 생성 실패");
         } finally {
-          setLoading(false);
+          setGenerating(false);
         }
       }
     } catch (err) {
@@ -137,23 +162,23 @@ export function TranslatePage() {
   }
 
   async function applyPrompt() {
-    if (!id || !prompt.trim()) return;
-    setLoading(true);
+    if (!id || !prompt.trim() || segments.length === 0) return;
+    setRefining(true);
     setError("");
     try {
       await flushTranslationSave();
       const doc = await refineTranslation(id, prompt, segments);
-      const segs = sanitizeSegments(doc.translation_segments);
+      const segs = mergeRefinedSegments(doc);
       setSegments(segs);
       saveWorkflowSnapshot(id, {
         translation_segments: segs,
-        translation_text: doc.translation_text ?? undefined,
+        translation_text: segmentsToText(segs),
       });
       setPrompt("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI 수정 실패");
     } finally {
-      setLoading(false);
+      setRefining(false);
     }
   }
 
@@ -168,7 +193,7 @@ export function TranslatePage() {
   const summaryPlaceholder = summaryDisplay ? "" : "요약 결과";
 
   const translationPlaceholder =
-    loading && segments.length === 0 ? "번역 생성 중..." : translationText.trim() ? "" : "번역 결과";
+    generating && segments.length === 0 ? "번역 생성 중..." : translationText.trim() ? "" : "번역 결과";
 
   return (
     <WorkflowLayout
@@ -200,14 +225,20 @@ export function TranslatePage() {
         <div className="min-h-0 flex flex-col gap-3 overflow-hidden">
           <p className="text-center text-base text-primary-90 shrink-0">번역문</p>
 
-          <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-coolgray-10">
+          <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-coolgray-10 relative">
+            {refining && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 text-primary-60 text-sm gap-2">
+                <span className="inline-block size-5 border-2 border-primary-60 border-t-transparent rounded-full animate-spin" />
+                AI가 번역문을 수정하고 있습니다...
+              </div>
+            )}
             <div className="flex-1 min-h-0 overflow-auto px-4 py-4">
               <EasyReadDocumentView
                 text={translationText}
                 mode="translate"
                 fill
                 placeholder={translationPlaceholder}
-                disabled={loading && segments.length === 0}
+                disabled={(generating && segments.length === 0) || refining}
                 onTextChange={editTranslationText}
               />
             </div>
@@ -218,7 +249,8 @@ export function TranslatePage() {
               value={prompt}
               onChange={setPrompt}
               onSubmit={applyPrompt}
-              loading={loading}
+              loading={refining}
+              loadingLabel="번역 수정 중..."
             />
           </div>
         </div>

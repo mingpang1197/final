@@ -165,13 +165,14 @@ def _split_pages(text: str) -> list[str]:
     return [text.strip()] if text.strip() else [""]
 
 
-async def chat_completion(system: str, user: str, *, max_tokens: int = 4096) -> str:
+async def chat_completion(system: str, user: str, *, max_tokens: int = 4096, temperature: float = 0.2) -> str:
     return await chat_completion_messages(
         [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
         max_tokens=max_tokens,
+        temperature=temperature,
     )
 
 
@@ -255,11 +256,22 @@ def _mock_chat(system: str, user: str) -> str:
 
     if "수정" in user or "다음 지시" in user or "refine" in system.lower():
         if "현재 요약" in user:
-            start = user.find("현재 요약:")
-            snippet = user[start : start + 200] if start >= 0 else user[:200]
-            return f"{snippet.replace('현재 요약:', '').strip()}\n\n(모의 AI 수정 반영)"
+            current = user.split("현재 요약:", 1)[1].split("다음 지시", 1)[0].strip()
+            instruction = ""
+            if "다음 지시에 따라 요약을 수정하세요:" in user:
+                instruction = user.split("다음 지시에 따라 요약을 수정하세요:", 1)[1].split("\n\n")[0].strip()
+            if instruction:
+                return f"{current}\n\n[{instruction} 반영 — mock]"
+            return f"{current}\n\n(모의 AI 수정 반영)"
         if "현재 번역" in user:
-            return user.split("현재 번역:")[-1].strip() + "\n\n(모의 AI 수정 반영)"
+            current = user.split("현재 번역:", 1)[1].split("다음 지시", 1)[0].strip()
+            instruction = ""
+            if "다음 지시에 따라 번역을" in user:
+                instruction = user.split("다음 지시에 따라 번역을", 1)[1]
+                instruction = instruction.split("수정하세요:", 1)[-1].split("\n\n")[0].strip()
+            if instruction:
+                return f"{current}\n\n[{instruction} 반영 — mock]"
+            return f"{current}\n\n(모의 AI 수정 반영)"
 
     if "요약" in system or ("요약" in user and "번역" not in user[:80]):
         body = user

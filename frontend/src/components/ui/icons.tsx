@@ -49,6 +49,20 @@ export function IconArrowRight({ className = "size-6" }: { className?: string })
   );
 }
 
+export function IconSpinner({ className = "size-5" }: { className?: string }) {
+  return (
+    <svg className={`${className} animate-spin`} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" className="opacity-25" />
+      <path
+        d="M12 3a9 9 0 0 1 9 9"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function IconUploadCloud({ className = "size-8" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 32 32" fill="none" aria-hidden>

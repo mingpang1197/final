@@ -47,7 +47,8 @@ export function SummaryPage() {
   const [pageCount, setPageCount] = useState(1);
   const [summary, setSummary] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [refining, setRefining] = useState(false);
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -87,7 +88,7 @@ export function SummaryPage() {
       if (existingSummary) {
         saveWorkflowSnapshot(id, { summary: existingSummary, filename: doc.filename });
       } else {
-        setLoading(true);
+        setGenerating(true);
         try {
           const updated = await summarize(
             id,
@@ -102,7 +103,7 @@ export function SummaryPage() {
         } catch (err) {
           setError(err instanceof Error ? err.message : "요약 생성 실패");
         } finally {
-          setLoading(false);
+          setGenerating(false);
         }
       }
     } catch {
@@ -116,7 +117,7 @@ export function SummaryPage() {
       if (cached) {
         setFilename(cached.filename);
         setPageCount(cached.page_count);
-        setLoading(true);
+        setGenerating(true);
         try {
           const updated = await summarize(id, false, summarizeFallbackBody(cached));
           const text = updated.summary || "";
@@ -127,7 +128,7 @@ export function SummaryPage() {
         } catch (err) {
           setError(err instanceof Error ? err.message : "요약 생성 실패");
         } finally {
-          setLoading(false);
+          setGenerating(false);
         }
       } else {
         setError("문서를 불러오지 못했습니다. 잠시 후 자동으로 다시 시도하거나 새로고침해 주세요.");
@@ -212,8 +213,8 @@ export function SummaryPage() {
   }, [id, pageNum, filename]);
 
   async function applyPrompt() {
-    if (!id || !prompt.trim()) return;
-    setLoading(true);
+    if (!id || !prompt.trim() || !summary.trim()) return;
+    setRefining(true);
     setError("");
     try {
       await flushSummarySave();
@@ -225,7 +226,7 @@ export function SummaryPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI 수정 실패");
     } finally {
-      setLoading(false);
+      setRefining(false);
     }
   }
 
@@ -236,7 +237,7 @@ export function SummaryPage() {
     .filter(Boolean)
     .join(" · ");
 
-  const summaryPlaceholder = loading
+  const summaryPlaceholder = generating
     ? "요약 생성 중..."
     : summary.trim()
       ? ""
@@ -289,12 +290,19 @@ export function SummaryPage() {
         <div className="min-h-0 flex flex-col gap-3 overflow-hidden">
           <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
 
-          <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden relative">
+            {refining && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 text-primary-60 text-sm gap-2">
+                <span className="inline-block size-5 border-2 border-primary-60 border-t-transparent rounded-full animate-spin" />
+                AI가 요약문을 수정하고 있습니다...
+              </div>
+            )}
             <textarea
-              className="flex-1 min-h-0 w-full px-4 py-3 bg-coolgray-10 border-b border-coolgray-30 text-base resize-none overflow-auto leading-relaxed outline-none text-coolgray-90 placeholder:text-coolgray-60 placeholder:text-center"
+              className="flex-1 min-h-0 w-full px-4 py-3 bg-coolgray-10 border-b border-coolgray-30 text-base resize-none overflow-auto leading-relaxed outline-none text-coolgray-90 placeholder:text-coolgray-60 placeholder:text-center disabled:opacity-60"
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               placeholder={summaryPlaceholder}
+              disabled={refining}
             />
           </div>
 
@@ -303,7 +311,8 @@ export function SummaryPage() {
               value={prompt}
               onChange={setPrompt}
               onSubmit={applyPrompt}
-              loading={loading}
+              loading={refining}
+              loadingLabel="요약 수정 중..."
             />
           </div>
         </div>
