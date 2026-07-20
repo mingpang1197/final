@@ -10,3 +10,4 @@ backend/static/
 Untitled
 *.docx
 *.pdf
+.vercel

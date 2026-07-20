@@ -1,15 +1,15 @@
 /**
- * 이지리드 2단 레이아웃 — 소제목 아래 왼쪽 그림 / 오른쪽 본문.
+ * 이지리드 2단 레이아웃 — 양식: <소제목> + 항목마다 왼쪽 그림 / 오른쪽 본문.
  */
 import { useMemo, useState, type DragEvent, type ReactNode } from "react";
 import type { ImageCatalogItem, ImagePlacement } from "../api/client";
 import {
   formatHeadingDisplay,
-  isSectionHeading,
-  normalizeSectionHeading,
+  parseSectionItems,
   parseTranslationSections,
-  resolvePlacementForSection,
+  resolvePlacementForItem,
   sectionsToTranslationText,
+  type TranslationItem,
   type TranslationSection,
 } from "../utils/translationSections";
 
@@ -61,7 +61,7 @@ export function EasyReadDocumentView({
   disabled = false,
 }: EasyReadDocumentViewProps) {
   const sections = useMemo(() => parseTranslationSections(text), [text]);
-  const [dragOverSection, setDragOverSection] = useState<number | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null);
 
   function updateSectionBody(sectionIndex: number, body: string) {
     if (!onTextChange) return;
@@ -71,16 +71,13 @@ export function EasyReadDocumentView({
     onTextChange(sectionsToTranslationText(next));
   }
 
-function setSectionPlacement(startLineIndex: number, item: ImageCatalogItem, sectionHeading: string | null) {
+  function setItemPlacement(
+    startLineIndex: number,
+    item: ImageCatalogItem,
+    sectionHeading: string | null,
+  ) {
     if (!onPlacementsChange) return;
-    const headingKey = sectionHeading ? normalizeSectionHeading(sectionHeading) : null;
-    const without = placements.filter((p) => {
-      if (p.line_index === startLineIndex) return false;
-      if (headingKey && p.section_heading && normalizeSectionHeading(p.section_heading) === headingKey) {
-        return false;
-      }
-      return true;
-    });
+    const without = placements.filter((p) => p.line_index !== startLineIndex);
     onPlacementsChange([
       ...without,
       {
@@ -95,7 +92,7 @@ function setSectionPlacement(startLineIndex: number, item: ImageCatalogItem, sec
     ]);
   }
 
-  function removeSectionPlacement(startLineIndex: number) {
+  function removeItemPlacement(startLineIndex: number) {
     if (!onPlacementsChange) return;
     onPlacementsChange(placements.filter((p) => p.line_index !== startLineIndex));
   }
@@ -119,16 +116,15 @@ function setSectionPlacement(startLineIndex: number, item: ImageCatalogItem, sec
           key={`${section.startLineIndex}-${sectionIndex}`}
           section={section}
           mode={mode}
-          placement={resolvePlacementForSection(placements, section)}
-          dragOver={dragOverSection === sectionIndex}
+          placements={placements}
+          dragOverKey={dragOverKey}
           disabled={disabled}
-          onDragEnter={() => mode === "images" && setDragOverSection(sectionIndex)}
-          onDragLeave={() => setDragOverSection(null)}
-          onDrop={(item) => {
-            setDragOverSection(null);
-            setSectionPlacement(section.startLineIndex, item, section.heading);
+          onDragOverKey={setDragOverKey}
+          onDropItem={(lineIndex, item) => {
+            setDragOverKey(null);
+            setItemPlacement(lineIndex, item, section.heading);
           }}
-          onRemoveImage={() => removeSectionPlacement(section.startLineIndex)}
+          onRemoveItem={removeItemPlacement}
           onBodyChange={(body) => updateSectionBody(sectionIndex, body)}
         />
       ))}
@@ -139,82 +135,75 @@ function setSectionPlacement(startLineIndex: number, item: ImageCatalogItem, sec
 function SectionBlock({
   section,
   mode,
-  placement,
-  dragOver,
+  placements,
+  dragOverKey,
   disabled,
-  onDragEnter,
-  onDragLeave,
-  onDrop,
-  onRemoveImage,
+  onDragOverKey,
+  onDropItem,
+  onRemoveItem,
   onBodyChange,
 }: {
   section: TranslationSection;
   mode: "translate" | "images";
-  placement?: ImagePlacement;
-  dragOver: boolean;
+  placements: ImagePlacement[];
+  dragOverKey: string | null;
   disabled?: boolean;
-  onDragEnter: () => void;
-  onDragLeave: () => void;
-  onDrop: (item: ImageCatalogItem) => void;
-  onRemoveImage: () => void;
+  onDragOverKey: (key: string | null) => void;
+  onDropItem: (lineIndex: number, item: ImageCatalogItem) => void;
+  onRemoveItem: (lineIndex: number) => void;
   onBodyChange: (body: string) => void;
 }) {
   const headingDisplay = section.heading ? formatHeadingDisplay(section.heading) : null;
+  const items = useMemo(() => parseSectionItems(section), [section]);
   const bodyText = section.bodyLines.join("\n");
 
+  if (mode === "translate") {
+    return (
+      <article className="space-y-3">
+        {headingDisplay && (
+          <h3 className="text-[17px] font-bold text-coolgray-90 leading-snug">{headingDisplay}</h3>
+        )}
+        <textarea
+          className="w-full min-h-[120px] p-3 bg-coolgray-10 border border-coolgray-30 rounded-lg text-[15px] leading-relaxed resize-y outline-none focus:border-primary-60 disabled:opacity-60"
+          value={bodyText}
+          onChange={(e) => onBodyChange(e.target.value)}
+          disabled={disabled}
+          placeholder="본문을 입력하세요"
+        />
+      </article>
+    );
+  }
+
   return (
-    <article className="space-y-3">
+    <article className="space-y-4">
       {headingDisplay && (
-        <h3
-          className={`text-[17px] font-bold text-coolgray-90 leading-snug ${
-            isSectionHeading(section.heading!) && section.heading!.trim().startsWith("■")
-              ? ""
-              : ""
-          }`}
-        >
+        <h3 className="text-[17px] font-bold text-coolgray-90 leading-snug">
           {section.heading!.trim().startsWith("#") || section.heading!.trim().startsWith("■")
             ? renderBoldText(headingDisplay)
             : headingDisplay}
         </h3>
       )}
 
-      <div className="grid grid-cols-[minmax(120px,32%)_1fr] gap-4 items-start">
-        <ImageSlot
-          mode={mode}
-          placement={placement}
-          dragOver={dragOver}
-          onDragEnter={onDragEnter}
-          onDragLeave={onDragLeave}
-          onDrop={onDrop}
-          onRemove={onRemoveImage}
-        />
-
-        <div className="min-w-0 text-[15px] leading-relaxed text-coolgray-90">
-          {mode === "translate" ? (
-            <textarea
-              className="w-full min-h-[120px] p-3 bg-coolgray-10 border border-coolgray-30 rounded-lg text-[15px] leading-relaxed resize-y outline-none focus:border-primary-60 disabled:opacity-60"
-              value={bodyText}
-              onChange={(e) => onBodyChange(e.target.value)}
-              disabled={disabled}
-              placeholder="본문을 입력하세요"
-            />
-          ) : bodyText ? (
-            <div className="space-y-2">
-              {section.bodyLines.map((line, i) => (
-                <p key={i}>{renderBoldText(line)}</p>
-              ))}
-            </div>
-          ) : (
-            <p className="text-coolgray-60 text-sm">본문 없음</p>
-          )}
-        </div>
+      <div className="space-y-5">
+        {items.map((item) => (
+          <ItemRow
+            key={item.startLineIndex}
+            item={item}
+            placement={resolvePlacementForItem(placements, item, section.heading)}
+            dragOver={dragOverKey === String(item.startLineIndex)}
+            onDragEnter={() => onDragOverKey(String(item.startLineIndex))}
+            onDragLeave={() => onDragOverKey(null)}
+            onDrop={(catalogItem) => onDropItem(item.startLineIndex, catalogItem)}
+            onRemove={() => onRemoveItem(item.startLineIndex)}
+          />
+        ))}
       </div>
     </article>
   );
 }
 
-function ImageSlot({
-  mode,
+function ItemRow({
+  item,
   placement,
   dragOver,
   onDragEnter,
@@ -222,7 +211,7 @@ function ImageSlot({
   onDrop,
   onRemove,
 }: {
-  mode: "translate" | "images";
+  item: TranslationItem;
   placement?: ImagePlacement;
   dragOver: boolean;
   onDragEnter: () => void;
@@ -230,17 +219,47 @@ function ImageSlot({
   onDrop: (item: ImageCatalogItem) => void;
   onRemove: () => void;
 }) {
-  const interactive = mode === "images";
+  return (
+    <div className="grid grid-cols-[minmax(120px,32%)_1fr] gap-4 items-start">
+      <ImageSlot
+        placement={placement}
+        dragOver={dragOver}
+        onDragEnter={onDragEnter}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        onRemove={onRemove}
+      />
+      <div className="min-w-0 text-[15px] leading-relaxed text-coolgray-90 space-y-2">
+        {item.lines.map((line, i) => (
+          <p key={i}>{renderBoldText(line)}</p>
+        ))}
+      </div>
+    </div>
+  );
+}
 
+function ImageSlot({
+  placement,
+  dragOver,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
+  onRemove,
+}: {
+  placement?: ImagePlacement;
+  dragOver: boolean;
+  onDragEnter: () => void;
+  onDragLeave: () => void;
+  onDrop: (item: ImageCatalogItem) => void;
+  onRemove: () => void;
+}) {
   function handleDragOver(e: DragEvent) {
-    if (!interactive) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
     onDragEnter();
   }
 
   function handleDrop(e: DragEvent) {
-    if (!interactive) return;
     e.preventDefault();
     const item = parseDraggedImageItem(e.dataTransfer);
     if (item) onDrop(item);
@@ -251,22 +270,20 @@ function ImageSlot({
       ? placement.image_url
       : `/images/${placement.image_file}`;
     return (
-      <div className="relative rounded-lg border border-coolgray-30 bg-[#f5f0e8] p-2 min-h-[140px] flex items-center justify-center">
+      <div className="relative rounded-lg border border-coolgray-30 bg-[#f5f0e8] p-2 min-h-[120px] flex items-center justify-center">
         <img
           src={url}
           alt={placement.title || "시각자료"}
-          className="max-h-36 w-full object-contain"
+          className="max-h-32 w-full object-contain"
         />
-        {interactive && (
-          <button
-            type="button"
-            onClick={onRemove}
-            className="absolute top-1 right-1 size-6 rounded-full bg-white/90 border border-coolgray-30 text-coolgray-60 hover:text-alert text-sm leading-none"
-            aria-label="그림 제거"
-          >
-            ×
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onRemove}
+          className="absolute top-1 right-1 size-6 rounded-full bg-white/90 border border-coolgray-30 text-coolgray-60 hover:text-alert text-sm leading-none"
+          aria-label="그림 제거"
+        >
+          ×
+        </button>
       </div>
     );
   }
@@ -276,23 +293,17 @@ function ImageSlot({
       onDragOver={handleDragOver}
       onDragLeave={onDragLeave}
       onDrop={handleDrop}
-      className={`rounded-lg border border-dashed min-h-[140px] flex items-center justify-center text-sm text-center px-2 ${
-        interactive
-          ? dragOver
-            ? "border-primary-60 bg-primary-60/5 text-primary-60"
-            : "border-coolgray-40 bg-[#f5f0e8] text-coolgray-60"
-          : "border-coolgray-30 bg-coolgray-10 text-coolgray-40"
+      className={`rounded-lg border border-dashed min-h-[120px] flex items-center justify-center text-sm text-center px-2 ${
+        dragOver
+          ? "border-primary-60 bg-primary-60/5 text-primary-60"
+          : "border-coolgray-40 bg-[#f5f0e8] text-coolgray-60"
       }`}
     >
-      {interactive ? (
-        <span>
-          그림 DB에서
-          <br />
-          드래그하여 배치
-        </span>
-      ) : (
-        <span>그림</span>
-      )}
+      <span>
+        그림 DB에서
+        <br />
+        드래그하여 배치
+      </span>
     </div>
   );
 }

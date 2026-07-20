@@ -1,5 +1,5 @@
 /**
- * 이지리드 번역문을 소제목 단위 섹션으로 분해·조합한다.
+ * 이지리드 번역문을 소제목·번호 항목 단위로 분해 (작성양식 PDF 구조).
  */
 import type { ImagePlacement } from "../api/client";
 import { filterPreviewLines } from "./sanitizeTranslation";
@@ -7,9 +7,17 @@ import { filterPreviewLines } from "./sanitizeTranslation";
 export interface TranslationSection {
   heading: string | null;
   bodyLines: string[];
-  /** image_placements.line_index 와 매칭 */
+  /** image_placements.line_index 와 매칭 (섹션 제목 또는 항목 시작) */
   startLineIndex: number;
 }
+
+/** 양식: 1., 2. 등 번호 항목 — 각각 (삽화 | 글) 2단 */
+export interface TranslationItem {
+  lines: string[];
+  startLineIndex: number;
+}
+
+const NUMBERED_ITEM = /^\s*\d+[\).]\s/;
 
 export function isSectionHeading(line: string): boolean {
   const s = line.trim();
@@ -18,6 +26,46 @@ export function isSectionHeading(line: string): boolean {
     s.startsWith("■") ||
     s.startsWith("#")
   );
+}
+
+export function isNumberedItemLine(line: string): boolean {
+  return NUMBERED_ITEM.test(line);
+}
+
+export function parseSectionItems(section: TranslationSection): TranslationItem[] {
+  const body = section.bodyLines;
+  if (body.length === 0) return [];
+
+  const bodyStart = section.startLineIndex + (section.heading ? 1 : 0);
+  const hasNumbered = body.some(isNumberedItemLine);
+
+  if (!hasNumbered) {
+    return [{ lines: [...body], startLineIndex: bodyStart }];
+  }
+
+  const items: TranslationItem[] = [];
+  let current: string[] = [];
+  let currentStart = bodyStart;
+
+  body.forEach((line, offset) => {
+    const globalIdx = bodyStart + offset;
+    if (isNumberedItemLine(line)) {
+      if (current.length) {
+        items.push({ lines: current, startLineIndex: currentStart });
+      }
+      current = [line];
+      currentStart = globalIdx;
+    } else {
+      if (!current.length) currentStart = globalIdx;
+      current.push(line);
+    }
+  });
+
+  if (current.length) {
+    items.push({ lines: current, startLineIndex: currentStart });
+  }
+
+  return items;
 }
 
 export function parseTranslationSections(text: string): TranslationSection[] {
@@ -69,61 +117,73 @@ export function normalizeSectionHeading(text: string): string {
   return text.trim().replace(/^#+\s*/, "").trim();
 }
 
-/** 그림 탭·추출 공통 — section_heading 우선, 없으면 line_index. */
+export function findSectionForLineIndex(
+  text: string,
+  lineIndex: number,
+): TranslationSection | undefined {
+  return parseTranslationSections(text).find((section) => {
+    if (section.startLineIndex === lineIndex) return true;
+    const bodyStart = section.startLineIndex + (section.heading ? 1 : 0);
+    const bodyEnd = bodyStart + section.bodyLines.length;
+    return lineIndex >= bodyStart && lineIndex < bodyEnd;
+  });
+}
+
+/** 그림 탭·추출 — 항목 startLineIndex 기준. */
+export function resolvePlacementForItem(
+  placements: ImagePlacement[],
+  item: TranslationItem,
+  sectionHeading: string | null,
+): ImagePlacement | undefined {
+  const exact = placements.find((p) => p.line_index === item.startLineIndex);
+  if (exact) return exact;
+
+  if (sectionHeading) {
+    const target = normalizeSectionHeading(sectionHeading);
+    const inSection = placements.filter(
+      (p) => p.section_heading && normalizeSectionHeading(p.section_heading) === target,
+    );
+    if (inSection.length === 1) return inSection[0];
+  }
+
+  return undefined;
+}
+
+/** @deprecated 섹션 단위 — resolvePlacementForItem 사용 */
 export function resolvePlacementForSection(
   placements: ImagePlacement[],
   section: TranslationSection,
 ): ImagePlacement | undefined {
-  if (section.heading) {
-    const target = normalizeSectionHeading(section.heading);
-    const byHeading = placements.find(
-      (p) => p.section_heading && normalizeSectionHeading(p.section_heading) === target,
-    );
-    if (byHeading) return byHeading;
+  const items = parseSectionItems(section);
+  for (const item of items) {
+    const p = resolvePlacementForItem(placements, item, section.heading);
+    if (p) return p;
   }
-  return placements.find((p) => p.line_index === section.startLineIndex);
+  return undefined;
 }
 
-/** 추출용 — 섹션당 1개, 사용자 배치(section_heading) 우선. */
+/** 추출용 — line_index별 배치 유지. */
 export function filterPlacementsForExport(
   text: string,
   placements: ImagePlacement[],
 ): ImagePlacement[] {
   if (!placements.length) return [];
   const enriched = enrichPlacementsWithHeadings(text, placements);
-  const sections = parseTranslationSections(text);
-  const headingIndices = new Set(
-    sections.filter((s) => s.heading).map((s) => s.startLineIndex),
-  );
-
-  const manual = enriched.filter((p) => p.section_heading);
-  if (manual.length > 0) {
-    const byHeading = new Map<string, ImagePlacement>();
-    for (const p of manual) {
-      byHeading.set(normalizeSectionHeading(p.section_heading!), p);
-    }
-    return Array.from(byHeading.values()).sort((a, b) => a.line_index - b.line_index);
+  const byLine = new Map<number, ImagePlacement>();
+  for (const p of enriched.sort((a, b) => a.line_index - b.line_index)) {
+    byLine.set(p.line_index, p);
   }
-
-  const byIndex = new Map<number, ImagePlacement>();
-  for (const p of enriched) {
-    if (headingIndices.has(p.line_index)) {
-      byIndex.set(p.line_index, p);
-    }
-  }
-  return Array.from(byIndex.values()).sort((a, b) => a.line_index - b.line_index);
+  return Array.from(byLine.values());
 }
 
-/** 기존 배치에 section_heading이 없으면 line_index로 채운다 (export 정렬용). */
 export function enrichPlacementsWithHeadings(
   text: string,
   placements: ImagePlacement[],
 ): ImagePlacement[] {
   if (!placements.length) return placements;
-  const sections = parseTranslationSections(text);
   return placements.map((p) => {
     if (p.section_heading) return p;
-    const section = sections.find((s) => s.startLineIndex === p.line_index);
+    const section = findSectionForLineIndex(text, p.line_index);
     if (section?.heading) return { ...p, section_heading: section.heading };
     return p;
   });

@@ -19,9 +19,10 @@ import fitz  # PyMuPDF
 
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.export_layout import (
-    align_placements_to_sections,
+    align_placements_to_items,
     is_image_placeholder,
     parse_export_sections,
+    parse_section_items,
     prepare_placements_for_export,
 )
 from backend.services.image_assets import resolve_placement_image
@@ -84,6 +85,11 @@ def _font_css() -> tuple[str, fitz.Archive]:
     }}
     p.heading {{
       margin: 16px 0 8px 0;
+      font-size: 17px;
+      font-weight: bold;
+    }}
+    p.form-header {{
+      margin: 0 0 12px 0;
       font-size: 17px;
       font-weight: bold;
     }}
@@ -176,45 +182,48 @@ def _placement_to_img_tag(placement: ImagePlacement) -> str | None:
     return file_tag.replace("<img ", f'<img class="section-img" width="{IMAGE_INSET_PT}" ', 1)
 
 
+def _item_row_html(
+    item,
+    placement: ImagePlacement | None,
+) -> str:
+    """항목별 (삽화 | 글) 2단."""
+    img_tags: list[str] = []
+    if placement:
+        tag = _placement_to_img_tag(placement)
+        if tag:
+            img_tags.append(tag)
+
+    body_html = _lines_to_html(item.lines)
+    if not body_html and not img_tags:
+        return ""
+
+    image_cell = "".join(img_tags) if img_tags else '<div class="image-empty">&nbsp;</div>'
+    return (
+        '<div class="section-row">'
+        f'<div class="image-col">{image_cell}</div>'
+        f'<div class="body-col">{body_html}</div>'
+        "</div>"
+    )
+
+
 def _section_block_html(
     section,
-    section_placements: list[ImagePlacement],
+    by_item: dict[int, ImagePlacement],
 ) -> str:
-    """소제목(전체 너비) + 2단(왼쪽 그림 / 오른쪽 본문) — 그림 탭과 동일."""
+    """소제목 + 항목마다 (삽화 | 글) — 작성양식 PDF 구조."""
     blocks: list[str] = []
     if section.heading:
         heading_html = _line_to_html(section.heading)
         if heading_html:
             blocks.append(heading_html)
 
-    img_tags: list[str] = []
-    placement = section_placements[0] if section_placements else None
-    if placement:
-        tag = _placement_to_img_tag(placement)
-        if tag:
-            img_tags.append(tag)
-
-    body_html = _lines_to_html(section.body_lines)
-    row_open = '<div class="section-row">'
-    row_close = "</div>"
-
-    if section.heading:
-        image_cell = "".join(img_tags) if img_tags else '<div class="image-empty">&nbsp;</div>'
-        blocks.append(
-            f"{row_open}"
-            f'<div class="image-col">{image_cell}</div>'
-            f'<div class="body-col">{body_html}</div>'
-            f"{row_close}"
-        )
-    elif img_tags:
-        blocks.append(
-            f"{row_open}"
-            f'<div class="image-col">{"".join(img_tags)}</div>'
-            f'<div class="body-col">{body_html}</div>'
-            f"{row_close}"
-        )
-    elif body_html:
-        blocks.append(body_html)
+    for item in parse_section_items(section):
+        placement = by_item.get(item.start_line_index)
+        if placement is not None and not isinstance(placement, ImagePlacement):
+            placement = ImagePlacement(**placement)  # type: ignore[arg-type]
+        row = _item_row_html(item, placement)
+        if row:
+            blocks.append(row)
 
     return "".join(blocks)
 
@@ -232,21 +241,24 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
     has_section_layout = any(section.heading for section in sections)
 
     if has_section_layout:
-        by_section = align_placements_to_sections(body, placements)
+        blocks.append('<p class="form-header">부록 3. 이지리드 판결서 양식</p>')
+        by_item_raw = align_placements_to_items(body, placements)
+        by_item = {
+            k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
+            for k, v in by_item_raw.items()
+        }
         for section in sections:
-            section_html = _section_block_html(
-                section,
-                by_section.get(section.start_line_index, []),
-            )
+            section_html = _section_block_html(section, by_item)
             if section_html:
                 blocks.append(section_html)
     elif placements:
-        by_section = align_placements_to_sections(body, placements)
+        by_item_raw = align_placements_to_items(body, placements)
+        by_item = {
+            k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
+            for k, v in by_item_raw.items()
+        }
         for section in sections:
-            section_html = _section_block_html(
-                section,
-                by_section.get(section.start_line_index, []),
-            )
+            section_html = _section_block_html(section, by_item)
             if section_html:
                 blocks.append(section_html)
     else:

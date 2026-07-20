@@ -21,9 +21,10 @@ from docx.shared import Inches, Pt
 
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.export_layout import (
-    align_placements_to_sections,
+    align_placements_to_items,
     is_image_placeholder,
     parse_export_sections,
+    parse_section_items,
     prepare_placements_for_export,
 )
 from backend.services.image_assets import resolve_placement_image
@@ -244,25 +245,31 @@ def _add_section_table(
     spacer.paragraph_format.space_after = Pt(12)
 
 
+def _add_form_header(doc: Document) -> None:
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p.paragraph_format.space_after = Pt(4)
+    run = p.add_run("부록 3. 이지리드 판결서 양식")
+    _set_run_font(run, HEADING_PT, bold=True)
+
+
 def _export_easy_read_layout(
     doc: Document,
     text: str,
     placements: list[ImagePlacement],
 ) -> None:
-    sections = parse_export_sections(text)
-    by_section = align_placements_to_sections(text, placements)
+    """작성양식 PDF: 부록 헤더 + <소제목> + 항목별 (삽화 | 글)."""
+    _add_form_header(doc)
+    by_item = align_placements_to_items(text, placements)
 
-    for section in sections:
+    for section in parse_export_sections(text):
         if section.heading:
             _add_heading_paragraph(doc, section.heading)
-            section_placements = by_section.get(section.start_line_index, [])
-            placement = section_placements[0] if section_placements else None
-            _add_section_table(doc, placement, section.body_lines)
-        else:
-            for line in section.body_lines:
-                p = doc.add_paragraph()
-                _apply_body_format(p)
-                _add_runs_to_paragraph(p, line, size_pt=BODY_PT)
+        for item in parse_section_items(section):
+            placement = by_item.get(item.start_line_index)
+            if placement is not None and not isinstance(placement, ImagePlacement):
+                placement = ImagePlacement(**placement)  # type: ignore[arg-type]
+            _add_section_table(doc, placement, item.lines)
 
 
 def _add_rich_paragraph(doc: Document, line: str) -> None:
