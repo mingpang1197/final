@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import type { ImagePlacement, TranslationSegment } from "../api/client";
 import {
   detectImagePlacements,
-  exportDocxUrl,
+  downloadDocx,
   getDocument,
   refineTranslation,
   translate,
@@ -11,7 +11,9 @@ import {
 } from "../api/client";
 import { PromptBar } from "../components/PromptBar";
 import { TranslationSegmentView } from "../components/TranslationSegment";
+import { ensurePayload, getCachedUpload } from "../utils/docCache";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
+import { useDebouncedSave } from "../utils/useDebouncedSave";
 
 function sanitizeSegments(segments: TranslationSegment[]): TranslationSegment[] {
   return segments.map((s) => ({
@@ -26,7 +28,10 @@ export function TranslatePage() {
   const [segments, setSegments] = useState<TranslationSegment[]>([]);
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [filename, setFilename] = useState("");
+  const [error, setError] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -64,6 +69,26 @@ export function TranslatePage() {
     load().catch(console.error);
   }, [load]);
 
+  const persistTranslation = useCallback(async () => {
+    if (!id || segments.length === 0) return;
+    setSaveStatus("saving");
+    try {
+      const cached = getCachedUpload(id);
+      const ensure = ensurePayload(cached);
+      await updateTranslation(
+        id,
+        segments,
+        ensure ? { ...ensure, summary: summary || undefined } : undefined,
+      );
+      setSaveStatus("saved");
+    } catch (err) {
+      setSaveStatus("idle");
+      setError(err instanceof Error ? err.message : "저장 실패");
+    }
+  }, [id, segments, summary]);
+
+  useDebouncedSave(segments, persistTranslation);
+
   function editSegment(segId: string, text: string) {
     setSegments((prev) =>
       prev.map((s) => (s.id === segId ? { ...s, easy_text: text, source: "manual" as const } : s)),
@@ -77,8 +102,28 @@ export function TranslatePage() {
   }
 
   async function saveTranslation() {
-    if (!id) return;
-    await updateTranslation(id, segments);
+    await persistTranslation();
+  }
+
+  async function handleExport() {
+    if (!id || segments.length === 0) return;
+    setExporting(true);
+    setError("");
+    try {
+      const cached = getCachedUpload(id);
+      await downloadDocx(id, {
+        segments,
+        summary,
+        filename,
+        doc_type: cached?.doc_type,
+        full_text: cached?.full_text,
+        pages: cached?.pages,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Word 출력 실패");
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function applyPrompt() {
@@ -98,7 +143,11 @@ export function TranslatePage() {
       <header className="flex items-center justify-between px-4 py-3 border-b bg-white">
         <div>
           <h1 className="font-semibold">이지리드 번역</h1>
-          <p className="text-xs text-slate-500">{filename}</p>
+          <p className="text-xs text-slate-500">
+            {filename}
+            {saveStatus === "saving" && " · 저장 중..."}
+            {saveStatus === "saved" && " · 저장됨"}
+          </p>
         </div>
         <div className="flex gap-2">
           <button
@@ -109,15 +158,23 @@ export function TranslatePage() {
             저장
           </button>
           {id && (
-            <a
-              href={exportDocxUrl(id)}
-              className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg"
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting || segments.length === 0}
+              className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg disabled:opacity-50"
             >
-              Word 출력
-            </a>
+              {exporting ? "출력 중..." : "Word 출력"}
+            </button>
           )}
         </div>
       </header>
+
+      {error && (
+        <div className="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="flex-1 grid grid-cols-2 gap-0 min-h-0">
         <section className="flex flex-col border-r border-slate-200 p-4 bg-slate-50">

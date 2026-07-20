@@ -19,6 +19,7 @@ from backend.database import (
 from backend.models.schemas import (
     ChecklistReport,
     DocumentResponse,
+    ExportRequest,
     ImageCatalogItem,
     ImagePlacement,
     RefineRequest,
@@ -31,6 +32,51 @@ from backend.services.image_matcher import detect_image_placements, list_image_c
 from backend.services import parser, prompts, translator, upstage, word_export
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+
+def _doc_for_export(doc_id: str, doc: DocumentResponse | None, body: ExportRequest | None) -> DocumentResponse | None:
+    if body and body.segments:
+        text = body.translation_text or "\n\n".join(
+            s.easy_text for s in body.segments if s.easy_text
+        )
+        if doc:
+            return doc.model_copy(
+                update={
+                    "summary": body.summary if body.summary is not None else doc.summary,
+                    "translation_segments": body.segments,
+                    "translation_text": text,
+                    "stage": "translated",
+                }
+            )
+        return DocumentResponse(
+            id=doc_id,
+            filename=body.filename or "document.pdf",
+            doc_type=body.doc_type or "unknown",
+            stage="translated",
+            page_count=len(body.pages or []),
+            full_text=body.full_text or "",
+            summary=body.summary,
+            translation_segments=body.segments,
+            translation_text=text,
+        )
+    return doc
+
+
+async def _resolve_document(doc_id: str, body: ExportRequest | None) -> DocumentResponse | None:
+    doc = await get_document(doc_id)
+    if doc:
+        return doc
+    if body and body.full_text:
+        pages = body.pages or [body.full_text]
+        await ensure_document(
+            doc_id,
+            filename=body.filename or "upload.pdf",
+            doc_type=body.doc_type or "unknown",
+            pages=pages,
+            full_text=body.full_text,
+        )
+        return await get_document(doc_id)
+    return None
 
 
 @router.get("/catalog/images", response_model=list[ImageCatalogItem])
@@ -120,6 +166,16 @@ async def summarize_document(
 @router.patch("/{doc_id}/summary", response_model=DocumentResponse)
 async def patch_summary(doc_id: str, body: SummaryUpdate) -> DocumentResponse:
     doc = await get_document(doc_id)
+    if not doc and body.full_text:
+        pages = body.pages or [body.full_text]
+        await ensure_document(
+            doc_id,
+            filename=body.filename or "upload.pdf",
+            doc_type=body.doc_type or "unknown",
+            pages=pages,
+            full_text=body.full_text,
+        )
+        doc = await get_document(doc_id)
     if not doc:
         raise HTTPException(404, "문서를 찾을 수 없습니다.")
     await update_summary(doc_id, body.summary)
@@ -170,6 +226,16 @@ async def detect_translation_placements(doc_id: str) -> list[ImagePlacement]:
 @router.patch("/{doc_id}/translation", response_model=DocumentResponse)
 async def patch_translation(doc_id: str, body: TranslationUpdate) -> DocumentResponse:
     doc = await get_document(doc_id)
+    if not doc and body.full_text:
+        pages = body.pages or [body.full_text]
+        await ensure_document(
+            doc_id,
+            filename=body.filename or "upload.pdf",
+            doc_type=body.doc_type or "unknown",
+            pages=pages,
+            full_text=body.full_text,
+        )
+        doc = await get_document(doc_id)
     if not doc:
         raise HTTPException(404, "문서를 찾을 수 없습니다.")
     text = "\n\n".join(s.easy_text for s in body.segments)
@@ -210,11 +276,21 @@ async def run_translation_checklist(doc_id: str) -> ChecklistReport:
 
 
 @router.get("/{doc_id}/export.docx")
-async def export_docx(doc_id: str) -> Response:
-    doc = await get_document(doc_id)
+async def export_docx_get(doc_id: str) -> Response:
+    return await _export_docx(doc_id, None)
+
+
+@router.post("/{doc_id}/export.docx")
+async def export_docx_post(doc_id: str, body: ExportRequest | None = None) -> Response:
+    return await _export_docx(doc_id, body)
+
+
+async def _export_docx(doc_id: str, body: ExportRequest | None) -> Response:
+    doc = await _resolve_document(doc_id, body)
+    doc = _doc_for_export(doc_id, doc, body)
     if not doc:
         raise HTTPException(404, "문서를 찾을 수 없습니다.")
-    if not doc.translation_text and not doc.summary:
+    if not doc.translation_text and not doc.summary and not doc.translation_segments:
         raise HTTPException(400, "내보낼 내용이 없습니다.")
 
     content = word_export.export_to_docx(doc)

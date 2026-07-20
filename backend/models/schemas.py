@@ -53,6 +53,10 @@ class DocumentResponse(BaseModel):
 
 class SummaryUpdate(BaseModel):
     summary: str
+    full_text: str | None = None
+    pages: list[str] | None = None
+    filename: str | None = None
+    doc_type: DocType | None = None
 
 
 class RefineRequest(BaseModel):
@@ -61,6 +65,21 @@ class RefineRequest(BaseModel):
 
 class TranslationUpdate(BaseModel):
     segments: list[TranslationSegment]
+    full_text: str | None = None
+    pages: list[str] | None = None
+    filename: str | None = None
+    doc_type: DocType | None = None
+    summary: str | None = None
+
+
+class ExportRequest(BaseModel):
+    summary: str | None = None
+    segments: list[TranslationSegment] | None = None
+    translation_text: str | None = None
+    filename: str | None = None
+    doc_type: DocType | None = None
+    full_text: str | None = None
+    pages: list[str] | None = None
 
 
 class SummarizeRequest(BaseModel):

@@ -209,36 +209,56 @@ async def get_page(doc_id: str, page_num: int) -> str | None:
 
 
 async def update_summary(doc_id: str, summary: str) -> None:
+    doc = await get_document(doc_id)
+    if not doc:
+        return
     now = _now()
+    backup = _read_backup(doc_id)
+    pages = backup[1] if backup else ([doc.full_text] if doc.full_text else [])
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
+        cursor = await db.execute(
             """
             UPDATE documents SET summary = ?, stage = ?, updated_at = ? WHERE id = ?
             """,
             (summary, "summarized", now, doc_id),
         )
+        if cursor.rowcount == 0:
+            await db.execute(
+                """
+                INSERT INTO documents
+                (id, filename, doc_type, stage, page_count, pages_json, full_text,
+                 summary, translation_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+                """,
+                (
+                    doc_id,
+                    doc.filename,
+                    doc.doc_type,
+                    "summarized",
+                    doc.page_count,
+                    json.dumps(pages, ensure_ascii=False),
+                    doc.full_text,
+                    summary,
+                    now,
+                    now,
+                ),
+            )
         await db.commit()
-    doc = await get_document(doc_id)
-    if doc:
-        backup = _read_backup(doc_id)
-        pages = backup[1] if backup else []
-        if not pages and doc.full_text:
-            pages = [doc.full_text]
-        _write_backup(
-            DocumentResponse(
-                id=doc.id,
-                filename=doc.filename,
-                doc_type=doc.doc_type,
-                stage="summarized",
-                page_count=doc.page_count,
-                full_text=doc.full_text,
-                summary=summary,
-                translation_segments=doc.translation_segments,
-                translation_text=doc.translation_text,
-                checklist=doc.checklist,
-            ),
-            pages,
-        )
+    _write_backup(
+        DocumentResponse(
+            id=doc.id,
+            filename=doc.filename,
+            doc_type=doc.doc_type,
+            stage="summarized",
+            page_count=doc.page_count,
+            full_text=doc.full_text,
+            summary=summary,
+            translation_segments=doc.translation_segments,
+            translation_text=doc.translation_text,
+            checklist=doc.checklist,
+        ),
+        pages,
+    )
 
 
 async def update_translation(
@@ -254,14 +274,59 @@ async def update_translation(
     }
     if checklist:
         payload["checklist"] = checklist.model_dump()
+    payload_json = json.dumps(payload, ensure_ascii=False)
+
+    doc = await get_document(doc_id)
+    backup = _read_backup(doc_id)
+    pages = backup[1] if backup else ([doc.full_text] if doc and doc.full_text else [])
+
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
+        cursor = await db.execute(
             """
             UPDATE documents SET translation_json = ?, stage = ?, updated_at = ? WHERE id = ?
             """,
-            (json.dumps(payload, ensure_ascii=False), "translated", now, doc_id),
+            (payload_json, "translated", now, doc_id),
         )
+        if cursor.rowcount == 0 and doc:
+            await db.execute(
+                """
+                INSERT INTO documents
+                (id, filename, doc_type, stage, page_count, pages_json, full_text,
+                 summary, translation_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    doc_id,
+                    doc.filename,
+                    doc.doc_type,
+                    "translated",
+                    doc.page_count,
+                    json.dumps(pages, ensure_ascii=False),
+                    doc.full_text,
+                    doc.summary,
+                    payload_json,
+                    now,
+                    now,
+                ),
+            )
         await db.commit()
+
+    if doc:
+        _write_backup(
+            DocumentResponse(
+                id=doc.id,
+                filename=doc.filename,
+                doc_type=doc.doc_type,
+                stage="translated",
+                page_count=doc.page_count,
+                full_text=doc.full_text,
+                summary=doc.summary,
+                translation_segments=segments,
+                translation_text=text,
+                checklist=checklist or doc.checklist,
+            ),
+            pages,
+        )
 
 
 async def get_doc_type(doc_id: str) -> DocType | None:

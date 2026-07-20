@@ -104,11 +104,22 @@ export async function summarize(id: string, force = false, fallback?: {
   });
 }
 
-export async function updateSummary(id: string, summary: string): Promise<Document> {
+export interface EnsurePayload {
+  full_text: string;
+  doc_type: DocType;
+  filename: string;
+  pages: string[];
+}
+
+export async function updateSummary(
+  id: string,
+  summary: string,
+  ensure?: EnsurePayload,
+): Promise<Document> {
   return request<Document>(`/documents/${id}/summary`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ summary }),
+    body: JSON.stringify({ summary, ...ensure }),
   });
 }
 
@@ -127,11 +138,12 @@ export async function translate(id: string): Promise<Document> {
 export async function updateTranslation(
   id: string,
   segments: TranslationSegment[],
+  ensure?: EnsurePayload & { summary?: string },
 ): Promise<Document> {
   return request<Document>(`/documents/${id}/translation`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ segments }),
+    body: JSON.stringify({ segments, ...ensure }),
   });
 }
 
@@ -151,6 +163,42 @@ export async function runChecklist(id: string): Promise<ChecklistReport> {
 
 export function exportDocxUrl(id: string): string {
   return `${API_BASE}/documents/${id}/export.docx`;
+}
+
+export interface ExportPayload {
+  segments: TranslationSegment[];
+  translation_text?: string;
+  summary?: string;
+  filename?: string;
+  doc_type?: DocType;
+  full_text?: string;
+  pages?: string[];
+}
+
+export async function downloadDocx(id: string, payload: ExportPayload): Promise<void> {
+  const res = await fetch(`${API_BASE}/documents/${id}/export.docx`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...payload,
+      translation_text:
+        payload.translation_text ??
+        payload.segments.map((s) => s.easy_text).filter(Boolean).join("\n\n"),
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || res.statusText);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `easyread_${id.slice(0, 8)}.docx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export async function getImageCatalog(query = ""): Promise<ImageCatalogItem[]> {

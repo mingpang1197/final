@@ -1,4 +1,4 @@
-import type { DocType, UploadResult } from "../api/client";
+import type { DocType, EnsurePayload, UploadResult } from "../api/client";
 
 export interface CachedUpload extends UploadResult {
   pages: string[];
@@ -26,6 +26,16 @@ export function getCachedUpload(id: string): CachedUpload | null {
 }
 
 export function summarizeFallbackBody(cached: CachedUpload) {
+  return {
+    full_text: cached.full_text,
+    doc_type: cached.doc_type as DocType,
+    filename: cached.filename,
+    pages: cached.pages,
+  };
+}
+
+export function ensurePayload(cached: CachedUpload | null): EnsurePayload | undefined {
+  if (!cached?.full_text) return undefined;
   return {
     full_text: cached.full_text,
     doc_type: cached.doc_type as DocType,

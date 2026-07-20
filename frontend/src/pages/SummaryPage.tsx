@@ -10,9 +10,11 @@ import {
 import { PageNavigator } from "../components/PageNavigator";
 import { PromptBar } from "../components/PromptBar";
 import {
+  ensurePayload,
   getCachedUpload,
   summarizeFallbackBody,
 } from "../utils/docCache";
+import { useDebouncedSave } from "../utils/useDebouncedSave";
 
 export function SummaryPage() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +27,22 @@ export function SummaryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  const persistSummary = useCallback(async () => {
+    if (!id || !summary.trim()) return;
+    setSaveStatus("saving");
+    try {
+      const cached = getCachedUpload(id);
+      await updateSummary(id, summary, ensurePayload(cached));
+      setSaveStatus("saved");
+    } catch (err) {
+      setSaveStatus("idle");
+      setError(err instanceof Error ? err.message : "저장 실패");
+    }
+  }, [id, summary]);
+
+  useDebouncedSave(summary, persistSummary);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -87,8 +105,7 @@ export function SummaryPage() {
   }, [id, pageNum]);
 
   async function saveSummary() {
-    if (!id) return;
-    await updateSummary(id, summary);
+    await persistSummary();
   }
 
   async function applyPrompt() {
@@ -111,7 +128,11 @@ export function SummaryPage() {
       <header className="flex items-center justify-between px-4 py-3 border-b bg-white">
         <div>
           <h1 className="font-semibold">요약</h1>
-          <p className="text-xs text-slate-500">{filename}</p>
+          <p className="text-xs text-slate-500">
+            {filename}
+            {saveStatus === "saving" && " · 저장 중..."}
+            {saveStatus === "saved" && " · 저장됨"}
+          </p>
         </div>
         <div className="flex gap-2">
           <button
