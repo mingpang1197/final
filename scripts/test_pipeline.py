@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
-BASE = "http://127.0.0.1:8001"
+BASE = "http://127.0.0.1:8001/api"
 SAMPLE = ROOT / "samples" / "sample_judgment.txt"
 
 
