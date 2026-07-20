@@ -4,18 +4,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
-  type DocType,
-  DOC_TYPE_LABELS,
   getDocument,
   getPage,
   refineSummary,
   summarize,
-  updateDocType,
   updateSummary,
 } from "../api/client";
 import { PageNavigator } from "../components/PageNavigator";
 import { PromptBar } from "../components/PromptBar";
-import { DocTypePills } from "../components/ui/DocTypePills";
 import { PanePanel } from "../components/ui/PanePanel";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import {
@@ -49,7 +45,6 @@ export function SummaryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filename, setFilename] = useState("");
-  const [docType, setDocType] = useState<DocType>("unknown");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   async function loadDocumentWithRetry(docId: string) {
@@ -88,7 +83,6 @@ export function SummaryPage() {
     try {
       const doc = await loadDocumentWithRetry(id);
       setFilename(doc.filename);
-      setDocType(doc.doc_type);
       setPageCount(doc.page_count);
       setSummary(doc.summary || "");
       if (!doc.summary) {
@@ -109,7 +103,6 @@ export function SummaryPage() {
     } catch {
       if (cached) {
         setFilename(cached.filename);
-        setDocType(cached.doc_type);
         setPageCount(cached.page_count);
         setLoading(true);
         try {
@@ -189,36 +182,6 @@ export function SummaryPage() {
     }
   }
 
-  async function handleDocTypeChange(next: Exclude<DocType, "unknown">) {
-    if (!id || next === docType || loading) return;
-    const label = DOC_TYPE_LABELS[next];
-    const currentLabel =
-      docType !== "unknown" ? DOC_TYPE_LABELS[docType as Exclude<DocType, "unknown">] : "미분류";
-    const ok = window.confirm(
-      `사건 유형을 「${currentLabel}」에서 「${label}」(으)로 변경하고 요약을 다시 생성할까요?`,
-    );
-    if (!ok) return;
-
-    setLoading(true);
-    setError("");
-    try {
-      await updateDocType(id, next);
-      setDocType(next);
-      const cached = getCachedUpload(id);
-      const updated = await summarize(
-        id,
-        true,
-        cached ? summarizeFallbackBody(cached) : undefined,
-      );
-      setSummary(updated.summary || "");
-      setDocType(updated.doc_type);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "유형 변경 또는 요약 재생성 실패");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   const saveLabel =
     saveStatus === "saving" ? "저장 중..." : saveStatus === "saved" ? "저장됨" : "";
 
@@ -230,8 +193,6 @@ export function SummaryPage() {
       nextNav={id ? { label: "번역", to: `/documents/${id}/translate` } : undefined}
       error={error || undefined}
     >
-      <DocTypePills active={docType} disabled={loading} onChange={handleDocTypeChange} />
-
       <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
         <PanePanel title="원문">
           {sourcePreviewUrl && sourceReady ? (

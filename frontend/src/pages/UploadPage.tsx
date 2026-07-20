@@ -3,7 +3,8 @@
  */
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadDocument } from "../api/client";
+import { type DocType, uploadDocument, updateDocType } from "../api/client";
+import { DocTypePills } from "../components/ui/DocTypePills";
 import { IconUploadCloud } from "../components/ui/icons";
 import { StepIndicator } from "../components/ui/StepIndicator";
 import { cacheUpload } from "../utils/docCache";
@@ -11,6 +12,7 @@ import { cacheUpload } from "../utils/docCache";
 export function UploadPage() {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [docType, setDocType] = useState<Exclude<DocType, "unknown">>("criminal");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -20,9 +22,11 @@ export function UploadPage() {
     setError("");
     try {
       const result = await uploadDocument(file);
+      await updateDocType(result.id, docType);
       if (result.pages?.length && result.full_text) {
         cacheUpload({
           ...result,
+          doc_type: docType,
           pages: result.pages,
           full_text: result.full_text,
           source_blob_url: URL.createObjectURL(file),
@@ -58,10 +62,11 @@ export function UploadPage() {
         </h1>
       </div>
 
-      <div className="flex-1 mx-6 mb-6 bg-white border border-coolgray-20 overflow-hidden">
+      <div className="flex-1 mx-6 mb-6 bg-white border border-coolgray-20 overflow-hidden flex flex-col">
         <StepIndicator current="upload" />
+        <DocTypePills active={docType} disabled={loading} onChange={setDocType} />
 
-        <div className="p-8 max-w-3xl mx-auto">
+        <div className="p-8 max-w-3xl mx-auto flex-1 w-full">
           <h2 className="text-2xl font-bold text-coolgray-90 mb-6">새 프로젝트</h2>
 
           <div

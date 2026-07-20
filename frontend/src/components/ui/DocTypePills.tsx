@@ -1,5 +1,5 @@
 /**
- * 사건 유형 pill 선택 (SummaryPage).
+ * 사건 유형 pill 선택 (UploadPage).
  */
 import type { DocType } from "../../api/client";
 import { DOC_TYPE_OPTIONS } from "../../api/client";
