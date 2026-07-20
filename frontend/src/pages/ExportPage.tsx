@@ -59,7 +59,6 @@ export function ExportPage() {
 
   const buildExportPayload = useCallback(() => {
     const cached = id ? getCachedUpload(id) : null;
-    const workflow = id ? getWorkflowSnapshot(id) : null;
     const mergedSegments = id
       ? resolveTranslationSegments(id, segments)
       : segments;
