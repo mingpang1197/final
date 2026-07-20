@@ -21,7 +21,7 @@
 cd "실험4"
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements-dev.txt
+pip install -r requirements.txt
 copy .env.example .env
 # .env 에 UPSTAGE_API_KEY 설정 (없으면 MOCK 모드)
 uvicorn backend.main:app --reload --port 8001
@@ -63,28 +63,11 @@ API 문서: http://localhost:8001/docs
 
 저장소: [github.com/mingpang1197/final](https://github.com/mingpang1197/final)
 
-### 1. GitHub에 푸시
-
-```bash
-git init
-git add .
-git commit -m "Easy-Read web app for Vercel"
-git remote add origin https://github.com/mingpang1197/final.git
-git branch -M main
-git push -u origin main
-```
-
-기존 저장소 내용과 충돌하면 `git pull origin main --allow-unrelated-histories` 후 push하세요.
-
-### 2. Vercel 연결
-
-1. [vercel.com](https://vercel.com) → **Add New Project** → `mingpang1197/final` 선택
-2. Framework Preset: **Other** (vercel.json 사용)
-3. **Environment Variables** 추가:
+1. [vercel.com](https://vercel.com) → **Add New Project** → `mingpang1197/final` 연결
+2. Framework Preset: **Other** (`vercel.json` 사용)
+3. **Environment Variables**:
    - `UPSTAGE_API_KEY` — Upstage API 키
    - `MOCK_UPSTAGE` — `false` (실제 AI 사용 시)
 4. Deploy
 
-배포 후 `https://your-app.vercel.app` 에서 프론트·API가 함께 동작합니다.
-
-> **참고:** Vercel 서버리스 환경에서는 SQLite·업로드 파일이 `/tmp`에 저장되어 **재배포·콜드스타트 시 초기화**될 수 있습니다. 데모·시연용으로 적합합니다.
+로컬 개발 시에는 `pip install -r requirements-dev.txt` 로 uvicorn·PyMuPDF를 추가 설치하세요.
