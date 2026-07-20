@@ -19,6 +19,12 @@ import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { ensurePayload, getCachedUpload } from "../utils/docCache";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
+import {
+  getWorkflowSnapshot,
+  resolveSummary,
+  resolveTranslationSegments,
+  saveWorkflowSnapshot,
+} from "../utils/workflowCache";
 
 function sanitizeSegments(segments: TranslationSegment[]): TranslationSegment[] {
   return segments.map((s) => ({
@@ -40,12 +46,15 @@ export function TranslatePage() {
   const load = useCallback(async () => {
     if (!id) return;
     setError("");
+    const workflow = getWorkflowSnapshot(id);
+
     try {
       const doc = await getDocument(id);
       setFilename(doc.filename);
-      setSummary(doc.summary || "");
-      if (doc.translation_segments.length) {
-        let segs = sanitizeSegments(doc.translation_segments);
+      setSummary(resolveSummary(id, doc.summary));
+      const resolved = resolveTranslationSegments(id, doc.translation_segments);
+      if (resolved.length) {
+        let segs = sanitizeSegments(resolved);
         const main = segs[0];
         if (main?.easy_text && !(main.image_placements?.length ?? 0)) {
           try {
@@ -60,11 +69,22 @@ export function TranslatePage() {
           }
         }
         setSegments(segs);
+        saveWorkflowSnapshot(id, {
+          translation_segments: segs,
+          translation_text: doc.translation_text ?? workflow?.translation_text,
+          filename: doc.filename,
+        });
       } else {
         setLoading(true);
         try {
           const updated = await translate(id);
-          setSegments(sanitizeSegments(updated.translation_segments));
+          const segs = sanitizeSegments(updated.translation_segments);
+          setSegments(segs);
+          saveWorkflowSnapshot(id, {
+            translation_segments: segs,
+            translation_text: updated.translation_text ?? undefined,
+            filename: updated.filename,
+          });
         } catch (err) {
           setError(err instanceof Error ? err.message : "번역 생성 실패");
         } finally {
@@ -72,6 +92,13 @@ export function TranslatePage() {
         }
       }
     } catch (err) {
+      const cachedSegments = workflow?.translation_segments ?? [];
+      if (cachedSegments.length) {
+        setFilename(workflow?.filename ?? "");
+        setSummary(workflow?.summary ?? "");
+        setSegments(sanitizeSegments(cachedSegments));
+        return;
+      }
       setError(err instanceof Error ? err.message : "문서를 불러오지 못했습니다");
     }
   }, [id]);
@@ -86,6 +113,10 @@ export function TranslatePage() {
     try {
       const cached = getCachedUpload(id);
       await updateTranslation(id, segments, ensurePayload(cached));
+      saveWorkflowSnapshot(id, {
+        translation_segments: segments,
+        translation_text: segments.map((s) => s.easy_text).filter(Boolean).join("\n\n"),
+      });
       setSaveStatus("saved");
     } catch (err) {
       setSaveStatus("idle");
@@ -113,7 +144,12 @@ export function TranslatePage() {
     setError("");
     try {
       const doc = await refineTranslation(id, prompt);
-      setSegments(sanitizeSegments(doc.translation_segments));
+      const segs = sanitizeSegments(doc.translation_segments);
+      setSegments(segs);
+      saveWorkflowSnapshot(id, {
+        translation_segments: segs,
+        translation_text: doc.translation_text ?? undefined,
+      });
       setPrompt("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI 수정 실패");

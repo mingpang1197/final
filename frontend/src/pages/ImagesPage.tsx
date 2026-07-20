@@ -19,6 +19,11 @@ import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { ensurePayload, getCachedUpload } from "../utils/docCache";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
+import {
+  getWorkflowSnapshot,
+  resolveTranslationSegments,
+  saveWorkflowSnapshot,
+} from "../utils/workflowCache";
 
 function sanitizeSegments(segments: TranslationSegment[]): TranslationSegment[] {
   return segments.map((s) => ({
@@ -42,10 +47,12 @@ export function ImagesPage() {
   const load = useCallback(async () => {
     if (!id) return;
     setError("");
+    const workflow = getWorkflowSnapshot(id);
+
     try {
       const doc = await getDocument(id);
       setFilename(doc.filename);
-      let segs = sanitizeSegments(doc.translation_segments);
+      let segs = sanitizeSegments(resolveTranslationSegments(id, doc.translation_segments));
       const main = segs[0];
       if (main?.easy_text && !(main.image_placements?.length ?? 0)) {
         try {
@@ -60,7 +67,16 @@ export function ImagesPage() {
         }
       }
       setSegments(segs);
+      if (segs.length) {
+        saveWorkflowSnapshot(id, { translation_segments: segs, filename: doc.filename });
+      }
     } catch (err) {
+      const cachedSegments = workflow?.translation_segments ?? [];
+      if (cachedSegments.length) {
+        setFilename(workflow?.filename ?? "");
+        setSegments(sanitizeSegments(cachedSegments));
+        return;
+      }
       setError(err instanceof Error ? err.message : "문서를 불러오지 못했습니다");
     }
   }, [id]);
@@ -91,6 +107,7 @@ export function ImagesPage() {
     try {
       const cached = getCachedUpload(id);
       await updateTranslation(id, segments, ensurePayload(cached));
+      saveWorkflowSnapshot(id, { translation_segments: segments });
       setSaveStatus("saved");
     } catch (err) {
       setSaveStatus("idle");
@@ -118,7 +135,9 @@ export function ImagesPage() {
     setError("");
     try {
       const doc = await refineTranslation(id, prompt);
-      setSegments(sanitizeSegments(doc.translation_segments));
+      const segs = sanitizeSegments(doc.translation_segments);
+      setSegments(segs);
+      saveWorkflowSnapshot(id, { translation_segments: segs });
       setPrompt("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI 수정 실패");

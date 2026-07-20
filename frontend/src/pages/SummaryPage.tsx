@@ -19,6 +19,11 @@ import {
   summarizeFallbackBody,
 } from "../utils/docCache";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
+import {
+  getWorkflowSnapshot,
+  resolveSummary,
+  saveWorkflowSnapshot,
+} from "../utils/workflowCache";
 
 function getFileExt(name: string): string {
   const dot = name.lastIndexOf(".");
@@ -65,6 +70,7 @@ export function SummaryPage() {
     try {
       const cached = getCachedUpload(id);
       await updateSummary(id, summary, ensurePayload(cached));
+      saveWorkflowSnapshot(id, { summary });
       setSaveStatus("saved");
     } catch (err) {
       setSaveStatus("idle");
@@ -78,13 +84,17 @@ export function SummaryPage() {
     if (!id) return;
     setError("");
     const cached = getCachedUpload(id);
+    const workflow = getWorkflowSnapshot(id);
 
     try {
       const doc = await loadDocumentWithRetry(id);
       setFilename(doc.filename);
       setPageCount(doc.page_count);
-      setSummary(doc.summary || "");
-      if (!doc.summary) {
+      const existingSummary = resolveSummary(id, doc.summary);
+      setSummary(existingSummary);
+      if (existingSummary) {
+        saveWorkflowSnapshot(id, { summary: existingSummary, filename: doc.filename });
+      } else {
         setLoading(true);
         try {
           const updated = await summarize(
@@ -92,7 +102,11 @@ export function SummaryPage() {
             false,
             cached ? summarizeFallbackBody(cached) : undefined,
           );
-          setSummary(updated.summary || "");
+          const text = updated.summary || "";
+          setSummary(text);
+          if (text) {
+            saveWorkflowSnapshot(id, { summary: text, filename: updated.filename });
+          }
         } catch (err) {
           setError(err instanceof Error ? err.message : "요약 생성 실패");
         } finally {
@@ -100,13 +114,24 @@ export function SummaryPage() {
         }
       }
     } catch {
+      const fallbackSummary = resolveSummary(id, workflow?.summary);
+      if (fallbackSummary) {
+        setFilename(workflow?.filename || cached?.filename || "");
+        setPageCount(cached?.page_count ?? 1);
+        setSummary(fallbackSummary);
+        return;
+      }
       if (cached) {
         setFilename(cached.filename);
         setPageCount(cached.page_count);
         setLoading(true);
         try {
           const updated = await summarize(id, false, summarizeFallbackBody(cached));
-          setSummary(updated.summary || "");
+          const text = updated.summary || "";
+          setSummary(text);
+          if (text) {
+            saveWorkflowSnapshot(id, { summary: text, filename: cached.filename });
+          }
         } catch (err) {
           setError(err instanceof Error ? err.message : "요약 생성 실패");
         } finally {
@@ -172,7 +197,9 @@ export function SummaryPage() {
     setError("");
     try {
       const doc = await refineSummary(id, prompt);
-      setSummary(doc.summary || "");
+      const text = doc.summary || "";
+      setSummary(text);
+      if (text) saveWorkflowSnapshot(id, { summary: text });
       setPrompt("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI 수정 실패");

@@ -413,6 +413,8 @@ async def translate_document(doc_id: str) -> DocumentResponse:
         raise HTTPException(404, "문서를 찾을 수 없습니다.")
     if not doc.summary:
         raise HTTPException(400, "먼저 요약을 생성하세요.")
+    if doc.translation_segments:
+        return doc
 
     segments, text, checklist_report = await translator.translate_summary(
         doc.summary, doc.full_text, doc.doc_type
