@@ -18,6 +18,7 @@ import {
   summarizeFallbackBody,
 } from "../utils/docCache";
 import { loadDocumentWithRecovery } from "../utils/documentLoader";
+import { getSourceObjectUrl } from "../utils/sourceStore";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
 import {
   getWorkflowSnapshot,
@@ -144,6 +145,10 @@ export function SummaryPage() {
     const previewName = filename || cached?.filename || "";
     setSourceFilename(previewName);
     setSourceReady(false);
+    setSourcePreviewUrl(null);
+
+    let ownedBlobUrl: string | null = null;
+    let cancelled = false;
 
     const loadTextFallback = () => {
       if (cached?.pages?.length) {
@@ -155,31 +160,55 @@ export function SummaryPage() {
         .catch(() => setOriginalPage("(페이지를 불러오지 못했습니다)"));
     };
 
-    const serverUrl = `/api/documents/${id}/source`;
-    fetch(serverUrl, { method: "HEAD" })
-      .then((res) => {
+    const useClientPreview = (url: string, revokeOnCleanup = false) => {
+      if (cancelled) return;
+      if (revokeOnCleanup) ownedBlobUrl = url;
+      setSourcePreviewUrl(url);
+      setSourceReady(true);
+    };
+
+    (async () => {
+      if (previewName && canPreviewSource(previewName, cached?.source_mime_type)) {
+        const storedUrl = await getSourceObjectUrl(id);
+        if (storedUrl) {
+          useClientPreview(storedUrl, true);
+          return;
+        }
+        if (cached?.source_blob_url) {
+          useClientPreview(cached.source_blob_url);
+          return;
+        }
+      }
+
+      try {
+        await loadDocumentWithRecovery(id);
+      } catch {
+        loadTextFallback();
+        return;
+      }
+
+      const serverUrl = `/api/documents/${id}/source`;
+      try {
+        const res = await fetch(serverUrl, { method: "HEAD" });
         if (res.ok) {
-          setSourcePreviewUrl(serverUrl);
-          setSourceReady(true);
+          useClientPreview(serverUrl);
           return;
         }
-        if (previewName && cached?.source_blob_url && canPreviewSource(previewName, cached?.source_mime_type)) {
-          setSourcePreviewUrl(cached.source_blob_url);
-          setSourceReady(true);
-          return;
-        }
-        setSourcePreviewUrl(null);
-        loadTextFallback();
-      })
-      .catch(() => {
-        if (previewName && cached?.source_blob_url && canPreviewSource(previewName, cached?.source_mime_type)) {
-          setSourcePreviewUrl(cached.source_blob_url);
-          setSourceReady(true);
-          return;
-        }
-        setSourcePreviewUrl(null);
-        loadTextFallback();
-      });
+      } catch {
+        /* fall through */
+      }
+
+      if (cancelled) return;
+      setSourcePreviewUrl(null);
+      loadTextFallback();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (ownedBlobUrl) {
+        URL.revokeObjectURL(ownedBlobUrl);
+      }
+    };
   }, [id, pageNum, filename]);
 
   async function applyPrompt() {

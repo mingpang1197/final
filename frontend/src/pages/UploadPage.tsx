@@ -10,6 +10,7 @@ import { IconUploadCloud } from "../components/ui/icons";
 import { StepIndicator } from "../components/ui/StepIndicator";
 import { UploadCaseTypeBar } from "../components/ui/UploadCaseTypeBar";
 import { cacheUpload, getLastDocId } from "../utils/docCache";
+import { saveSourceFile } from "../utils/sourceStore";
 
 export function UploadPage() {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ export function UploadPage() {
           source_filename: file.name,
           source_mime_type: file.type || undefined,
         });
+        void saveSourceFile(result.id, file);
       }
       navigate(`/documents/${result.id}/summary`);
     } catch (err) {
