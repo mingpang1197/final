@@ -6,7 +6,17 @@
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/images/(.*)", "destination": "/api/index.py" },
     { "source": "/health", "destination": "/api/index.py" },
-    { "source": "/((?!api/|images/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|images/|assets/|favicon\\.svg).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+    },
+    {
+      "source": "/index.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+    }
   ],
   "functions": {
     "api/index.py": {
