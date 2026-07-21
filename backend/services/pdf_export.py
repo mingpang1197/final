@@ -198,7 +198,7 @@ def _item_row_html(
     lines: list[str],
     placement: ImagePlacement | None,
 ) -> str:
-    """항목별 (삽화 | 글) 2단."""
+    """항목별 (삽화 | 글) 2단 — 그림 없어도 왼쪽 빈칸 유지."""
     body_html = _lines_to_html(lines)
     if not body_html:
         return ""
@@ -207,12 +207,10 @@ def _item_row_html(
     if placement:
         img_tag = _placement_to_img_tag(placement)
 
-    if not img_tag:
-        return f'<div class="item-full-width">{body_html}</div>'
-
+    image_cell = img_tag if img_tag else '<div class="image-empty">&nbsp;</div>'
     return (
         '<div class="section-row">'
-        f'<div class="image-col">{img_tag}</div>'
+        f'<div class="image-col">{image_cell}</div>'
         f'<div class="body-col">{body_html}</div>'
         "</div>"
     )

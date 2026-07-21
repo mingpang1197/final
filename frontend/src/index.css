@@ -54,24 +54,27 @@ body {
   box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
 }
 
-/* 추출 미리보기 — Word export 그림 칸 노란 배경 제거 */
+/* 추출 미리보기 — Word export 그림 칸 노란/베이지 배경 제거 (그림 탭 #f5f0e8 미사용) */
 .export-docx-preview table td,
 .export-docx-preview table th,
 .export-docx-preview table tr > td:first-child,
 .export-docx-preview table tr > td:first-child p,
-.export-docx-preview table tr > td:first-child span {
+.export-docx-preview table tr > td:first-child span,
+.export-docx-preview table tr > td:first-child img {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+.export-docx-preview td[style*="f5f0e8"],
+.export-docx-preview td[style*="F5F0E8"],
+.export-docx-preview td[style*="245, 240, 232"],
+.export-docx-preview td[style*="245,240,232"] {
   background: #ffffff !important;
   background-color: #ffffff !important;
 }
 
-/* 2단 표 다음 본문은 표 아래 전체 너비 */
+/* 2단 표 — 그림 탭과 동일하게 항목마다 표 유지 */
 .export-docx-preview table {
   display: table !important;
   width: 100% !important;
   clear: both !important;
-}
-.export-docx-preview table + p,
-.export-docx-preview table + div {
-  clear: both !important;
-  width: 100% !important;
 }

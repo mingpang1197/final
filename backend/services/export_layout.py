@@ -53,7 +53,7 @@ def is_numbered_item_line(line: str) -> bool:
 
 
 def split_item_lines_into_blocks(lines: list[str]) -> list[list[str]]:
-    """그림 2단은 첫 블록만 — 2./둘째 이후는 export에서 전체 너비."""
+    """그림 2단은 첫 블록만 — 2./둘째 이후는 별도 행(왼쪽 빈칸 + 오른쪽 본문)."""
     if not lines:
         return []
     blocks: list[list[str]] = []

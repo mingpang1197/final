@@ -271,33 +271,12 @@ def _add_picture_to_cell(cell, placement: ImagePlacement) -> None:
     run.add_picture(str(img_path), width=IMAGE_DISPLAY_WIDTH)
 
 
-def _add_item_body_lines(doc: Document, body_lines: list[str]) -> None:
-    """그림 없는 항목 — 전체 너비 본문 (2단 빈칸 없음)."""
-    first = True
-    for line in body_lines:
-        stripped = line.strip()
-        if not stripped or _SKIP_LINE.match(stripped):
-            continue
-        if is_image_placeholder(stripped):
-            continue
-        p = doc.add_paragraph()
-        _apply_body_format(p)
-        if first:
-            p.paragraph_format.space_before = Pt(0)
-            first = False
-        _add_runs_to_paragraph(p, stripped, size_pt=BODY_PT)
-
-    spacer = doc.add_paragraph()
-    spacer.paragraph_format.space_before = Pt(0)
-    spacer.paragraph_format.space_after = Pt(12)
-
-
 def _add_item_text_boxes(
     doc: Document,
     placement: ImagePlacement | None,
     body_lines: list[str],
 ) -> None:
-    """항목 1개 = (그림 | 본문) 2단. 그림이 있을 때만 2단 레이아웃."""
+    """항목 1개 = (그림 | 본문) 2단. 그림 없으면 왼쪽 빈칸 유지(그림 탭과 동일)."""
     table = doc.add_table(rows=1, cols=2)
     table.autofit = False
     table.allow_autofit = False
@@ -315,13 +294,14 @@ def _add_item_text_boxes(
         _reset_cell_paragraphs(cell)
 
     if placement:
-        _set_cell_shading(image_cell, IMAGE_CELL_FILL)
+        _set_cell_shading(image_cell, "FFFFFF")
         _add_picture_to_cell(image_cell, placement)
     else:
         _set_cell_shading(image_cell, "FFFFFF")
         p = image_cell.paragraphs[0]
         run = p.add_run("\u00a0")
         _set_run_font(run, BODY_PT)
+        p.paragraph_format.space_after = Pt(72)
 
     _set_cell_shading(body_cell, "FFFFFF")
     _set_cell_margins(image_cell, top=80, bottom=80, left=80, right=40)
@@ -367,9 +347,9 @@ def _export_easy_read_layout(
                 blocks = split_item_lines_into_blocks(item.lines)
                 _add_item_text_boxes(doc, placement, blocks[0])
                 for block in blocks[1:]:
-                    _add_item_body_lines(doc, block)
+                    _add_item_text_boxes(doc, None, block)
             else:
-                _add_item_body_lines(doc, item.lines)
+                _add_item_text_boxes(doc, None, item.lines)
 
     if closing:
         _add_closing_paragraph(doc, closing)
