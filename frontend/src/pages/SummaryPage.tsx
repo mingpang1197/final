@@ -287,18 +287,8 @@ export function SummaryPage() {
           )}
         </div>
 
-        <div className="min-h-0 flex flex-col gap-3 overflow-hidden pr-20">
+        <div className="min-h-0 flex flex-col gap-3 overflow-hidden">
           <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
-
-          <div className="shrink-0">
-            <PromptBar
-              value={prompt}
-              onChange={setPrompt}
-              onSubmit={applyPrompt}
-              loading={refining}
-              loadingLabel="요약 수정 중..."
-            />
-          </div>
 
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden relative">
             {refining && (
@@ -313,6 +303,16 @@ export function SummaryPage() {
               onChange={(e) => setSummary(e.target.value)}
               placeholder={summaryPlaceholder}
               disabled={refining}
+            />
+          </div>
+
+          <div className="shrink-0">
+            <PromptBar
+              value={prompt}
+              onChange={setPrompt}
+              onSubmit={applyPrompt}
+              loading={refining}
+              loadingLabel="요약 수정 중..."
             />
           </div>
         </div>
