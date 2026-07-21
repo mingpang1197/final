@@ -209,7 +209,7 @@ export function TranslatePage() {
       error={error || undefined}
     >
       <WorkflowTwoPaneGrid>
-        <WorkflowTwoPaneColumn className="h-full gap-3">
+        <WorkflowTwoPaneColumn className="gap-3">
           <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
           <div className="flex flex-1 min-h-0 flex-col border border-coolgray-40 overflow-hidden bg-white">
             <pre

@@ -258,14 +258,16 @@ export function SummaryPage() {
     >
       <WorkflowTwoPaneGrid>
         <WorkflowTwoPaneColumn>
-          <div className="flex flex-1 min-h-0 flex-col h-full border border-coolgray-30 bg-white overflow-hidden rounded-sm">
+          <div className="flex flex-1 min-h-0 w-full flex-col border border-coolgray-30 bg-white overflow-hidden rounded-sm">
           {sourcePreviewUrl && sourceReady ? (
             <>
-              <iframe
-                title="업로드 원문"
-                src={sourcePreviewUrl}
-                className="w-full flex-1 min-h-0 border-0"
-              />
+              <div className="relative min-h-0 flex-1">
+                <iframe
+                  title="업로드 원문"
+                  src={sourcePreviewUrl}
+                  className="absolute inset-0 h-full w-full border-0"
+                />
+              </div>
               <div className="px-3 py-2 text-xs text-coolgray-60 flex justify-between border-t border-coolgray-20 shrink-0">
                 <span className="truncate">{sourceFilename || filename}</span>
                 <a
