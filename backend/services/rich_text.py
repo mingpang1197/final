@@ -1,16 +1,14 @@
-"""이지리드 **강조**·<14>크기</14> 마크다운 파싱 (Word/PDF export 공통)."""
+"""이지리드 **강조**·<N>크기</N> 마크다운 파싱 (Word/PDF export 공통)."""
 
 from __future__ import annotations
 
 import re
 
-STYLE_TOKEN = re.compile(r"\*\*(.+?)\*\*|<(12|14|17)>(.+?)</\2>")
+STYLE_TOKEN = re.compile(r"\*\*(.+?)\*\*|<(\d+)>(.+?)</\2>")
 
 
 def has_style_markers(text: str) -> bool:
-    return bool(re.search(r"\*\*.+?\*\*", text)) or bool(
-        re.search(r"<(12|14|17)>.+?</(12|14|17)>", text)
-    )
+    return bool(re.search(r"\*\*.+?\*\*", text)) or bool(re.search(r"<\d+>.+?</\d+>", text))
 
 
 def iter_bold_runs(line: str) -> list[tuple[str, bool]]:

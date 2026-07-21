@@ -2,17 +2,32 @@
 
 import { isSectionHeading } from "./translationSections";
 
-export const FONT_SIZE_OPTIONS = [12, 14, 17] as const;
-export type FontSizePt = (typeof FONT_SIZE_OPTIONS)[number];
+/** Word 글꼴 크기 프리셋 */
+export const FONT_SIZE_PRESETS = [
+  8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72,
+] as const;
 
-const STYLE_TOKEN =
-  /(\*\*(?:\\.|[^*])+\*\*|<(12|14|17)>(?:\\.|[^<])+<\/\2>)/g;
+export type FontSizePt = number;
+
+export const DEFAULT_FONT_SIZE = 12;
+export const MIN_FONT_SIZE = 8;
+export const MAX_FONT_SIZE = 72;
+
+/** @deprecated FONT_SIZE_PRESETS 사용 */
+export const FONT_SIZE_OPTIONS = [12, 14, 17] as const;
+
+const STYLE_TOKEN = /(\*\*(?:\\.|[^*])+\*\*|<(\d+)>(?:\\.|[^<])+<\/\2>)/g;
 
 const BOLD_INNER = /^\*\*(.+)\*\*$/;
-const SIZE_INNER = /^<(12|14|17)>(.+)<\/\1>$/;
+const SIZE_INNER = /^<(\d+)>(.+)<\/\1>$/;
+
+export function clampFontSize(value: number): FontSizePt {
+  if (!Number.isFinite(value)) return DEFAULT_FONT_SIZE;
+  return Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(value)));
+}
 
 export function hasStyleMarkers(text: string): boolean {
-  return /\*\*.+?\*\*/.test(text) || /<(12|14|17)>.+?<\/(12|14|17)>/.test(text);
+  return /\*\*.+?\*\*/.test(text) || /<\d+>.+?<\/\d+>/.test(text);
 }
 
 export function escapeHtml(text: string): string {
@@ -28,7 +43,7 @@ export type StyledPart = {
   sizePt: FontSizePt;
 };
 
-export function parseStyledParts(text: string, defaultSize: FontSizePt = 12): StyledPart[] {
+export function parseStyledParts(text: string, defaultSize: FontSizePt = DEFAULT_FONT_SIZE): StyledPart[] {
   const parts: StyledPart[] = [];
   let last = 0;
   let match: RegExpExecArray | null;
@@ -46,7 +61,7 @@ export function parseStyledParts(text: string, defaultSize: FontSizePt = 12): St
     } else {
       const sizeMatch = token.match(SIZE_INNER);
       if (sizeMatch) {
-        const sizePt = Number(sizeMatch[1]) as FontSizePt;
+        const sizePt = clampFontSize(Number(sizeMatch[1]));
         parts.push(...parseStyledParts(sizeMatch[2], sizePt));
       }
     }
@@ -58,10 +73,6 @@ export function parseStyledParts(text: string, defaultSize: FontSizePt = 12): St
     if (tail) parts.push({ text: tail, bold: false, sizePt: defaultSize });
   }
   return parts;
-}
-
-export function splitStyledTokens(text: string): string[] {
-  return text.split(STYLE_TOKEN).filter(Boolean);
 }
 
 /** 저장 형식 → WYSIWYG HTML */
@@ -80,7 +91,7 @@ export function markersToHtml(text: string): string {
         .map(({ text: chunk, bold, sizePt }) => {
           let inner = escapeHtml(chunk);
           if (bold) inner = `<strong>${inner}</strong>`;
-          if (sizePt !== 12) {
+          if (sizePt !== DEFAULT_FONT_SIZE) {
             inner = `<span data-font-pt="${sizePt}" style="font-size:${sizePt}px">${inner}</span>`;
           }
           return inner;
@@ -93,13 +104,12 @@ export function markersToHtml(text: string): string {
 
 function parseFontPt(el: HTMLElement): FontSizePt | null {
   const data = el.dataset.fontPt;
-  if (data && FONT_SIZE_OPTIONS.includes(Number(data) as FontSizePt)) {
-    return Number(data) as FontSizePt;
+  if (data && /^\d+$/.test(data)) {
+    return clampFontSize(Number(data));
   }
   const px = el.style.fontSize;
   if (px.endsWith("px")) {
-    const n = Math.round(Number(px.replace("px", "")));
-    if (FONT_SIZE_OPTIONS.includes(n as FontSizePt)) return n as FontSizePt;
+    return clampFontSize(Math.round(Number(px.replace("px", ""))));
   }
   return null;
 }
@@ -110,7 +120,7 @@ function nodeToMarkers(node: Node, ctx: { bold: boolean; sizePt: FontSizePt }): 
     if (!raw) return "";
     let out = raw;
     if (ctx.bold) out = `**${out}**`;
-    if (ctx.sizePt !== 12) out = `<${ctx.sizePt}>${out}</${ctx.sizePt}>`;
+    if (ctx.sizePt !== DEFAULT_FONT_SIZE) out = `<${ctx.sizePt}>${out}</${ctx.sizePt}>`;
     return out;
   }
 
@@ -126,9 +136,6 @@ function nodeToMarkers(node: Node, ctx: { bold: boolean; sizePt: FontSizePt }): 
 
   if (el.tagName === "DIV" || el.tagName === "P") {
     const inner = Array.from(el.childNodes).map((child) => nodeToMarkers(child, ctx)).join("");
-    if (el.dataset.erHeading === "1") {
-      return inner + "\n";
-    }
     return inner + "\n";
   }
 
@@ -144,11 +151,11 @@ export function htmlToMarkers(html: string): string {
   for (const child of Array.from(body.childNodes)) {
     if (child.nodeType === Node.ELEMENT_NODE && (child as HTMLElement).tagName === "DIV") {
       const line = Array.from(child.childNodes)
-        .map((n) => nodeToMarkers(n, { bold: false, sizePt: 12 }))
+        .map((n) => nodeToMarkers(n, { bold: false, sizePt: DEFAULT_FONT_SIZE }))
         .join("");
       lines.push(line);
     } else {
-      const chunk = nodeToMarkers(child, { bold: false, sizePt: 12 });
+      const chunk = nodeToMarkers(child, { bold: false, sizePt: DEFAULT_FONT_SIZE });
       if (chunk.endsWith("\n")) lines.push(chunk.slice(0, -1));
       else if (chunk) lines.push(chunk);
     }
