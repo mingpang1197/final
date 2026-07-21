@@ -10,6 +10,7 @@ import {
   updateTranslation,
 } from "../api/client";
 import { PromptBar } from "../components/PromptBar";
+import { RichTextEditor } from "../components/RichTextEditor";
 import { EasyReadDocumentView } from "../components/EasyReadDocumentView";
 import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
@@ -211,14 +212,24 @@ export function TranslatePage() {
       <WorkflowTwoPaneGrid>
         <WorkflowTwoPaneColumn className="gap-3">
           <p className="shrink-0 text-center text-base text-primary-90">요약문</p>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden border border-coolgray-40 bg-white">
-            <pre
-              className={`min-h-0 w-full flex-1 overflow-auto px-4 py-3 text-base whitespace-pre-wrap leading-relaxed text-coolgray-90 ${
-                summaryPlaceholder ? "flex items-center justify-center text-center text-coolgray-60" : ""
-              }`}
-            >
-              {summaryDisplay || summaryPlaceholder}
-            </pre>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden border border-coolgray-40 bg-coolgray-10">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-4">
+              {!summaryDisplay.trim() ? (
+                <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-coolgray-30 bg-white">
+                  <div className="flex flex-1 items-center justify-center px-4 text-center text-[12px] leading-[2] text-coolgray-60">
+                    {summaryPlaceholder}
+                  </div>
+                </div>
+              ) : (
+                <RichTextEditor
+                  value={summaryDisplay}
+                  onChange={() => {}}
+                  layout="full"
+                  fill
+                  readOnly
+                />
+              )}
+            </div>
           </div>
         </WorkflowTwoPaneColumn>
 

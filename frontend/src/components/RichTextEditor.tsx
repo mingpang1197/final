@@ -18,6 +18,8 @@ interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  /** true면 툴바 없이 export-preview/ full 카드·타이포만 (번역 탭 요약 참고용) */
+  readOnly?: boolean;
   minHeight?: string;
   layout?: RichTextEditorLayout;
   fill?: boolean;
@@ -181,6 +183,7 @@ export function RichTextEditor({
   value,
   onChange,
   disabled = false,
+  readOnly = false,
   minHeight = "120px",
   layout = "full",
   fill = false,
@@ -423,12 +426,13 @@ export function RichTextEditor({
   }
 
   const editorClassName =
-    "min-w-0 min-h-0 flex-1 px-2 py-2 text-[12px] leading-[2] text-coolgray-90 outline-none overflow-y-auto [&_strong]:font-bold disabled:opacity-60";
+    "min-w-0 min-h-0 flex-1 px-2 py-2 text-[12px] leading-[2] text-coolgray-90 outline-none overflow-y-auto [&_strong]:font-bold" +
+    (disabled && !readOnly ? " disabled:opacity-60" : "");
 
   const editor = (
     <div
       ref={editorRef}
-      contentEditable={!disabled}
+      contentEditable={!disabled && !readOnly}
       suppressContentEditableWarning
       onInput={syncFromDom}
       onBlur={syncFromDom}
@@ -450,17 +454,19 @@ export function RichTextEditor({
         fill ? "h-full min-h-0" : ""
       }`}
     >
-      <EditorToolbar
-        disabled={disabled}
-        fontSize={fontSize}
-        onBold={applyBold}
-        onFontSize={applyFontSize}
-        onUndo={performUndo}
-        onRedo={performRedo}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onToolbarMouseDown={handleToolbarMouseDown}
-      />
+      {!readOnly && (
+        <EditorToolbar
+          disabled={disabled}
+          fontSize={fontSize}
+          onBold={applyBold}
+          onFontSize={applyFontSize}
+          onUndo={performUndo}
+          onRedo={performRedo}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onToolbarMouseDown={handleToolbarMouseDown}
+        />
+      )}
       {layout === "export-preview" ? (
         <div className={`flex flex-col min-h-0 ${fill ? "flex-1 overflow-hidden" : ""}`}>
           <div
@@ -482,7 +488,7 @@ export function RichTextEditor({
           <div className="shrink-0 border-t border-coolgray-20 px-3 py-3">
             <div
               ref={closingEditorRef}
-              contentEditable={!disabled}
+              contentEditable={!disabled && !readOnly}
               suppressContentEditableWarning
               onInput={syncClosingFromDom}
               onBlur={syncClosingFromDom}

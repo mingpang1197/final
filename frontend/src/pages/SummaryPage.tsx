@@ -9,8 +9,9 @@ import {
   summarize,
   updateSummary,
 } from "../api/client";
-import { PageNavigator } from "../components/PageNavigator";
 import { PromptBar } from "../components/PromptBar";
+import { RichTextEditor } from "../components/RichTextEditor";
+import { PageNavigator } from "../components/PageNavigator";
 import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../components/ui/WorkflowLayout";
 import {
   ensurePayload,
@@ -292,20 +293,30 @@ export function SummaryPage() {
         <WorkflowTwoPaneColumn side="right">
           <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
 
-          <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden relative">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden border border-coolgray-40 bg-coolgray-10">
             {refining && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 text-primary-60 text-sm gap-2">
                 <span className="inline-block size-5 border-2 border-primary-60 border-t-transparent rounded-full animate-spin" />
                 AI가 요약문을 수정하고 있습니다...
               </div>
             )}
-            <textarea
-              className="flex-1 min-h-0 w-full px-4 py-3 bg-coolgray-10 border-b border-coolgray-30 text-base resize-none overflow-auto leading-relaxed outline-none text-coolgray-90 placeholder:text-coolgray-60 placeholder:text-center disabled:opacity-60"
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder={summaryPlaceholder}
-              disabled={refining}
-            />
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-4">
+              {!summary.trim() && summaryPlaceholder ? (
+                <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-coolgray-30 bg-white">
+                  <div className="flex flex-1 items-center justify-center px-4 text-center text-[12px] leading-[2] text-coolgray-60">
+                    {summaryPlaceholder}
+                  </div>
+                </div>
+              ) : (
+                <RichTextEditor
+                  value={summary}
+                  onChange={setSummary}
+                  layout="full"
+                  fill
+                  disabled={refining || generating}
+                />
+              )}
+            </div>
           </div>
 
           <div className="shrink-0">
