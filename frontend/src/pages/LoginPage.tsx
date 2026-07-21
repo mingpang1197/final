@@ -33,13 +33,13 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen bg-coolgray-20">
-      {/* 왼쪽 — ERAI 브랜딩 일러스트 (Figma export 좌우 반전 보정) */}
+      {/* 왼쪽 — ERAI 브랜딩 배경 */}
       <div className="relative hidden min-h-screen flex-1 overflow-hidden lg:block">
         <img
           src="/login-bg.png"
           alt=""
           aria-hidden
-          className="absolute inset-0 h-full w-full object-cover object-left -scale-x-100"
+          className="absolute inset-0 h-full w-full object-cover object-left"
         />
       </div>
 
