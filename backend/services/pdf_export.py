@@ -29,7 +29,7 @@ from backend.services.export_layout import (
     prepare_placements_for_export,
 )
 from backend.services.image_assets import resolve_placement_image
-from backend.services.rich_text import iter_bold_runs
+from backend.services.rich_text import iter_styled_runs
 from backend.services.image_matcher import MAX_IMAGES_PER_TEXT, find_images_for_line
 from backend.services.word_export import (
     _META_SECTION_START,
@@ -146,14 +146,13 @@ def _line_to_html(line: str) -> str | None:
         text = html.escape(_clean_heading(stripped))
         return f'<p class="heading">{text}</p>'
 
-    parts = _BOLD.split(stripped)
     chunks: list[str] = []
-    for part, is_bold in iter_bold_runs(stripped):
+    for part, is_bold, size_pt in iter_styled_runs(stripped):
         escaped = html.escape(part)
-        if is_bold:
-            chunks.append(f"<strong>{escaped}</strong>")
-        else:
-            chunks.append(escaped)
+        inner = f"<strong>{escaped}</strong>" if is_bold else escaped
+        if size_pt != 12:
+            inner = f'<span style="font-size:{int(size_pt)}px">{inner}</span>'
+        chunks.append(inner)
     return f'<p class="body">{"".join(chunks)}</p>'
 
 

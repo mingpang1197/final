@@ -30,7 +30,7 @@ from backend.services.export_layout import (
 )
 from backend.services.image_assets import resolve_placement_image
 from backend.services.image_matcher import MAX_IMAGES_PER_TEXT, find_images_for_line
-from backend.services.rich_text import iter_bold_runs
+from backend.services.rich_text import iter_styled_runs
 
 BODY_PT = 12
 BOLD_BODY_PT = 12
@@ -218,9 +218,9 @@ def _apply_body_format(paragraph) -> None:
 
 
 def _add_runs_to_paragraph(paragraph, line: str, *, size_pt: float, bold_default: bool = False) -> None:
-    for part, is_bold in iter_bold_runs(line):
+    for part, is_bold, run_pt in iter_styled_runs(line, default_pt=size_pt):
         run = paragraph.add_run(part)
-        _set_run_font(run, BOLD_BODY_PT if is_bold else size_pt, bold=is_bold or bold_default)
+        _set_run_font(run, run_pt, bold=is_bold or bold_default)
 
 
 def _add_heading_paragraph(doc: Document, line: str) -> None:
