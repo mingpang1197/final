@@ -11,7 +11,7 @@ import {
 } from "../api/client";
 import { PromptBar } from "../components/PromptBar";
 import { EasyReadDocumentView } from "../components/EasyReadDocumentView";
-import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../components/ui/WorkflowLayout";
+import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid, WorkflowTwoPaneLeftFill } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
@@ -211,7 +211,7 @@ export function TranslatePage() {
       <WorkflowTwoPaneGrid>
         <WorkflowTwoPaneColumn className="gap-3">
           <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
-          <div className="flex flex-1 min-h-0 flex-col border border-coolgray-40 overflow-hidden bg-white">
+          <WorkflowTwoPaneLeftFill className="border border-coolgray-40 bg-white">
             <pre
               className={`flex-1 min-h-0 w-full px-4 py-3 text-base overflow-auto whitespace-pre-wrap leading-relaxed text-coolgray-90 ${
                 summaryPlaceholder ? "text-coolgray-60 text-center flex items-center justify-center" : ""
@@ -219,7 +219,7 @@ export function TranslatePage() {
             >
               {summaryDisplay || summaryPlaceholder}
             </pre>
-          </div>
+          </WorkflowTwoPaneLeftFill>
         </WorkflowTwoPaneColumn>
 
         <WorkflowTwoPaneColumn className="gap-3">

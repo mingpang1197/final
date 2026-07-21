@@ -11,7 +11,7 @@ import {
 } from "../api/client";
 import { PageNavigator } from "../components/PageNavigator";
 import { PromptBar } from "../components/PromptBar";
-import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../components/ui/WorkflowLayout";
+import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid, WorkflowTwoPaneLeftFill } from "../components/ui/WorkflowLayout";
 import {
   ensurePayload,
   getCachedUpload,
@@ -258,7 +258,7 @@ export function SummaryPage() {
     >
       <WorkflowTwoPaneGrid>
         <WorkflowTwoPaneColumn>
-          <div className="flex flex-1 min-h-0 w-full flex-col border border-coolgray-30 bg-white overflow-hidden rounded-sm">
+          <WorkflowTwoPaneLeftFill className="border border-coolgray-30 bg-white rounded-sm">
           {sourcePreviewUrl && sourceReady ? (
             <>
               <div className="relative min-h-0 flex-1">
@@ -288,7 +288,7 @@ export function SummaryPage() {
               </pre>
             </>
           )}
-          </div>
+          </WorkflowTwoPaneLeftFill>
         </WorkflowTwoPaneColumn>
 
         <WorkflowTwoPaneColumn className="gap-3">

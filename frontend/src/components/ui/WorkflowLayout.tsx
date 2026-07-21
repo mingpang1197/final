@@ -6,10 +6,10 @@ import { Link } from "react-router-dom";
 import { ChatbotWidget } from "./ChatbotWidget";
 import { StepIndicator, type WorkflowStep } from "./StepIndicator";
 
-/** Figma 80% — 좌·우 24px, 2단 동일 너비·동일 높이 */
+/** Figma 80% — 2단 동일 너비, 좌·우 각각 카드 남는 세로 공간 채움 */
 export function WorkflowTwoPaneGrid({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-1 min-h-0 w-full min-w-0 items-stretch gap-5 overflow-hidden p-5 pb-24">
+    <div className="grid min-h-0 flex-1 w-full min-w-0 grid-cols-2 grid-rows-[minmax(0,1fr)] gap-5 overflow-hidden p-5 pb-24">
       {children}
     </div>
   );
@@ -24,7 +24,24 @@ export function WorkflowTwoPaneColumn({
 }) {
   return (
     <div
-      className={`flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden ${className}`.trim()}
+      className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden ${className}`.trim()}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** 좌측 본문 박스 — 열 안에서 제목 아래 남는 높이 전부 사용 */
+export function WorkflowTwoPaneLeftFill({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex min-h-0 flex-1 flex-col overflow-hidden ${className}`.trim()}
     >
       {children}
     </div>
@@ -120,7 +137,7 @@ export function WorkflowLayout({
             </div>
           )}
 
-          <div className="flex-1 min-h-0 flex flex-col">{children}</div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
 
           {footerExtra}
         </div>

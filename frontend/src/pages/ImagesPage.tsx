@@ -12,7 +12,7 @@ import {
 } from "../api/client";
 import { DraggableCatalogItem, EasyReadDocumentView } from "../components/EasyReadDocumentView";
 import { PromptBar } from "../components/PromptBar";
-import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../components/ui/WorkflowLayout";
+import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid, WorkflowTwoPaneLeftFill } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { filterPlacementsForExport } from "../utils/translationSections";
@@ -264,7 +264,7 @@ export function ImagesPage() {
       <WorkflowTwoPaneGrid>
         <WorkflowTwoPaneColumn className="gap-3">
           <p className="text-center text-base text-primary-90 shrink-0">번역문</p>
-          <div className="flex flex-1 min-h-0 flex-col border border-coolgray-40 overflow-hidden bg-white">
+          <WorkflowTwoPaneLeftFill className="border border-coolgray-40 bg-white">
             {segments.length === 0 ? (
               <pre className="flex-1 min-h-0 w-full px-4 py-3 text-base overflow-auto whitespace-pre-wrap leading-relaxed text-coolgray-60 text-center flex items-center justify-center">
                 {translationPlaceholder}
@@ -280,7 +280,7 @@ export function ImagesPage() {
                 />
               </div>
             )}
-          </div>
+          </WorkflowTwoPaneLeftFill>
         </WorkflowTwoPaneColumn>
 
         <WorkflowTwoPaneColumn className="gap-3">
