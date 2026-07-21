@@ -99,7 +99,7 @@ POST   /api/documents/{doc_id}/translation/checklist
 - 쉬운 글 체크리스트 검사
 
 POST   /api/documents/{doc_id}/translation/detect-placements
-- 이미지 배치 추천 (소제목별 첫 항목 슬롯 1개 자동 채움)
+- 이미지 배치 추천 (소제목별 첫 항목 슬롯 1개 자동 채움, Upstage Solar로 후보 중 대표 그림 선정)
 - Request (optional): DetectPlacementsRequest { full_text, doc_type, filename, pages, summary?, existing_placements?, translation_text? }
 
 GET    /api/documents/{doc_id}/export.docx

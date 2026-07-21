@@ -168,23 +168,30 @@ export function ImagesPage() {
     }
   }, [catalogItems.length]);
 
-  const persistTranslation = useCallback(async () => {
-    if (!id || segments.length === 0) return;
-    setSaveStatus("saving");
-    try {
-      const ensure = buildEnsureContext(id);
-      if (ensure) {
-        await updateTranslation(id, segments, ensure);
-      } else {
-        await updateTranslation(id, segments);
+  const persistSegments = useCallback(
+    async (nextSegments: TranslationSegment[]) => {
+      if (!id || nextSegments.length === 0) return;
+      setSaveStatus("saving");
+      try {
+        const ensure = buildEnsureContext(id);
+        if (ensure) {
+          await updateTranslation(id, nextSegments, ensure);
+        } else {
+          await updateTranslation(id, nextSegments);
+        }
+        saveWorkflowSnapshot(id, { translation_segments: nextSegments });
+        setSaveStatus("saved");
+      } catch (err) {
+        setSaveStatus("idle");
+        setError(err instanceof Error ? err.message : "저장 실패");
       }
-      saveWorkflowSnapshot(id, { translation_segments: segments });
-      setSaveStatus("saved");
-    } catch (err) {
-      setSaveStatus("idle");
-      setError(err instanceof Error ? err.message : "저장 실패");
-    }
-  }, [id, segments]);
+    },
+    [id],
+  );
+
+  const persistTranslation = useCallback(async () => {
+    await persistSegments(segments);
+  }, [persistSegments, segments]);
 
   const { flush: flushTranslationSave } = useDebouncedSave(segments, persistTranslation);
 
@@ -227,6 +234,7 @@ export function ImagesPage() {
       if (id) {
         saveWorkflowSnapshot(id, { translation_segments: updated });
       }
+      void persistSegments(updated);
       return updated;
     });
   }

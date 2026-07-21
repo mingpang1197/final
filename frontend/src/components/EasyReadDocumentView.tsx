@@ -6,9 +6,9 @@ import type { ImageCatalogItem, ImagePlacement } from "../api/client";
 import { StyledLine } from "./BoldText";
 import { RichTextEditor } from "./RichTextEditor";
 import {
+  alignPlacementsToItems,
   parseSectionItems,
   parseTranslationSections,
-  resolvePlacementForItem,
   splitStandardClosing,
   type TranslationItem,
   type TranslationSection,
@@ -49,6 +49,10 @@ export function EasyReadDocumentView({
 }: EasyReadDocumentViewProps) {
   const { body: documentBody, closing } = useMemo(() => splitStandardClosing(text), [text]);
   const sections = useMemo(() => parseTranslationSections(documentBody), [documentBody]);
+  const alignedPlacements = useMemo(
+    () => alignPlacementsToItems(documentBody, placements),
+    [documentBody, placements],
+  );
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
 
   function setItemPlacement(
@@ -57,7 +61,8 @@ export function EasyReadDocumentView({
     sectionHeading: string | null,
   ) {
     if (!onPlacementsChange) return;
-    const without = placements.filter((p) => p.line_index !== startLineIndex);
+    const existing = alignedPlacements.get(startLineIndex);
+    const without = placements.filter((p) => p.id !== existing?.id);
     onPlacementsChange([
       ...without,
       {
@@ -75,9 +80,10 @@ export function EasyReadDocumentView({
 
   function removeItemPlacement(startLineIndex: number) {
     if (!onPlacementsChange) return;
-    const target = placements.find((p) => p.line_index === startLineIndex);
+    const target = alignedPlacements.get(startLineIndex);
     if (target?.auto_filled) return;
-    onPlacementsChange(placements.filter((p) => p.line_index !== startLineIndex));
+    if (!target) return;
+    onPlacementsChange(placements.filter((p) => p.id !== target.id));
   }
 
   if (!text.trim()) {
@@ -111,7 +117,7 @@ export function EasyReadDocumentView({
         <SectionBlock
           key={`${section.startLineIndex}-${sectionIndex}`}
           section={section}
-          placements={placements}
+          alignedPlacements={alignedPlacements}
           dragOverKey={dragOverKey}
           onDragOverKey={setDragOverKey}
           onDropItem={(lineIndex, item) => {
@@ -132,14 +138,14 @@ export function EasyReadDocumentView({
 
 function SectionBlock({
   section,
-  placements,
+  alignedPlacements,
   dragOverKey,
   onDragOverKey,
   onDropItem,
   onRemoveItem,
 }: {
   section: TranslationSection;
-  placements: ImagePlacement[];
+  alignedPlacements: Map<number, ImagePlacement>;
   dragOverKey: string | null;
   onDragOverKey: (key: string | null) => void;
   onDropItem: (lineIndex: number, item: ImageCatalogItem) => void;
@@ -160,7 +166,7 @@ function SectionBlock({
           <ItemRow
             key={item.startLineIndex}
             item={item}
-            placement={resolvePlacementForItem(placements, item)}
+            placement={alignedPlacements.get(item.startLineIndex)}
             dragOver={dragOverKey === String(item.startLineIndex)}
             onDragEnter={() => onDragOverKey(String(item.startLineIndex))}
             onDragLeave={() => onDragOverKey(null)}

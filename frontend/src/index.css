@@ -53,3 +53,13 @@ body {
   margin: 0 auto;
   box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
 }
+
+/* 추출 미리보기 — Word export 그림 칸 노란 배경 제거 */
+.export-docx-preview table td,
+.export-docx-preview table th,
+.export-docx-preview table tr > td:first-child,
+.export-docx-preview table tr > td:first-child p,
+.export-docx-preview table tr > td:first-child span {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}

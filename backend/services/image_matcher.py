@@ -346,13 +346,19 @@ def _normalize_existing_placements(
     text: str,
     existing: list[ImagePlacement],
 ) -> list[ImagePlacement]:
-    """예전 소제목 줄(line_index) 배치를 해당 섹션 첫 항목으로 이동."""
-    section_starts = {start for start, *_rest in _parse_all_sections(text)}
+    """예전 line_index·section_heading 배치를 해당 섹션 첫 항목으로 정렬."""
+    source = _placement_source_text(text) if text else text
+    section_starts = {start for start, *_rest in _parse_all_sections(source)}
     first_item_by_section = {
         start: items[0][0]
-        for start, _match, _heading, items in _parse_all_sections(text)
+        for start, _match, _heading, items in _parse_all_sections(source)
         if items
     }
+    heading_to_first: dict[str, int] = {}
+    for _start, _match, heading, items in _parse_all_sections(source):
+        if items:
+            heading_to_first[normalize_match_text(heading.strip("<>").strip())] = items[0][0]
+
     normalized: list[ImagePlacement] = []
     occupied: set[int] = set()
 
@@ -360,11 +366,18 @@ def _normalize_existing_placements(
         line_index = placement.line_index
         if line_index in section_starts and line_index in first_item_by_section:
             line_index = first_item_by_section[line_index]
+        if placement.section_heading:
+            heading_key = normalize_match_text(placement.section_heading.strip("<>").strip())
+            if heading_key in heading_to_first:
+                line_index = heading_to_first[heading_key]
         if line_index in occupied:
             continue
         occupied.add(line_index)
+        updates: dict[str, object] = {"line_index": line_index}
+        if placement.section_heading and line_index != placement.line_index:
+            updates["line_index"] = line_index
         if line_index != placement.line_index:
-            placement = placement.model_copy(update={"line_index": line_index})
+            placement = placement.model_copy(update=updates)
         normalized.append(placement)
 
     return normalized
@@ -395,13 +408,19 @@ def _section_match_text(heading: str, items: list[tuple[int, str]]) -> str:
     return " ".join(p for p in parts if p)
 
 
-def fill_missing_item_placements(
+async def fill_missing_item_placements_async(
     text: str,
     existing: list[ImagePlacement] | None = None,
 ) -> list[ImagePlacement]:
-    """Keep manual placements; auto-fill only the first item slot per section heading."""
+    """소제목별 첫 항목 1칸 — Upstage AI 선정(폴백: 키워드/유사도)."""
+    from backend.services.image_ai_select import (
+        candidate_title,
+        pick_image_with_upstage,
+        rank_catalog_candidates,
+    )
+
     source = _placement_source_text(text)
-    existing = _normalize_existing_placements(source, existing or [])
+    existing = _normalize_existing_placements(text, existing or [])
     by_line = {p.line_index: p for p in existing}
     used_files = {p.image_file for p in existing}
     result = list(existing)
@@ -412,21 +431,74 @@ def fill_missing_item_placements(
         first_idx, _first_text = items[0]
         if first_idx in by_line:
             continue
+
         section_text = _section_match_text(heading, items)
-        match = resolve_auto_image(section_text, used_files)
-        if not match:
-            continue
+        candidates = rank_catalog_candidates(section_text, used_files)
+        image_file = await pick_image_with_upstage(section_text, candidates)
+        title: str | None = None
+
+        if image_file:
+            title = candidate_title(candidates, image_file)
+        else:
+            match = resolve_auto_image(section_text, used_files)
+            if not match:
+                continue
+            image_file = match.image_file
+            title = match.title
+
         placement = _make_auto_placement(
-            image_file=match.image_file,
+            image_file=image_file,
             line_index=first_idx,
-            title=match.title,
+            title=title,
             section_heading=heading,
         )
         result.append(placement)
         by_line[first_idx] = placement
-        used_files.add(match.image_file)
+        used_files.add(image_file)
 
     return sorted(result, key=lambda p: p.line_index)
+
+
+def fill_missing_item_placements(
+    text: str,
+    existing: list[ImagePlacement] | None = None,
+) -> list[ImagePlacement]:
+    """동기 폴백 — mock/테스트용."""
+    import asyncio
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            raise RuntimeError("use async")
+        return loop.run_until_complete(fill_missing_item_placements_async(text, existing))
+    except RuntimeError:
+        source = _placement_source_text(text)
+        existing = _normalize_existing_placements(text, existing or [])
+        by_line = {p.line_index: p for p in existing}
+        used_files = {p.image_file for p in existing}
+        result = list(existing)
+
+        for _section_start, _heading_match, heading, items in _parse_all_sections(source):
+            if not items:
+                continue
+            first_idx, _first_text = items[0]
+            if first_idx in by_line:
+                continue
+            section_text = _section_match_text(heading, items)
+            match = resolve_auto_image(section_text, used_files)
+            if not match:
+                continue
+            placement = _make_auto_placement(
+                image_file=match.image_file,
+                line_index=first_idx,
+                title=match.title,
+                section_heading=heading,
+            )
+            result.append(placement)
+            by_line[first_idx] = placement
+            used_files.add(match.image_file)
+
+        return sorted(result, key=lambda p: p.line_index)
 
 
 def detect_image_placements(text: str) -> list[ImagePlacement]:

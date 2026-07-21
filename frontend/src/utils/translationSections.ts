@@ -170,44 +170,112 @@ export function findSectionForLineIndex(
   });
 }
 
-/** 그림 탭·추출 — 항목 startLineIndex 기준. */
+/** 그림 탭·추출 — 항목 startLineIndex 기준 (저장 line_index 불일치 시 정렬). */
+export function alignPlacementsToItems(
+  text: string,
+  placements: ImagePlacement[],
+): Map<number, ImagePlacement> {
+  const { body } = splitStandardClosing(text);
+  const sections = parseTranslationSections(body);
+  const itemRefs: { section: TranslationSection; item: TranslationItem }[] = [];
+  for (const section of sections) {
+    for (const item of parseSectionItems(section)) {
+      itemRefs.push({ section, item });
+    }
+  }
+  if (!itemRefs.length || !placements.length) {
+    return new Map();
+  }
+
+  const enriched = enrichPlacementsWithHeadings(body, placements);
+  const byItem = new Map<number, ImagePlacement>();
+  const used = new Set<string>();
+
+  for (const placement of enriched) {
+    if (used.has(placement.id)) continue;
+    let assigned = false;
+
+    for (const { item } of itemRefs) {
+      if (placement.line_index === item.startLineIndex) {
+        byItem.set(item.startLineIndex, placement);
+        used.add(placement.id);
+        assigned = true;
+        break;
+      }
+    }
+    if (assigned) continue;
+
+    if (placement.section_heading) {
+      const headingKey = normalizeSectionHeading(placement.section_heading);
+      for (const { section, item } of itemRefs) {
+        if (!section.heading) continue;
+        if (normalizeSectionHeading(section.heading) !== headingKey) continue;
+        const first = parseSectionItems(section)[0];
+        if (!first || first.startLineIndex !== item.startLineIndex) continue;
+        if (byItem.has(item.startLineIndex)) continue;
+        byItem.set(item.startLineIndex, { ...placement, line_index: item.startLineIndex });
+        used.add(placement.id);
+        assigned = true;
+        break;
+      }
+    }
+    if (assigned) continue;
+
+    const nearest = itemRefs.reduce((best, ref) =>
+      Math.abs(ref.item.startLineIndex - placement.line_index) <
+      Math.abs(best.item.startLineIndex - placement.line_index)
+        ? ref
+        : best,
+    );
+    if (!byItem.has(nearest.item.startLineIndex)) {
+      byItem.set(nearest.item.startLineIndex, {
+        ...placement,
+        line_index: nearest.item.startLineIndex,
+      });
+      used.add(placement.id);
+    }
+  }
+
+  return byItem;
+}
+
 export function resolvePlacementForItem(
+  text: string,
   placements: ImagePlacement[],
   item: TranslationItem,
 ): ImagePlacement | undefined {
-  return placements.find((p) => p.line_index === item.startLineIndex);
+  return alignPlacementsToItems(text, placements).get(item.startLineIndex);
 }
 
 /** @deprecated 섹션 대표 그림은 해당 섹션 첫 항목 line_index에 배치 */
 export function resolvePlacementForSectionHeading(
+  text: string,
   placements: ImagePlacement[],
   section: TranslationSection,
 ): ImagePlacement | undefined {
   const items = parseSectionItems(section);
   if (!items.length) return undefined;
-  return resolvePlacementForItem(placements, items[0]);
+  return resolvePlacementForItem(text, placements, items[0]);
 }
 
 /** @deprecated 섹션 단위 — resolvePlacementForSectionHeading 사용 */
 export function resolvePlacementForSection(
+  text: string,
   placements: ImagePlacement[],
   section: TranslationSection,
 ): ImagePlacement | undefined {
-  return resolvePlacementForSectionHeading(placements, section);
+  return resolvePlacementForSectionHeading(text, placements, section);
 }
 
-/** 추출용 — line_index별 배치 유지. */
+/** 추출용 — line_index별 배치 유지·정렬. */
 export function filterPlacementsForExport(
   text: string,
   placements: ImagePlacement[],
 ): ImagePlacement[] {
   if (!placements.length) return [];
-  const enriched = enrichPlacementsWithHeadings(text, placements);
-  const byLine = new Map<number, ImagePlacement>();
-  for (const p of enriched.sort((a, b) => a.line_index - b.line_index)) {
-    byLine.set(p.line_index, p);
-  }
-  return Array.from(byLine.values());
+  const { body } = splitStandardClosing(text);
+  const aligned = alignPlacementsToItems(body, placements);
+  return Array.from(aligned.values()).sort((a, b) => a.line_index - b.line_index);
 }
 
 export function enrichPlacementsWithHeadings(

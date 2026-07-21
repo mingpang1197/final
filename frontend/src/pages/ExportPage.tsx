@@ -61,15 +61,7 @@ export function ExportPage() {
 
   const buildExportPayload = useCallback(async () => {
     const cached = id ? getCachedUpload(id) : null;
-    const workflow = id ? getWorkflowSnapshot(id) : null;
-    const cachedSegments = workflow?.translation_segments ?? [];
-    const hasPlacements = cachedSegments.some(
-      (s) => (s.image_placements?.length ?? 0) > 0,
-    );
-    const baseSegments = hasPlacements ? cachedSegments : segments;
-    const mergedSegments = id
-      ? resolveTranslationSegments(id, baseSegments)
-      : baseSegments;
+    const mergedSegments = id ? resolveTranslationSegments(id, segments) : segments;
     const exportSegments = await enrichSegmentsForExport(mergedSegments);
     return {
       segments: exportSegments,

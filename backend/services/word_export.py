@@ -42,7 +42,7 @@ IMAGE_COL_WIDTH = Inches(2.05)
 GAP_COL_WIDTH = Inches(0.12)
 BODY_COL_WIDTH = Inches(3.83)
 IMAGE_DISPLAY_WIDTH = Inches(1.85)
-IMAGE_CELL_FILL = "F5F0E8"
+IMAGE_CELL_FILL = "FFFFFF"
 
 _SKIP_LINE = re.compile(r"^(---+\s*|\(\d+/\d+\s*쪽\)|\d+/\d+\s*쪽|>\s)")
 _META_SECTION_START = re.compile(r"^###\s*수정\s*사항")

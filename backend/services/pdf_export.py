@@ -106,7 +106,7 @@ def _font_css() -> tuple[str, fitz.Archive]:
     div.image-col {{
       float: left;
       width: {IMAGE_COL_PT}pt;
-      background: #f5f0e8;
+      background: #ffffff;
       padding: 8px 8px 8px 0;
       box-sizing: border-box;
     }}

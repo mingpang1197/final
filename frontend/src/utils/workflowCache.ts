@@ -51,10 +51,47 @@ function mergePlacements(
   server?: ImagePlacement[],
   cached?: ImagePlacement[],
 ): ImagePlacement[] {
-  if ((cached?.length ?? 0) > 0) {
-    return [...cached!].sort((a, b) => a.line_index - b.line_index);
+  const serverList = server ?? [];
+  const cachedList = cached ?? [];
+  if (cachedList.length === 0) {
+    return [...serverList].sort((a, b) => a.line_index - b.line_index);
   }
-  return [...(server ?? [])].sort((a, b) => a.line_index - b.line_index);
+  if (serverList.length === 0) {
+    return [...cachedList].sort((a, b) => a.line_index - b.line_index);
+  }
+
+  const byId = new Map<string, ImagePlacement>();
+  for (const p of serverList) {
+    byId.set(p.id, p);
+  }
+  for (const p of cachedList) {
+    const prev = byId.get(p.id);
+    if (!prev) {
+      byId.set(p.id, p);
+      continue;
+    }
+    if (!p.auto_filled && prev.auto_filled) {
+      byId.set(p.id, p);
+    }
+  }
+
+  const byLine = new Map<number, ImagePlacement>();
+  for (const p of byId.values()) {
+    const prev = byLine.get(p.line_index);
+    if (!prev || (!p.auto_filled && prev.auto_filled)) {
+      byLine.set(p.line_index, p);
+    }
+  }
+
+  for (const p of cachedList) {
+    if (byLine.has(p.line_index)) continue;
+    const prevAtLine = [...byLine.values()].find((x) => x.id === p.id);
+    if (!prevAtLine) {
+      byLine.set(p.line_index, p);
+    }
+  }
+
+  return Array.from(byLine.values()).sort((a, b) => a.line_index - b.line_index);
 }
 
 function mergeSegment(
