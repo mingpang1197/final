@@ -47,7 +47,7 @@ FONT_URL = (
 )
 PAGE_WIDTH = 595.28
 PAGE_HEIGHT = 841.89
-MARGIN = 54  # 0.75in — Word export와 동일
+MARGIN = 43  # 0.6in — Word export와 동일
 CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN
 IMAGE_COL_PT = round(CONTENT_WIDTH * 0.32)
 IMAGE_INSET_PT = IMAGE_COL_PT - 12

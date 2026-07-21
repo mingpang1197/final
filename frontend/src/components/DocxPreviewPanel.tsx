@@ -45,7 +45,7 @@ export function DocxPreviewPanel({ blob, onReady, onError }: DocxPreviewPanelPro
     <div
       id="export-print-area"
       ref={containerRef}
-      className="export-docx-preview h-full w-full overflow-auto bg-[#e8e8e8] px-2 py-2 print:p-0 print:bg-white"
+      className="export-docx-preview h-full w-full overflow-auto bg-[#e8e8e8] px-1 py-2 print:p-0 print:bg-white"
     />
   );
 }
