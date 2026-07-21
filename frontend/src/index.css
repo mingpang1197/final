@@ -51,18 +51,7 @@ body {
 
 .export-docx-preview .docx-wrapper {
   margin: 0 auto;
-  padding: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
   box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
-}
-
-.export-docx-preview .docx-wrapper > section.docx {
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
 }
 
 /* 추출 미리보기 — Word export 그림 칸 노란 배경 제거 */

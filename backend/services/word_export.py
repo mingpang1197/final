@@ -41,10 +41,8 @@ FOOTER_PT = 11
 LINE_SPACING = 2.0  # 200% (이지리드 가이드)
 IMAGE_COL_WIDTH = Inches(2.05)
 GAP_COL_WIDTH = Inches(0.12)
-BODY_COL_WIDTH = Inches(5.05)
+BODY_COL_WIDTH = Inches(3.83)
 IMAGE_DISPLAY_WIDTH = Inches(1.85)
-PAGE_MARGIN_H = Inches(0.6)
-PAGE_MARGIN_V = Inches(1.0)
 IMAGE_CELL_FILL = "FFFFFF"
 
 _SKIP_LINE = re.compile(r"^(---+\s*|\(\d+/\d+\s*쪽\)|\d+/\d+\s*쪽|>\s)")
@@ -86,10 +84,10 @@ def _clean_heading(line: str) -> str:
 
 
 def _configure_section(section) -> None:
-    section.top_margin = PAGE_MARGIN_V
-    section.bottom_margin = PAGE_MARGIN_V
-    section.left_margin = PAGE_MARGIN_H
-    section.right_margin = PAGE_MARGIN_H
+    section.top_margin = Inches(1.25)
+    section.bottom_margin = Inches(1.25)
+    section.left_margin = Inches(1.25)
+    section.right_margin = Inches(1.25)
     _set_page_number_footer(section)
 
 
@@ -326,8 +324,8 @@ def _add_item_text_boxes(
         _set_run_font(run, BODY_PT)
 
     _set_cell_shading(body_cell, "FFFFFF")
-    _set_cell_margins(image_cell, top=60, bottom=60, left=40, right=24)
-    _set_cell_margins(body_cell, top=60, bottom=60, left=40, right=0)
+    _set_cell_margins(image_cell, top=80, bottom=80, left=80, right=40)
+    _set_cell_margins(body_cell, top=80, bottom=80, left=80, right=0)
 
     first = True
     for line in body_lines:

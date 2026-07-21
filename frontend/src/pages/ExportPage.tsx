@@ -138,8 +138,8 @@ export function ExportPage() {
       filename={filename || "파일명"}
       error={error || undefined}
     >
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-3 pt-4 pb-5">
-        <div className="flex-1 flex flex-col items-stretch gap-4 min-h-0 overflow-hidden w-full">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-5 pt-4 pb-5">
+        <div className="flex-1 flex flex-col items-center gap-4 min-h-0 overflow-hidden w-full max-w-[916px] mx-auto">
           <div className="w-full flex-1 min-h-0 border border-coolgray-30 overflow-hidden rounded-sm shadow-inner bg-[#e8e8e8]">
             {previewLoading ? (
               <div className="h-full flex items-center justify-center text-coolgray-60 text-base">
