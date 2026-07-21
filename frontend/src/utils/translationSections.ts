@@ -174,33 +174,25 @@ export function findSectionForLineIndex(
 export function resolvePlacementForItem(
   placements: ImagePlacement[],
   item: TranslationItem,
-  sectionHeading: string | null,
 ): ImagePlacement | undefined {
-  const exact = placements.find((p) => p.line_index === item.startLineIndex);
-  if (exact) return exact;
-
-  if (sectionHeading) {
-    const target = normalizeSectionHeading(sectionHeading);
-    const inSection = placements.filter(
-      (p) => p.section_heading && normalizeSectionHeading(p.section_heading) === target,
-    );
-    if (inSection.length === 1) return inSection[0];
-  }
-
-  return undefined;
+  return placements.find((p) => p.line_index === item.startLineIndex);
 }
 
-/** @deprecated 섹션 단위 — resolvePlacementForItem 사용 */
+/** 소제목 줄(line_index)에 배치된 대표 그림. */
+export function resolvePlacementForSectionHeading(
+  placements: ImagePlacement[],
+  section: TranslationSection,
+): ImagePlacement | undefined {
+  if (!section.heading) return undefined;
+  return placements.find((p) => p.line_index === section.startLineIndex);
+}
+
+/** @deprecated 섹션 단위 — resolvePlacementForSectionHeading 사용 */
 export function resolvePlacementForSection(
   placements: ImagePlacement[],
   section: TranslationSection,
 ): ImagePlacement | undefined {
-  const items = parseSectionItems(section);
-  for (const item of items) {
-    const p = resolvePlacementForItem(placements, item, section.heading);
-    if (p) return p;
-  }
-  return undefined;
+  return resolvePlacementForSectionHeading(placements, section);
 }
 
 /** 추출용 — line_index별 배치 유지. */

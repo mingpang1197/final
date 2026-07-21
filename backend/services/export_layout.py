@@ -138,6 +138,7 @@ def align_placements_to_items(body: str, placements: list) -> dict[int, object]:
         return {}
 
     sections = parse_export_sections(body)
+    section_starts = {section.start_line_index for section in sections if section.heading}
     typed = [p if isinstance(p, ImagePlacement) else ImagePlacement(**p) for p in placements]
 
     item_refs: list[tuple[ExportSection, ExportItem]] = []
@@ -152,36 +153,14 @@ def align_placements_to_items(body: str, placements: list) -> dict[int, object]:
     used: set[str] = set()
 
     for placement in typed:
+        if placement.line_index in section_starts:
+            continue
         if placement.id in used:
             continue
         assigned = False
 
         for _section, item in item_refs:
             if placement.line_index == item.start_line_index:
-                by_item[item.start_line_index] = placement
-                used.add(placement.id)
-                assigned = True
-                break
-        if assigned:
-            continue
-
-        if placement.section_heading:
-            target = _normalize_heading(placement.section_heading)
-            for section, item in item_refs:
-                if (
-                    section.heading
-                    and _normalize_heading(section.heading) == target
-                    and item.start_line_index not in by_item
-                ):
-                    by_item[item.start_line_index] = placement
-                    used.add(placement.id)
-                    assigned = True
-                    break
-        if assigned:
-            continue
-
-        for section, item in item_refs:
-            if placement.line_index == section.start_line_index and item.start_line_index not in by_item:
                 by_item[item.start_line_index] = placement
                 used.add(placement.id)
                 assigned = True
@@ -198,6 +177,24 @@ def align_placements_to_items(body: str, placements: list) -> dict[int, object]:
             used.add(placement.id)
 
     return by_item
+
+
+def align_placements_to_section_headings(body: str, placements: list) -> dict[int, object]:
+    """소제목 줄(line_index)에 배치된 대표 그림."""
+    from backend.models.schemas import ImagePlacement
+
+    if not placements:
+        return {}
+
+    sections = parse_export_sections(body)
+    section_starts = {section.start_line_index for section in sections if section.heading}
+    typed = [p if isinstance(p, ImagePlacement) else ImagePlacement(**p) for p in placements]
+
+    by_section: dict[int, ImagePlacement] = {}
+    for placement in typed:
+        if placement.line_index in section_starts:
+            by_section[placement.line_index] = placement
+    return by_section
 
 
 def align_placements_to_sections(

@@ -21,6 +21,7 @@ class ImagePlacement(BaseModel):
     image_url: str | None = None
     section_heading: str | None = None
     image_base64: str | None = None  # export POST 전용 (브라우저에서 인코딩)
+    auto_filled: bool = False  # 그림 탭 자동 배치 — X 삭제 불가
 
 
 class TranslationSegment(BaseModel):

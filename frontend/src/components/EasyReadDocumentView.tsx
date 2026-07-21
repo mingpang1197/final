@@ -9,6 +9,7 @@ import {
   parseSectionItems,
   parseTranslationSections,
   resolvePlacementForItem,
+  resolvePlacementForSectionHeading,
   splitStandardClosing,
   type TranslationItem,
   type TranslationSection,
@@ -68,12 +69,15 @@ export function EasyReadDocumentView({
         section_heading: sectionHeading,
         image_url:
           item.source_url || (item.url.startsWith("http") ? item.url : null) || null,
+        auto_filled: false,
       },
     ]);
   }
 
   function removeItemPlacement(startLineIndex: number) {
     if (!onPlacementsChange) return;
+    const target = placements.find((p) => p.line_index === startLineIndex);
+    if (target?.auto_filled) return;
     onPlacementsChange(placements.filter((p) => p.line_index !== startLineIndex));
   }
 
@@ -152,12 +156,31 @@ function SectionBlock({
         </h3>
       )}
 
+      {section.heading && (
+        <ItemRow
+          item={{ lines: [], startLineIndex: section.startLineIndex }}
+          placement={resolvePlacementForSectionHeading(placements, section)}
+          dragOver={dragOverKey === `section-${section.startLineIndex}`}
+          onDragEnter={() => onDragOverKey(`section-${section.startLineIndex}`)}
+          onDragLeave={() => onDragOverKey(null)}
+          onDrop={(catalogItem) => onDropItem(section.startLineIndex, catalogItem)}
+          onRemove={() => onRemoveItem(section.startLineIndex)}
+          emptyLabel={
+            <>
+              소제목 대표 그림
+              <br />
+              (드래그하여 변경)
+            </>
+          }
+        />
+      )}
+
       <div className="space-y-5">
         {items.map((item) => (
           <ItemRow
             key={item.startLineIndex}
             item={item}
-            placement={resolvePlacementForItem(placements, item, section.heading)}
+            placement={resolvePlacementForItem(placements, item)}
             dragOver={dragOverKey === String(item.startLineIndex)}
             onDragEnter={() => onDragOverKey(String(item.startLineIndex))}
             onDragLeave={() => onDragOverKey(null)}
@@ -178,6 +201,7 @@ function ItemRow({
   onDragLeave,
   onDrop,
   onRemove,
+  emptyLabel,
 }: {
   item: TranslationItem;
   placement?: ImagePlacement;
@@ -186,6 +210,7 @@ function ItemRow({
   onDragLeave: () => void;
   onDrop: (item: ImageCatalogItem) => void;
   onRemove: () => void;
+  emptyLabel?: ReactNode;
 }) {
   return (
     <div className="grid grid-cols-[minmax(120px,32%)_1fr] gap-4 items-start">
@@ -196,6 +221,7 @@ function ItemRow({
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         onRemove={onRemove}
+        emptyLabel={emptyLabel}
       />
       <div className="min-w-0 text-[12px] leading-[2] text-coolgray-90 space-y-1">
         {item.lines.map((line, i) => (
@@ -215,6 +241,7 @@ function ImageSlot({
   onDragLeave,
   onDrop,
   onRemove,
+  emptyLabel,
 }: {
   placement?: ImagePlacement;
   dragOver: boolean;
@@ -222,6 +249,7 @@ function ImageSlot({
   onDragLeave: () => void;
   onDrop: (item: ImageCatalogItem) => void;
   onRemove: () => void;
+  emptyLabel?: ReactNode;
 }) {
   function handleDragOver(e: DragEvent) {
     e.preventDefault();
@@ -262,20 +290,26 @@ function ImageSlot({
             alt={placement.title || "시각자료"}
             className="max-h-32 w-full object-contain pointer-events-none"
           />
-          <button
-            type="button"
-            onClick={onRemove}
-            className="absolute top-1 right-1 size-6 rounded-full bg-white/90 border border-coolgray-30 text-coolgray-60 hover:text-alert text-sm leading-none"
-            aria-label="그림 제거"
-          >
-            ×
-          </button>
+          {!placement.auto_filled && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="absolute top-1 right-1 size-6 rounded-full bg-white/90 border border-coolgray-30 text-coolgray-60 hover:text-alert text-sm leading-none"
+              aria-label="그림 제거"
+            >
+              ×
+            </button>
+          )}
         </>
       ) : (
         <span className="text-sm text-center px-2 pointer-events-none">
-          그림 DB에서
-          <br />
-          드래그하여 배치
+          {emptyLabel ?? (
+            <>
+              그림 DB에서
+              <br />
+              드래그하여 배치
+            </>
+          )}
         </span>
       )}
     </div>
