@@ -257,7 +257,8 @@ export function SummaryPage() {
       error={error || undefined}
     >
       <WorkflowTwoPaneGrid>
-        <WorkflowTwoPaneColumn className="bg-white rounded-sm">
+        <WorkflowTwoPaneColumn>
+          <div className="flex flex-1 min-h-0 flex-col h-full border border-coolgray-30 bg-white overflow-hidden rounded-sm">
           {sourcePreviewUrl && sourceReady ? (
             <>
               <iframe
@@ -278,13 +279,14 @@ export function SummaryPage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 min-h-0 flex flex-col border border-coolgray-30 bg-white">
+            <>
               <PageNavigator current={pageNum} total={pageCount} onChange={setPageNum} />
-              <pre className="flex-1 overflow-auto whitespace-pre-wrap text-base p-4 leading-relaxed min-h-0">
+              <pre className="flex-1 min-h-0 overflow-auto whitespace-pre-wrap text-base p-4 leading-relaxed">
                 {originalPage}
               </pre>
-            </div>
+            </>
           )}
+          </div>
         </WorkflowTwoPaneColumn>
 
         <WorkflowTwoPaneColumn className="gap-3">

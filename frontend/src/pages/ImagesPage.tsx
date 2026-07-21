@@ -262,9 +262,9 @@ export function ImagesPage() {
       error={error || undefined}
     >
       <WorkflowTwoPaneGrid>
-        <WorkflowTwoPaneColumn className="gap-3">
+        <WorkflowTwoPaneColumn className="h-full gap-3">
           <p className="text-center text-base text-primary-90 shrink-0">번역문</p>
-          <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-white">
+          <div className="flex flex-1 min-h-0 flex-col border border-coolgray-40 overflow-hidden bg-white">
             {segments.length === 0 ? (
               <pre className="flex-1 min-h-0 w-full px-4 py-3 text-base overflow-auto whitespace-pre-wrap leading-relaxed text-coolgray-60 text-center flex items-center justify-center">
                 {translationPlaceholder}
