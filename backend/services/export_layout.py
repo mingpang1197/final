@@ -203,6 +203,44 @@ def align_placements_to_items(body: str, placements: list) -> dict[int, object]:
     return by_item
 
 
+def align_placements_one_per_section(body: str, placements: list) -> dict[int, object]:
+    """소제목(섹션)마다 첫 번째 항목에만 대표 삽화 1장."""
+    from backend.models.schemas import ImagePlacement
+
+    if not placements:
+        return {}
+
+    prepared = prepare_placements_for_export(body, placements)
+    by_item = align_placements_to_items(body, prepared)
+    sections = parse_export_sections(body)
+    result: dict[int, ImagePlacement] = {}
+
+    for section in sections:
+        items = parse_section_items(section)
+        if not items:
+            continue
+        first_idx = items[0].start_line_index
+        chosen: ImagePlacement | None = None
+
+        raw = by_item.get(first_idx)
+        if raw is not None:
+            chosen = raw if isinstance(raw, ImagePlacement) else ImagePlacement(**raw)  # type: ignore[arg-type]
+        else:
+            for item in items:
+                raw = by_item.get(item.start_line_index)
+                if raw is not None:
+                    chosen = raw if isinstance(raw, ImagePlacement) else ImagePlacement(**raw)  # type: ignore[arg-type]
+                    break
+
+        if chosen is None:
+            continue
+        if chosen.line_index != first_idx:
+            chosen = chosen.model_copy(update={"line_index": first_idx})
+        result[first_idx] = chosen
+
+    return result
+
+
 def align_placements_to_section_headings(body: str, placements: list) -> dict[int, object]:
     """소제목 줄(line_index)에 배치된 대표 그림."""
     from backend.models.schemas import ImagePlacement

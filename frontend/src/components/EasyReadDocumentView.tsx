@@ -6,10 +6,11 @@ import type { ImageCatalogItem, ImagePlacement } from "../api/client";
 import { StyledLine } from "./BoldText";
 import { RichTextEditor } from "./RichTextEditor";
 import {
-  alignPlacementsToItems,
+  alignPlacementsOnePerSection,
   parseSectionItems,
   parseTranslationSections,
   splitStandardClosing,
+  findSectionForLineIndex,
   type TranslationItem,
   type TranslationSection,
 } from "../utils/translationSections";
@@ -50,7 +51,7 @@ export function EasyReadDocumentView({
   const { body: documentBody, closing } = useMemo(() => splitStandardClosing(text), [text]);
   const sections = useMemo(() => parseTranslationSections(documentBody), [documentBody]);
   const alignedPlacements = useMemo(
-    () => alignPlacementsToItems(documentBody, placements),
+    () => alignPlacementsOnePerSection(documentBody, placements),
     [documentBody, placements],
   );
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
@@ -61,16 +62,25 @@ export function EasyReadDocumentView({
     sectionHeading: string | null,
   ) {
     if (!onPlacementsChange) return;
-    const existing = alignedPlacements.get(startLineIndex);
-    const without = placements.filter((p) => p.id !== existing?.id);
+    const section = findSectionForLineIndex(documentBody, startLineIndex);
+    const sectionStart = section?.startLineIndex;
+    const firstIdx =
+      section != null
+        ? parseSectionItems(section)[0]?.startLineIndex ?? startLineIndex
+        : startLineIndex;
+    const without = placements.filter((p) => {
+      if (sectionStart == null) return p.line_index !== startLineIndex;
+      const sec = findSectionForLineIndex(documentBody, p.line_index);
+      return sec?.startLineIndex !== sectionStart;
+    });
     onPlacementsChange([
       ...without,
       {
         id: crypto.randomUUID(),
         image_file: item.image_file,
-        line_index: startLineIndex,
+        line_index: firstIdx,
         title: item.title,
-        section_heading: sectionHeading,
+        section_heading: sectionHeading ?? section?.heading ?? null,
         image_url:
           item.source_url || (item.url.startsWith("http") ? item.url : null) || null,
         auto_filled: false,

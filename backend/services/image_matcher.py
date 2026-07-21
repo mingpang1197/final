@@ -380,7 +380,10 @@ def _normalize_existing_placements(
             placement = placement.model_copy(update=updates)
         normalized.append(placement)
 
-    return normalized
+    from backend.services.export_layout import align_placements_one_per_section
+
+    collapsed = align_placements_one_per_section(source, normalized)
+    return sorted(collapsed.values(), key=lambda p: p.line_index)
 
 
 def _make_auto_placement(

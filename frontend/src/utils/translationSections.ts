@@ -261,6 +261,40 @@ export function alignPlacementsToItems(
   return byItem;
 }
 
+/** 소제목(섹션)마다 첫 항목에만 대표 삽화 1장 — 추출·미리보기용. */
+export function alignPlacementsOnePerSection(
+  text: string,
+  placements: ImagePlacement[],
+): Map<number, ImagePlacement> {
+  const { body } = splitStandardClosing(text);
+  const byItem = alignPlacementsToItems(body, placements);
+  const sections = parseTranslationSections(body);
+  const result = new Map<number, ImagePlacement>();
+
+  for (const section of sections) {
+    const items = parseSectionItems(section);
+    if (!items.length) continue;
+    const firstIdx = items[0].startLineIndex;
+    let chosen = byItem.get(firstIdx);
+    if (!chosen) {
+      for (const item of items) {
+        const p = byItem.get(item.startLineIndex);
+        if (p) {
+          chosen = p;
+          break;
+        }
+      }
+    }
+    if (!chosen) continue;
+    result.set(
+      firstIdx,
+      chosen.line_index === firstIdx ? chosen : { ...chosen, line_index: firstIdx },
+    );
+  }
+
+  return result;
+}
+
 export function resolvePlacementForItem(
   text: string,
   placements: ImagePlacement[],
@@ -296,7 +330,7 @@ export function filterPlacementsForExport(
 ): ImagePlacement[] {
   if (!placements.length) return [];
   const { body } = splitStandardClosing(text);
-  const aligned = alignPlacementsToItems(body, placements);
+  const aligned = alignPlacementsOnePerSection(body, placements);
   return Array.from(aligned.values()).sort((a, b) => a.line_index - b.line_index);
 }
 

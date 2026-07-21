@@ -22,7 +22,7 @@ from docx.shared import Inches, Pt
 
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.export_layout import (
-    align_placements_to_items,
+    align_placements_one_per_section,
     is_image_placeholder,
     parse_export_sections,
     parse_section_items,
@@ -388,7 +388,7 @@ def _export_easy_read_layout(
 ) -> None:
     """작성양식 PDF: <소제목> + 항목별 (삽화 | 글). 마무리 문장은 2단 밖 전체 너비."""
     body, closing = split_standard_closing(text)
-    by_item = align_placements_to_items(body, placements)
+    by_item = align_placements_one_per_section(body, placements)
 
     for section in parse_export_sections(body):
         if section.heading:
