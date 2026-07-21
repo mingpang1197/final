@@ -27,6 +27,7 @@ from backend.services.export_layout import (
     parse_export_sections,
     parse_section_items,
     prepare_placements_for_export,
+    split_item_lines_into_blocks,
 )
 from backend.services.easy_read_sanitize import split_standard_closing
 from backend.services.image_assets import resolve_placement_image
@@ -46,7 +47,7 @@ FONT_URL = (
 )
 PAGE_WIDTH = 595.28
 PAGE_HEIGHT = 841.89
-MARGIN = 72
+MARGIN = 54  # 0.75in — Word export와 동일
 CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN
 IMAGE_COL_PT = round(CONTENT_WIDTH * 0.32)
 IMAGE_INSET_PT = IMAGE_COL_PT - 12
@@ -194,11 +195,11 @@ def _placement_to_img_tag(placement: ImagePlacement) -> str | None:
 
 
 def _item_row_html(
-    item,
+    lines: list[str],
     placement: ImagePlacement | None,
 ) -> str:
     """항목별 (삽화 | 글) 2단."""
-    body_html = _lines_to_html(item.lines)
+    body_html = _lines_to_html(lines)
     if not body_html:
         return ""
 
@@ -232,9 +233,19 @@ def _section_block_html(
         placement = by_item.get(item.start_line_index)
         if placement is not None and not isinstance(placement, ImagePlacement):
             placement = ImagePlacement(**placement)  # type: ignore[arg-type]
-        row = _item_row_html(item, placement)
-        if row:
-            blocks.append(row)
+        if placement:
+            line_blocks = split_item_lines_into_blocks(item.lines)
+            row = _item_row_html(line_blocks[0], placement)
+            if row:
+                blocks.append(row)
+            for block in line_blocks[1:]:
+                follow = _item_row_html(block, None)
+                if follow:
+                    blocks.append(follow)
+        else:
+            row = _item_row_html(item.lines, None)
+            if row:
+                blocks.append(row)
 
     return "".join(blocks)
 

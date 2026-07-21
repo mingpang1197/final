@@ -480,9 +480,6 @@ export function RichTextEditor({
             </div>
           </div>
           <div className="shrink-0 border-t border-coolgray-20 px-3 py-3">
-            <p className="text-[11px] text-coolgray-60 mb-1">
-              마무리 문장 (2단 레이아웃 밖 · 굵게·크기 편집 가능)
-            </p>
             <div
               ref={closingEditorRef}
               contentEditable={!disabled}

@@ -51,7 +51,18 @@ body {
 
 .export-docx-preview .docx-wrapper {
   margin: 0 auto;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
   box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+}
+
+.export-docx-preview .docx-wrapper > section.docx {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 /* 추출 미리보기 — Word export 그림 칸 노란 배경 제거 */
@@ -62,4 +73,16 @@ body {
 .export-docx-preview table tr > td:first-child span {
   background: #ffffff !important;
   background-color: #ffffff !important;
+}
+
+/* 2단 표 다음 본문은 표 아래 전체 너비 */
+.export-docx-preview table {
+  display: table !important;
+  width: 100% !important;
+  clear: both !important;
+}
+.export-docx-preview table + p,
+.export-docx-preview table + div {
+  clear: both !important;
+  width: 100% !important;
 }

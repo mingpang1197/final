@@ -9,6 +9,7 @@ from backend.services.image_matcher import preview_lines
 
 _IMAGE_PLACEHOLDER = re.compile(r"^\[image\]\s*$", re.I)
 _NUMBERED_ITEM = re.compile(r"^\s*\d+[\)\.]\s")
+_ORDINAL_START = re.compile(r"^\s*(?:첫째|둘째|셋째|넷째|다섯째|여섯째)\b")
 
 
 @dataclass(frozen=True)
@@ -39,8 +40,34 @@ def is_section_heading(line: str) -> bool:
     return stripped.startswith("#")
 
 
+def _line_for_item_detection(line: str) -> str:
+    """**굵게** 등 마크다운 제거 후 번호/첫째·둘째 항목 판별."""
+    return re.sub(r"\*+", "", line.strip()).strip()
+
+
 def is_numbered_item_line(line: str) -> bool:
-    return bool(_NUMBERED_ITEM.match(line))
+    stripped = _line_for_item_detection(line)
+    if _NUMBERED_ITEM.match(stripped):
+        return True
+    return bool(_ORDINAL_START.match(stripped))
+
+
+def split_item_lines_into_blocks(lines: list[str]) -> list[list[str]]:
+    """그림 2단은 첫 블록만 — 2./둘째 이후는 export에서 전체 너비."""
+    if not lines:
+        return []
+    blocks: list[list[str]] = []
+    current: list[str] = []
+    for i, line in enumerate(lines):
+        if i > 0 and is_numbered_item_line(line):
+            if current:
+                blocks.append(current)
+            current = [line]
+        else:
+            current.append(line)
+    if current:
+        blocks.append(current)
+    return blocks if len(blocks) > 1 else [lines]
 
 
 def parse_section_items(section: ExportSection) -> list[ExportItem]:

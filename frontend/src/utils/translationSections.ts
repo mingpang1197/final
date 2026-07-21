@@ -21,7 +21,12 @@ export const STANDARD_CLOSING =
   "더 궁금한 것이 있으면 **소송구조 변호사**님에게 문의해 주세요.";
 
 const NUMBERED_ITEM = /^\s*\d+[\).]\s/;
+const ORDINAL_START = /^\s*(?:첫째|둘째|셋째|넷째|다섯째|여섯째)\b/;
 const CLOSING_CONTACT = /더\s*궁금한\s*것이\s*있으면.*문의/;
+
+function lineForItemDetection(line: string): string {
+  return line.trim().replace(/\*+/g, "").trim();
+}
 
 function closingPlain(line: string): string {
   return line.replace(/\*+/g, "").trim();
@@ -70,7 +75,24 @@ export function isSectionHeading(line: string): boolean {
 }
 
 export function isNumberedItemLine(line: string): boolean {
-  return NUMBERED_ITEM.test(line);
+  const stripped = lineForItemDetection(line);
+  return NUMBERED_ITEM.test(stripped) || ORDINAL_START.test(stripped);
+}
+
+export function splitItemLinesIntoBlocks(lines: string[]): string[][] {
+  if (lines.length === 0) return [];
+  const blocks: string[][] = [];
+  let current: string[] = [];
+  lines.forEach((line, i) => {
+    if (i > 0 && isNumberedItemLine(line)) {
+      if (current.length) blocks.push(current);
+      current = [line];
+    } else {
+      current.push(line);
+    }
+  });
+  if (current.length) blocks.push(current);
+  return blocks.length > 1 ? blocks : [lines];
 }
 
 export function parseSectionItems(section: TranslationSection): TranslationItem[] {
