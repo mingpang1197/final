@@ -6,15 +6,17 @@ import { Link } from "react-router-dom";
 import { ChatbotWidget } from "./ChatbotWidget";
 import { StepIndicator, type WorkflowStep } from "./StepIndicator";
 
-/** Figma 80% — 2단; 부모 flex-1 영역 전체 높이를 absolute로 고정 */
+/** Figma 80% — 2단 flex; h-0+grow로 카드 남는 높이 전부 사용 (요약/번역/그림) */
+const paneRowClass =
+  "flex min-h-0 w-full min-w-0 flex-1 basis-0 h-0 grow items-stretch gap-5 overflow-hidden p-5 pb-24";
+
+const paneColumnClass = "flex min-h-0 min-w-0 flex-1 basis-0 h-full flex-col overflow-hidden";
+
+/** flex 자식이 남는 세로 공간을 채울 때 사용 (absolute 자식만 있으면 높이 0 되는 문제 방지) */
+export const workflowPaneFillClass = "min-h-0 flex-1 basis-0 h-0 grow";
+
 export function WorkflowTwoPaneGrid({ children }: { children: ReactNode }) {
-  return (
-    <div className="relative min-h-0 flex-1 w-full min-w-0">
-      <div className="absolute inset-0 grid min-h-0 w-full grid-cols-2 gap-5 overflow-hidden p-5 pb-24 [grid-template-rows:minmax(0,1fr)]">
-        {children}
-      </div>
-    </div>
-  );
+  return <div className={paneRowClass}>{children}</div>;
 }
 
 export function WorkflowTwoPaneColumn({
@@ -25,15 +27,11 @@ export function WorkflowTwoPaneColumn({
   className?: string;
 }) {
   return (
-    <div
-      className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden ${className}`.trim()}
-    >
-      {children}
-    </div>
+    <div className={`${paneColumnClass} ${className}`.trim()}>{children}</div>
   );
 }
 
-/** 좌측 본문 박스 — 열 안에서 제목 아래 남는 높이 전부 사용 */
+/** 좌측 원문·참조 박스 — Figma처럼 열 하단까지 */
 export function WorkflowTwoPaneLeftFill({
   children,
   className = "",
@@ -43,7 +41,7 @@ export function WorkflowTwoPaneLeftFill({
 }) {
   return (
     <div
-      className={`flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden ${className}`.trim()}
+      className={`flex w-full flex-col overflow-hidden ${workflowPaneFillClass} ${className}`.trim()}
     >
       {children}
     </div>
@@ -141,7 +139,9 @@ export function WorkflowLayout({
             </div>
           )}
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+          <div className="flex min-h-0 flex-1 basis-0 h-0 grow flex-col overflow-hidden">
+            {children}
+          </div>
 
           {footerExtra}
         </div>

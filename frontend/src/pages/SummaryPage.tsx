@@ -11,7 +11,7 @@ import {
 } from "../api/client";
 import { PageNavigator } from "../components/PageNavigator";
 import { PromptBar } from "../components/PromptBar";
-import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid, WorkflowTwoPaneLeftFill } from "../components/ui/WorkflowLayout";
+import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid, WorkflowTwoPaneLeftFill, workflowPaneFillClass } from "../components/ui/WorkflowLayout";
 import {
   ensurePayload,
   getCachedUpload,
@@ -257,11 +257,11 @@ export function SummaryPage() {
       error={error || undefined}
     >
       <WorkflowTwoPaneGrid>
-        <WorkflowTwoPaneColumn className="min-h-0 grid grid-rows-[minmax(0,1fr)]">
+        <WorkflowTwoPaneColumn>
           <WorkflowTwoPaneLeftFill className="border border-coolgray-30 bg-white rounded-sm">
           {sourcePreviewUrl && sourceReady ? (
             <>
-              <div className="relative min-h-0 flex-1">
+              <div className={`relative overflow-hidden ${workflowPaneFillClass}`}>
                 <iframe
                   title="업로드 원문"
                   src={sourcePreviewUrl}
