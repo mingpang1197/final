@@ -9,11 +9,9 @@ from __future__ import annotations
 
 import base64
 import html
-import io
 import logging
 import mimetypes
 import os
-import re
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -42,9 +40,14 @@ from backend.services.word_export import (
     _is_heading,
 )
 
-FONT_URL = (
+FONT_REGULAR_URL = (
     "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Regular.ttf"
 )
+FONT_BOLD_URL = (
+    "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Bold.ttf"
+)
+FONT_REGULAR_NAME = "NanumGothic-Regular.ttf"
+FONT_BOLD_NAME = "NanumGothic-Bold.ttf"
 PAGE_WIDTH = 595.28
 PAGE_HEIGHT = 841.89
 MARGIN = 43  # 0.6in — word_export PAGE_MARGIN 과 맞춤
@@ -53,22 +56,30 @@ IMAGE_COL_PT = round(CONTENT_WIDTH * 0.32)
 IMAGE_INSET_PT = IMAGE_COL_PT - 12
 IMAGE_MAX_HEIGHT_PT = 130
 
-_BOLD = re.compile(r"\*\*(.+?)\*\*")
+def _ensure_font_files(font_dir: Path) -> None:
+    import httpx
+
+    font_dir.mkdir(parents=True, exist_ok=True)
+    for url, filename in (
+        (FONT_REGULAR_URL, FONT_REGULAR_NAME),
+        (FONT_BOLD_URL, FONT_BOLD_NAME),
+    ):
+        target = font_dir / filename
+        if target.is_file() and target.stat().st_size > 0:
+            continue
+        response = httpx.get(url, timeout=30.0, follow_redirects=True)
+        response.raise_for_status()
+        target.write_bytes(response.content)
 
 
 def _font_dir() -> Path:
     bundled_dir = Path(__file__).resolve().parent.parent / "assets" / "fonts"
-    bundled = bundled_dir / "NanumGothic-Regular.ttf"
-    if bundled.exists():
+    bundled_regular = bundled_dir / FONT_REGULAR_NAME
+    if bundled_regular.is_file():
+        _ensure_font_files(bundled_dir)
         return bundled_dir
-    cache_dir = Path(os.environ.get("TMPDIR", os.environ.get("TEMP", "/tmp")))
-    cached = cache_dir / "nanumgothic-regular.ttf"
-    if not cached.exists():
-        import httpx
-
-        response = httpx.get(FONT_URL, timeout=30.0, follow_redirects=True)
-        response.raise_for_status()
-        cached.write_bytes(response.content)
+    cache_dir = Path(os.environ.get("TMPDIR", os.environ.get("TEMP", "/tmp"))) / "easyread-fonts"
+    _ensure_font_files(cache_dir)
     return cache_dir
 
 
@@ -78,13 +89,24 @@ def _font_css() -> tuple[str, fitz.Archive]:
     css = f"""
     @font-face {{
       font-family: "Nanum Gothic";
-      src: url("nanumgothic-regular.ttf");
+      src: url("{FONT_REGULAR_NAME}");
+      font-weight: normal;
+      font-style: normal;
+    }}
+    @font-face {{
+      font-family: "Nanum Gothic";
+      src: url("{FONT_BOLD_NAME}");
+      font-weight: bold;
+      font-style: normal;
     }}
     body {{
       font-family: "Nanum Gothic", sans-serif;
       font-size: 12px;
       line-height: 2;
       color: #21272a;
+    }}
+    strong, b {{
+      font-weight: bold;
     }}
     p.body {{
       margin: 0 0 8px 0;
@@ -99,30 +121,32 @@ def _font_css() -> tuple[str, fitz.Archive]:
       font-size: 17px;
       font-weight: bold;
     }}
-    div.section-row {{
+    table.section-row {{
       width: 100%;
-      overflow: hidden;
+      border-collapse: collapse;
       margin: 0 0 20px 0;
+      border: 0;
     }}
-    div.image-col {{
-      float: left;
+    td.image-col {{
       width: {IMAGE_COL_PT}pt;
-      background: #ffffff;
+      vertical-align: top;
       padding: 8px 8px 8px 0;
-      box-sizing: border-box;
+      border: 0;
+    }}
+    td.body-col {{
+      vertical-align: top;
+      padding: 8px 0 8px 4px;
+      border: 0;
     }}
     img.section-img {{
       width: {IMAGE_INSET_PT}pt;
+      max-width: {IMAGE_INSET_PT}pt;
       max-height: {IMAGE_MAX_HEIGHT_PT}pt;
       height: auto;
       display: block;
     }}
     div.image-empty {{
       min-height: {IMAGE_MAX_HEIGHT_PT}pt;
-    }}
-    div.body-col {{
-      margin-left: {IMAGE_COL_PT}pt;
-      padding: 8px 0 8px 4px;
     }}
     p.image-block {{
       margin: 8px 0 12px 0;
@@ -132,12 +156,10 @@ def _font_css() -> tuple[str, fitz.Archive]:
       height: auto;
     }}
     div.item-full-width {{
-      clear: both;
       width: 100%;
       margin: 0 0 20px 0;
     }}
     p.closing-line {{
-      clear: both;
       margin: 12px 0 0 0;
     }}
     """
@@ -184,14 +206,11 @@ def _placement_to_img_tag(placement: ImagePlacement) -> str | None:
     raw = (placement.image_base64 or "").strip()
     if raw:
         src = raw if raw.startswith("data:") else f"data:image/png;base64,{raw}"
-        return (
-            f'<img class="section-img" src="{src}" '
-            f'width="{IMAGE_INSET_PT}" alt="" />'
-        )
+        return f'<img class="section-img" src="{src}" alt="" />'
     file_tag = _image_to_img_tag(placement.image_file, placement.image_url)
     if not file_tag:
         return None
-    return file_tag.replace("<img ", f'<img class="section-img" width="{IMAGE_INSET_PT}" ', 1)
+    return file_tag.replace("<img ", '<img class="section-img" ', 1)
 
 
 def _item_row_html(
@@ -209,10 +228,10 @@ def _item_row_html(
 
     image_cell = img_tag if img_tag else '<div class="image-empty">&nbsp;</div>'
     return (
-        '<div class="section-row">'
-        f'<div class="image-col">{image_cell}</div>'
-        f'<div class="body-col">{body_html}</div>'
-        "</div>"
+        '<table class="section-row"><tr>'
+        f'<td class="image-col">{image_cell}</td>'
+        f'<td class="body-col">{body_html}</td>'
+        "</tr></table>"
     )
 
 
@@ -343,8 +362,13 @@ def _export_pdf_via_html(doc: DocumentResponse) -> bytes:
 
 def export_to_pdf(doc: DocumentResponse) -> bytes:
     """Word export → PDF. 변환기 없으면 HTML/PyMuPDF 폴백."""
+    from backend.config import IS_VERCEL, settings
     from backend.services import word_export
     from backend.services.docx_to_pdf import DocxToPdfError, convert_docx_bytes_to_pdf
+
+    has_remote_converter = bool(settings.convertapi_secret.strip())
+    if IS_VERCEL and not has_remote_converter:
+        return _export_pdf_via_html(doc)
 
     docx_bytes = word_export.export_to_docx(doc)
     try:
