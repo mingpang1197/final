@@ -35,7 +35,7 @@ export function WorkflowLayout({
 
   return (
     <div className="h-screen overflow-hidden bg-coolgray-10 flex flex-col">
-      <div className={`px-6 ${compact ? "pt-4 pb-0" : "pt-6 pb-0"}`}>
+      <div className={`px-4 ${compact ? "pt-4 pb-0" : "pt-6 pb-0"}`}>
         <div className={`flex items-start justify-between gap-6 ${compact ? "mb-3" : "mb-6"}`}>
           <h1
             className={`font-bold leading-tight text-coolgray-90 tracking-tight ${
@@ -57,7 +57,7 @@ export function WorkflowLayout({
       </div>
 
       <div
-        className={`flex-1 flex flex-col mx-6 min-h-0 bg-white border border-coolgray-20 overflow-hidden ${
+        className={`flex-1 flex flex-col w-full min-w-0 mx-4 min-h-0 bg-white border border-coolgray-20 overflow-hidden ${
           compact ? "mb-4" : "mb-6"
         }`}
       >

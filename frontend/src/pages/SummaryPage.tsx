@@ -256,8 +256,8 @@ export function SummaryPage() {
       filename={filenameLabel}
       error={error || undefined}
     >
-      <div className="flex-1 grid grid-cols-2 gap-5 min-h-0 overflow-hidden px-5 pt-4 pb-5">
-        <div className="min-h-0 flex flex-col bg-white overflow-hidden rounded-sm">
+      <div className="flex-1 grid w-full min-w-0 grid-cols-2 gap-5 min-h-0 overflow-hidden px-4 pt-4 pb-24 pr-20">
+        <div className="min-h-0 min-w-0 flex flex-col bg-white overflow-hidden rounded-sm">
           {sourcePreviewUrl && sourceReady ? (
             <>
               <iframe
@@ -287,7 +287,7 @@ export function SummaryPage() {
           )}
         </div>
 
-        <div className="min-h-0 flex flex-col gap-3 overflow-hidden pb-24 pr-20">
+        <div className="min-h-0 min-w-0 flex flex-col gap-3 overflow-hidden">
           <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
 
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden relative">
