@@ -270,12 +270,33 @@ def _add_picture_to_cell(cell, placement: ImagePlacement) -> None:
     run.add_picture(str(img_path), width=IMAGE_DISPLAY_WIDTH)
 
 
+def _add_item_body_lines(doc: Document, body_lines: list[str]) -> None:
+    """그림 없는 항목 — 전체 너비 본문 (2단 빈칸 없음)."""
+    first = True
+    for line in body_lines:
+        stripped = line.strip()
+        if not stripped or _SKIP_LINE.match(stripped):
+            continue
+        if is_image_placeholder(stripped):
+            continue
+        p = doc.add_paragraph()
+        _apply_body_format(p)
+        if first:
+            p.paragraph_format.space_before = Pt(0)
+            first = False
+        _add_runs_to_paragraph(p, stripped, size_pt=BODY_PT)
+
+    spacer = doc.add_paragraph()
+    spacer.paragraph_format.space_before = Pt(0)
+    spacer.paragraph_format.space_after = Pt(12)
+
+
 def _add_item_text_boxes(
     doc: Document,
     placement: ImagePlacement | None,
     body_lines: list[str],
 ) -> None:
-    """항목 1개 = (그림 | 본문) 2단. 그림 없어도 왼쪽 빈칸 유지, 본문은 오른쪽 고정."""
+    """항목 1개 = (그림 | 본문) 2단. 그림이 있을 때만 2단 레이아웃."""
     table = doc.add_table(rows=1, cols=2)
     table.autofit = False
     table.allow_autofit = False
@@ -341,7 +362,10 @@ def _export_easy_read_layout(
             placement = by_item.get(item.start_line_index)
             if placement is not None and not isinstance(placement, ImagePlacement):
                 placement = ImagePlacement(**placement)  # type: ignore[arg-type]
-            _add_item_text_boxes(doc, placement, item.lines)
+            if placement:
+                _add_item_text_boxes(doc, placement, item.lines)
+            else:
+                _add_item_body_lines(doc, item.lines)
 
     if closing:
         _add_closing_paragraph(doc, closing)

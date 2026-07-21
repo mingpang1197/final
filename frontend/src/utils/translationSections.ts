@@ -47,7 +47,7 @@ export function splitStandardClosing(text: string): { body: string; closing: str
     while (lines.length && !lines[lines.length - 1]?.trim()) {
       lines.pop();
     }
-    return { body: lines.join("\n"), closing: STANDARD_CLOSING };
+    return { body: lines.join("\n"), closing: last };
   }
 
   return { body: text, closing: null };

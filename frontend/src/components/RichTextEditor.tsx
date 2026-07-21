@@ -8,10 +8,11 @@ import {
   markersToHtml,
   type FontSizePt,
 } from "../utils/richText";
-import { mergeWithStandardClosing, splitStandardClosing } from "../utils/translationSections";
-import { StyledLine } from "./BoldText";
+import { mergeWithStandardClosing, splitStandardClosing, STANDARD_CLOSING } from "../utils/translationSections";
 
 export type RichTextEditorLayout = "full" | "export-preview";
+
+type EditorSurface = "body" | "closing";
 
 interface RichTextEditorProps {
   value: string;
@@ -185,15 +186,19 @@ export function RichTextEditor({
   fill = false,
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const closingEditorRef = useRef<HTMLDivElement>(null);
   const savedRangeRef = useRef<Range | null>(null);
+  const activeSurfaceRef = useRef<EditorSurface>("body");
   const savedValueRef = useRef("");
   const initializedRef = useRef(false);
+  const closingInitializedRef = useRef(false);
   const [fontSize, setFontSize] = useState<FontSizePt>(DEFAULT_FONT_SIZE);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
   const history = useEditorHistory(value);
   const { closing: standardClosing } = useMemo(() => splitStandardClosing(value), [value]);
+  const closingText = standardClosing ?? STANDARD_CLOSING;
 
   const toEditorMarkers = useCallback(
     (markers: string) =>
@@ -201,12 +206,20 @@ export function RichTextEditor({
     [layout],
   );
 
+  const readClosingMarkers = useCallback(() => {
+    if (layout !== "export-preview" || !closingEditorRef.current) {
+      return closingText;
+    }
+    return htmlToMarkers(closingEditorRef.current.innerHTML).trim() || closingText;
+  }, [closingText, layout]);
+
   const toStoredMarkers = useCallback(
-    (bodyMarkers: string) =>
-      layout === "export-preview"
-        ? mergeWithStandardClosing(bodyMarkers, standardClosing)
-        : bodyMarkers,
-    [layout, standardClosing],
+    (bodyMarkers: string, closingOverride?: string | null) => {
+      if (layout !== "export-preview") return bodyMarkers;
+      const closing = closingOverride ?? readClosingMarkers();
+      return mergeWithStandardClosing(bodyMarkers, closing);
+    },
+    [layout, readClosingMarkers],
   );
 
   const refreshHistoryFlags = useCallback(() => {
@@ -219,10 +232,15 @@ export function RichTextEditor({
       if (editorRef.current) {
         editorRef.current.innerHTML = markersToHtml(toEditorMarkers(markers));
       }
+      if (layout === "export-preview" && closingEditorRef.current) {
+        const { closing } = splitStandardClosing(markers);
+        closingEditorRef.current.innerHTML = markersToHtml(closing ?? STANDARD_CLOSING);
+        closingInitializedRef.current = true;
+      }
       savedValueRef.current = markers;
       if (notifyParent) onChange(markers);
     },
-    [onChange, toEditorMarkers],
+    [layout, onChange, toEditorMarkers],
   );
 
   const syncFromDom = useCallback(() => {
@@ -236,18 +254,45 @@ export function RichTextEditor({
     refreshHistoryFlags();
   }, [history, onChange, refreshHistoryFlags, toStoredMarkers]);
 
-  const saveSelection = useCallback(() => {
+  const syncClosingFromDom = useCallback(() => {
+    if (!closingEditorRef.current || history.isApplying()) return;
+    const closingMarkers = htmlToMarkers(closingEditorRef.current.innerHTML).trim();
+    const bodyMarkers = editorRef.current
+      ? htmlToMarkers(editorRef.current.innerHTML)
+      : splitStandardClosing(savedValueRef.current).body;
+    const markers = mergeWithStandardClosing(bodyMarkers, closingMarkers || STANDARD_CLOSING);
+    if (markers === savedValueRef.current) return;
+    history.recordChange(markers);
+    savedValueRef.current = markers;
+    onChange(markers);
+    refreshHistoryFlags();
+  }, [history, onChange, refreshHistoryFlags]);
+
+  const syncActiveSurfaceFromDom = useCallback(() => {
+    if (activeSurfaceRef.current === "closing") {
+      syncClosingFromDom();
+    } else {
+      syncFromDom();
+    }
+  }, [syncClosingFromDom, syncFromDom]);
+
+  const saveSelection = useCallback((surface: EditorSurface = activeSurfaceRef.current) => {
     const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0 || !editorRef.current) return;
+    if (!sel || sel.rangeCount === 0) return;
+    const root = surface === "closing" ? closingEditorRef.current : editorRef.current;
+    if (!root) return;
     const range = sel.getRangeAt(0);
-    if (!editorRef.current.contains(range.commonAncestorContainer)) return;
+    if (!root.contains(range.commonAncestorContainer)) return;
+    activeSurfaceRef.current = surface;
     savedRangeRef.current = range.cloneRange();
   }, []);
 
   const restoreSelection = useCallback(() => {
     const range = savedRangeRef.current;
-    if (!range || !editorRef.current) return false;
-    editorRef.current.focus();
+    const root =
+      activeSurfaceRef.current === "closing" ? closingEditorRef.current : editorRef.current;
+    if (!range || !root) return false;
+    root.focus();
     const sel = window.getSelection();
     if (!sel) return false;
     sel.removeAllRanges();
@@ -294,8 +339,19 @@ export function RichTextEditor({
       savedValueRef.current = value;
       history.resetHistory(value);
       refreshHistoryFlags();
+      if (layout === "export-preview") {
+        closingInitializedRef.current = false;
+      }
     }
-  }, [value, history, refreshHistoryFlags, toEditorMarkers]);
+  }, [value, history, layout, refreshHistoryFlags, toEditorMarkers]);
+
+  useEffect(() => {
+    if (layout !== "export-preview" || !closingEditorRef.current || history.isApplying()) return;
+    if (value === savedValueRef.current && closingInitializedRef.current) return;
+    const { closing } = splitStandardClosing(value);
+    closingEditorRef.current.innerHTML = markersToHtml(closing ?? STANDARD_CLOSING);
+    closingInitializedRef.current = true;
+  }, [value, layout, history]);
 
   function wrapRangeWithFontSize(range: Range, size: FontSizePt) {
     const span = document.createElement("span");
@@ -321,23 +377,29 @@ export function RichTextEditor({
   }
 
   function applyBold() {
-    if (disabled || !editorRef.current) return;
+    if (disabled) return;
+    const root =
+      activeSurfaceRef.current === "closing" ? closingEditorRef.current : editorRef.current;
+    if (!root) return;
     if (!restoreSelection()) return;
     document.execCommand("bold");
-    saveSelection();
-    syncFromDom();
+    saveSelection(activeSurfaceRef.current);
+    syncActiveSurfaceFromDom();
   }
 
   function applyFontSize(size: FontSizePt) {
     const pt = clampFontSize(size);
     setFontSize(pt);
-    if (disabled || !editorRef.current) return;
+    if (disabled) return;
+    const root =
+      activeSurfaceRef.current === "closing" ? closingEditorRef.current : editorRef.current;
+    if (!root) return;
     if (!restoreSelection()) return;
 
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     wrapRangeWithFontSize(sel.getRangeAt(0), pt);
-    syncFromDom();
+    syncActiveSurfaceFromDom();
   }
 
   function handleToolbarMouseDown(e: React.MouseEvent) {
@@ -370,8 +432,11 @@ export function RichTextEditor({
       suppressContentEditableWarning
       onInput={syncFromDom}
       onBlur={syncFromDom}
-      onMouseUp={saveSelection}
-      onKeyUp={saveSelection}
+      onFocus={() => {
+        activeSurfaceRef.current = "body";
+      }}
+      onMouseUp={() => saveSelection("body")}
+      onKeyUp={() => saveSelection("body")}
       onKeyDown={handleEditorKeyDown}
       className={editorClassName}
       style={fill ? undefined : { minHeight }}
@@ -414,11 +479,25 @@ export function RichTextEditor({
               {editor}
             </div>
           </div>
-          {standardClosing && (
-            <p className="px-3 pb-3 text-[12px] leading-[2] text-coolgray-90">
-              <StyledLine text={standardClosing} />
+          <div className="shrink-0 border-t border-coolgray-20 px-3 py-3">
+            <p className="text-[11px] text-coolgray-60 mb-1">
+              마무리 문장 (2단 레이아웃 밖 · 굵게·크기 편집 가능)
             </p>
-          )}
+            <div
+              ref={closingEditorRef}
+              contentEditable={!disabled}
+              suppressContentEditableWarning
+              onInput={syncClosingFromDom}
+              onBlur={syncClosingFromDom}
+              onFocus={() => {
+                activeSurfaceRef.current = "closing";
+              }}
+              onMouseUp={() => saveSelection("closing")}
+              onKeyUp={() => saveSelection("closing")}
+              className="min-w-0 text-[12px] leading-[2] text-coolgray-90 outline-none [&_strong]:font-bold disabled:opacity-60"
+              aria-label="마무리 문장 편집"
+            />
+          </div>
         </div>
       ) : (
         editor

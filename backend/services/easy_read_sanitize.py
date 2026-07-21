@@ -61,16 +61,15 @@ def _is_standard_closing_line(line: str) -> bool:
 
 def _apply_standard_closing(text: str) -> str:
     if not text.strip():
-        return text
-
-    lines = text.split("\n")
-    while lines and _is_trailing_closing_line(lines[-1]):
-        lines.pop()
-
-    body = "\n".join(lines).rstrip()
-    if not body:
         return STANDARD_CLOSING
-    return f"{body}\n\n{STANDARD_CLOSING}"
+
+    body, closing = split_standard_closing(text)
+    if closing:
+        return merge_with_standard_closing(body, closing)
+
+    if not body.strip():
+        return STANDARD_CLOSING
+    return merge_with_standard_closing(body, STANDARD_CLOSING)
 
 
 def split_standard_closing(text: str) -> tuple[str, str | None]:
@@ -90,7 +89,7 @@ def split_standard_closing(text: str) -> tuple[str, str | None]:
         while lines and not lines[-1].strip():
             lines.pop()
         body = "\n".join(lines).rstrip()
-        return body, STANDARD_CLOSING
+        return body, last
 
     return text.rstrip(), None
 

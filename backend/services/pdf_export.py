@@ -130,6 +130,11 @@ def _font_css() -> tuple[str, fitz.Archive]:
       max-width: 230px;
       height: auto;
     }}
+    div.item-full-width {{
+      clear: both;
+      width: 100%;
+      margin: 0 0 20px 0;
+    }}
     p.closing-line {{
       clear: both;
       margin: 12px 0 0 0;
@@ -193,20 +198,20 @@ def _item_row_html(
     placement: ImagePlacement | None,
 ) -> str:
     """항목별 (삽화 | 글) 2단."""
-    img_tags: list[str] = []
-    if placement:
-        tag = _placement_to_img_tag(placement)
-        if tag:
-            img_tags.append(tag)
-
     body_html = _lines_to_html(item.lines)
-    if not body_html and not img_tags:
+    if not body_html:
         return ""
 
-    image_cell = "".join(img_tags) if img_tags else '<div class="image-empty">&nbsp;</div>'
+    img_tag: str | None = None
+    if placement:
+        img_tag = _placement_to_img_tag(placement)
+
+    if not img_tag:
+        return f'<div class="item-full-width">{body_html}</div>'
+
     return (
         '<div class="section-row">'
-        f'<div class="image-col">{image_cell}</div>'
+        f'<div class="image-col">{img_tag}</div>'
         f'<div class="body-col">{body_html}</div>'
         "</div>"
     )
