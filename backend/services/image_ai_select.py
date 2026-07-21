@@ -47,7 +47,7 @@ async def pick_image_with_upstage(
     section_text: str,
     candidates: list[dict[str, str]],
 ) -> str | None:
-    if not candidates or settings.use_mock_upstage:
+    if not candidates or settings.use_mock:
         return None
 
     lines = "\n".join(
