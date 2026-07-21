@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import re
 
+STANDARD_CLOSING = "더 궁금한 것이 있으면 **소송구조 변호사**님에게 문의해 주세요."
+
 _META_SECTION_START = re.compile(r"^###\s*수정\s*사항")
 _IMAGE_PLACEHOLDER = re.compile(r"^\[image\]\s*$", re.I)
 _DOC_TITLE_LINE = re.compile(
@@ -23,6 +25,52 @@ _DOC_META_HEADING = re.compile(
     r"^#?\s*<[^>]*(?:작성\s*요점|작성요점)[^>]*>",
     re.IGNORECASE,
 )
+_CLOSING_DISCLAIMER = re.compile(r"^※")
+_CLOSING_BLANK_MARKER = re.compile(r"이하\s*빈칸|판결\s*본문은\s*다음")
+_CLOSING_SUMMARY_NOTE = re.compile(r"이\s*요약은\s*판결문")
+_CLOSING_CONTACT = re.compile(r"더\s*궁금한\s*것이\s*있으면.*문의")
+_HR_LINE = re.compile(r"^-{3,}\s*$")
+
+
+def _closing_plain(line: str) -> str:
+    return re.sub(r"\*+", "", line.strip())
+
+
+def _is_trailing_closing_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return True
+    if _HR_LINE.match(stripped):
+        return True
+    if _CLOSING_DISCLAIMER.match(stripped):
+        return True
+    if _CLOSING_BLANK_MARKER.search(stripped):
+        return True
+    if _CLOSING_SUMMARY_NOTE.search(stripped):
+        return True
+    if _is_standard_closing_line(stripped):
+        return True
+    if _CLOSING_CONTACT.search(stripped):
+        return True
+    return False
+
+
+def _is_standard_closing_line(line: str) -> bool:
+    return _closing_plain(line) == _closing_plain(STANDARD_CLOSING)
+
+
+def _apply_standard_closing(text: str) -> str:
+    if not text.strip():
+        return text
+
+    lines = text.split("\n")
+    while lines and _is_trailing_closing_line(lines[-1]):
+        lines.pop()
+
+    body = "\n".join(lines).rstrip()
+    if not body:
+        return STANDARD_CLOSING
+    return f"{body}\n\n{STANDARD_CLOSING}"
 
 
 def _is_section_heading(line: str) -> bool:
@@ -136,6 +184,7 @@ def sanitize_translation_text(text: str) -> str:
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
     cleaned = _strip_doc_title_lines(cleaned)
     cleaned = _reorder_conclusion_before_claim(cleaned)
+    cleaned = _apply_standard_closing(cleaned)
     return cleaned.strip()
 
 

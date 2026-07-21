@@ -14,6 +14,7 @@ import yaml
 
 from backend.config import DATA_DIR, PROMPTS_DIR
 from backend.models.schemas import DocType
+from backend.services.easy_read_sanitize import STANDARD_CLOSING
 
 DOC_TYPE_FILES: dict[DocType, str] = {
     "criminal": "criminal.yaml",
@@ -37,7 +38,10 @@ TRANSLATION_OUTPUT_RULES = """
    - 그 다음: `<이런 결론을 내린 이유>` 등 이유·쟁점
 4. `주문`, `청구취지` 같은 원문 용어는 쓰지 말고 규칙의 쉬운 소제목만 사용.
 5. 중요한 날짜·금액·판결 결론 등을 강조할 때 `**강조할 글**` 형식(마크다운 굵게)으로 표시하세요.
-""".strip()
+6. 본문 **맨 마지막 줄**은 반드시 아래 문장 **한 줄만** 출력 (다른 마무리 문구 금지):
+   {standard_closing}
+7. `※` 면책 문구, `---` 구분선, `이하 빈칸`, `이 요약은 판결문…` 등 **별도 마무리·안내 문구 출력 금지**.
+""".strip().replace("{standard_closing}", STANDARD_CLOSING)
 
 SUMMARY_STRUCTURE_RULES = """
 ## 요약 작성 구조 (반드시 준수)
