@@ -222,8 +222,18 @@ export function TranslatePage() {
           </div>
         </div>
 
-        <div className="min-h-0 flex flex-col gap-3 overflow-hidden">
+        <div className="min-h-0 flex flex-col gap-3 overflow-hidden pr-20">
           <p className="text-center text-base text-primary-90 shrink-0">번역문</p>
+
+          <div className="shrink-0">
+            <PromptBar
+              value={prompt}
+              onChange={setPrompt}
+              onSubmit={applyPrompt}
+              loading={refining}
+              loadingLabel="번역 수정 중..."
+            />
+          </div>
 
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-coolgray-10 relative">
             {refining && (
@@ -242,16 +252,6 @@ export function TranslatePage() {
                 onTextChange={editTranslationText}
               />
             </div>
-          </div>
-
-          <div className="shrink-0">
-            <PromptBar
-              value={prompt}
-              onChange={setPrompt}
-              onSubmit={applyPrompt}
-              loading={refining}
-              loadingLabel="번역 수정 중..."
-            />
           </div>
         </div>
       </div>

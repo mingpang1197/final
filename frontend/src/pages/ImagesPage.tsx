@@ -283,8 +283,19 @@ export function ImagesPage() {
           </div>
         </div>
 
-        <div className="min-h-0 flex flex-col gap-3 overflow-hidden">
+        <div className="min-h-0 flex flex-col gap-3 overflow-hidden pr-20">
           <p className="text-center text-base text-primary-90 shrink-0">그림 DB</p>
+
+          <div className="shrink-0">
+            <PromptBar
+              value={prompt}
+              onChange={setPrompt}
+              onSubmit={applyImagePrompt}
+              loading={promptLoading}
+              loadingLabel="그림 검색 중..."
+              placeholder="찾을 그림을 설명하세요 (예: 각하, 징역, 무죄)"
+            />
+          </div>
 
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-coolgray-10">
             <input
@@ -332,17 +343,6 @@ export function ImagesPage() {
                   )}
                 </>
               )}
-            </div>
-
-            <div className="shrink-0 px-4 pb-4 pt-2 border-t border-coolgray-30 bg-coolgray-10">
-              <PromptBar
-                value={prompt}
-                onChange={setPrompt}
-                onSubmit={applyImagePrompt}
-                loading={promptLoading}
-                loadingLabel="그림 검색 중..."
-                placeholder="찾을 그림을 설명하세요 (예: 각하, 징역, 무죄)"
-              />
             </div>
           </div>
         </div>
