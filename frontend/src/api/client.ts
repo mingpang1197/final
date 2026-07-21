@@ -385,11 +385,16 @@ export async function searchWebImages(query: string): Promise<ImageCatalogItem[]
 
 export async function detectImagePlacements(
   docId: string,
-  options?: Partial<EnsurePayload> & { summary?: string; existingPlacements?: ImagePlacement[] },
+  options?: Partial<EnsurePayload> & {
+    summary?: string;
+    existingPlacements?: ImagePlacement[];
+    translationText?: string;
+  },
 ): Promise<ImagePlacement[]> {
   const payload = {
     ...(options ?? {}),
     existing_placements: options?.existingPlacements ?? [],
+    translation_text: options?.translationText,
   };
   return request<ImagePlacement[]>(`/documents/${docId}/translation/detect-placements`, {
     method: "POST",

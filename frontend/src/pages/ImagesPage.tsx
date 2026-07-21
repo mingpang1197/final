@@ -83,25 +83,42 @@ export function ImagesPage() {
           const ensurePayload = buildEnsureContext(id);
           const filled = await detectImagePlacements(id, {
             ...(ensurePayload ?? {}),
+            translationText: main.easy_text,
             existingPlacements: main.image_placements ?? [],
           });
           if (placementsChanged(main.image_placements ?? [], filled)) {
             segs = segs.map((s, i) =>
               i === 0 ? { ...s, image_placements: filled } : s,
             );
-            if (ensurePayload) {
-              await updateTranslation(id, segs, ensurePayload);
-            } else {
-              await updateTranslation(id, segs);
-            }
           }
         } catch (err) {
           console.error("auto-fill image placements failed", err);
+          setError(
+            err instanceof Error
+              ? `그림 자동 배치 실패: ${err.message}`
+              : "그림 자동 배치에 실패했습니다.",
+          );
         }
       }
       setSegments(segs);
       if (segs.length) {
         saveWorkflowSnapshot(id, { translation_segments: segs, filename: doc.filename });
+      }
+      const updatedMain = segs[0];
+      if (
+        updatedMain?.image_placements?.length &&
+        updatedMain.image_placements.some((p) => p.auto_filled)
+      ) {
+        try {
+          const ensurePayload = buildEnsureContext(id);
+          if (ensurePayload) {
+            await updateTranslation(id, segs, ensurePayload);
+          } else {
+            await updateTranslation(id, segs);
+          }
+        } catch (err) {
+          console.error("save auto-filled placements failed", err);
+        }
       }
     } catch (err) {
       const cachedSegments = workflow?.translation_segments ?? [];

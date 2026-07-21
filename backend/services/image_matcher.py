@@ -15,7 +15,7 @@ from functools import lru_cache
 
 from backend.config import IMAGES_DIR, IS_VERCEL, ROOT_DIR
 from backend.models.schemas import ImagePlacement
-from backend.services.easy_read_sanitize import sanitize_translation_text
+from backend.services.easy_read_sanitize import sanitize_translation_text, split_standard_closing
 
 sys.path.insert(0, str(ROOT_DIR))
 from db_rules import LEGAL_DB  # noqa: E402
@@ -211,14 +211,25 @@ def find_images_for_line(
     return results
 
 
-def preview_lines(text: str) -> list[str]:
-    """Lines used for placement indices (matches frontend filterPreviewLines)."""
+def _placement_source_text(text: str) -> str:
+    """프론트 splitStandardClosing + filterPreviewLines 와 동일한 본문."""
     sanitized = sanitize_translation_text(text)
+    body, _closing = split_standard_closing(sanitized)
+    return body
+
+
+def _placement_preview_lines(text: str) -> list[str]:
+    body = _placement_source_text(text)
     return [
         line
-        for line in sanitized.split("\n")
+        for line in body.split("\n")
         if line.strip() and not line.strip().startswith("---")
     ]
+
+
+def preview_lines(text: str) -> list[str]:
+    """Lines used for placement indices (matches frontend filterPreviewLines)."""
+    return _placement_preview_lines(text)
 
 
 _NUMBERED_ITEM = re.compile(r"^\s*\d+[\).]\s")
@@ -376,45 +387,43 @@ def _make_auto_placement(
     )
 
 
+def _section_match_text(heading: str, items: list[tuple[int, str]]) -> str:
+    """소제목 + 섹션 전체 본문(모든 항목)으로 대표 그림 매칭."""
+    parts = [normalize_match_text(heading.strip("<>").strip())]
+    for _idx, item_text in items:
+        parts.append(normalize_match_text(item_text))
+    return " ".join(p for p in parts if p)
+
+
 def fill_missing_item_placements(
     text: str,
     existing: list[ImagePlacement] | None = None,
 ) -> list[ImagePlacement]:
-    """Keep manual placements; auto-fill empty slots (소제목 대표=첫 항목, 나머지=항목별)."""
-    existing = _normalize_existing_placements(text, existing or [])
+    """Keep manual placements; auto-fill only the first item slot per section heading."""
+    source = _placement_source_text(text)
+    existing = _normalize_existing_placements(source, existing or [])
     by_line = {p.line_index: p for p in existing}
     used_files = {p.image_file for p in existing}
     result = list(existing)
 
-    first_item_heading: dict[int, tuple[str, str]] = {}
-    for _section_start, heading_match, heading, items in _parse_all_sections(text):
-        if items:
-            first_item_heading[items[0][0]] = (heading_match, heading)
-
-    for start_idx, item_text, section_heading in _parse_all_items(text):
-        if start_idx in by_line:
+    for _section_start, _heading_match, heading, items in _parse_all_sections(source):
+        if not items:
             continue
-
-        if start_idx in first_item_heading:
-            heading_match, heading = first_item_heading[start_idx]
-            match = resolve_auto_image(heading_match, used_files)
-            section_heading = heading
-        else:
-            match = resolve_auto_image(item_text, used_files)
-            if not match and item_text:
-                match = resolve_auto_image(item_text.split("\n", 1)[0], used_files)
-
+        first_idx, _first_text = items[0]
+        if first_idx in by_line:
+            continue
+        section_text = _section_match_text(heading, items)
+        match = resolve_auto_image(section_text, used_files)
         if not match:
             continue
-
         placement = _make_auto_placement(
             image_file=match.image_file,
-            line_index=start_idx,
+            line_index=first_idx,
             title=match.title,
-            section_heading=section_heading,
+            section_heading=heading,
         )
         result.append(placement)
-        by_line[start_idx] = placement
+        by_line[first_idx] = placement
         used_files.add(match.image_file)
 
     return sorted(result, key=lambda p: p.line_index)

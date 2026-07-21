@@ -592,8 +592,10 @@ async def detect_translation_placements(
     body: DetectPlacementsRequest | None = None,
 ) -> list[ImagePlacement]:
     doc = await _ensure_doc_from_request(doc_id, body)
-    text = doc.translation_text or "\n\n".join(
-        s.easy_text for s in doc.translation_segments if s.easy_text
+    text = (
+        (body.translation_text if body and body.translation_text else None)
+        or doc.translation_text
+        or "\n\n".join(s.easy_text for s in doc.translation_segments if s.easy_text)
     )
     if not text.strip():
         raise HTTPException(400, "번역본이 없습니다.")

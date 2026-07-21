@@ -116,6 +116,7 @@ class DetectPlacementsRequest(DocumentEnsureRequest):
     """이미지 배치 추천 — 기존 배치 유지, 빈 항목만 자동 채움."""
 
     existing_placements: list[ImagePlacement] = Field(default_factory=list)
+    translation_text: str | None = None
 
 
 class DocTypeUpdate(BaseModel):
