@@ -23,7 +23,6 @@ from docx.shared import Inches, Pt
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.export_layout import (
     align_placements_to_items,
-    align_placements_to_section_headings,
     is_image_placeholder,
     parse_export_sections,
     parse_section_items,
@@ -334,16 +333,10 @@ def _export_easy_read_layout(
     """작성양식 PDF: <소제목> + 항목별 (삽화 | 글). 마무리 문장은 2단 밖 전체 너비."""
     body, closing = split_standard_closing(text)
     by_item = align_placements_to_items(body, placements)
-    by_section = align_placements_to_section_headings(body, placements)
 
     for section in parse_export_sections(body):
         if section.heading:
             _add_heading_paragraph(doc, section.heading)
-            section_placement = by_section.get(section.start_line_index)
-            if section_placement is not None and not isinstance(section_placement, ImagePlacement):
-                section_placement = ImagePlacement(**section_placement)  # type: ignore[arg-type]
-            if section_placement:
-                _add_item_text_boxes(doc, section_placement, [])
         for item in parse_section_items(section):
             placement = by_item.get(item.start_line_index)
             if placement is not None and not isinstance(placement, ImagePlacement):

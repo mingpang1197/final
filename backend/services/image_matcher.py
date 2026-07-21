@@ -149,6 +149,51 @@ def find_matching_images(text: str, *, max_images: int = MAX_IMAGES_PER_TEXT) ->
     return matches
 
 
+def _overlap_score(text: str, candidate: str) -> int:
+    """공통 문자 n-gram 점수 — 키워드 직접 포함이 없을 때 제목 유사도."""
+    text_norm = normalize_match_text(text)
+    cand_norm = normalize_match_text(candidate)
+    if not text_norm or not cand_norm:
+        return 0
+    if cand_norm in text_norm or text_norm in cand_norm:
+        return max(len(cand_norm), len(text_norm))
+    text_tokens = set(re.findall(r"[가-힣]{2,}", text_norm))
+    cand_tokens = set(re.findall(r"[가-힣]{2,}", cand_norm))
+    return len(text_tokens & cand_tokens) * 10
+
+
+def _find_best_overlap_image(text: str, used_files: set[str]) -> ImageMatch | None:
+    best: ImageMatch | None = None
+    best_score = 0
+    for image_file, title, keywords in _load_index():
+        if image_file in used_files:
+            continue
+        candidates = [title or "", *keywords]
+        score = max(_overlap_score(text, c) for c in candidates if c)
+        if score > best_score:
+            best_score = score
+            best = ImageMatch(image_file=image_file, title=title, trigger="overlap")
+    return best if best_score > 0 else None
+
+
+def _pick_fallback_image(used_files: set[str]) -> ImageMatch | None:
+    for image_file, title, _keywords in _load_index():
+        if image_file not in used_files:
+            return ImageMatch(image_file=image_file, title=title, trigger="fallback")
+    return None
+
+
+def resolve_auto_image(text: str, used_files: set[str]) -> ImageMatch | None:
+    """키워드 매칭 → 제목 유사도 → 미사용 이미지 순으로 자동 배치."""
+    matches = find_matching_images(text, max_images=1)
+    if matches and matches[0].image_file not in used_files:
+        return matches[0]
+    overlap = _find_best_overlap_image(text, used_files)
+    if overlap:
+        return overlap
+    return _pick_fallback_image(used_files)
+
+
 def find_images_for_line(
     line: str,
     *,
@@ -250,13 +295,13 @@ def _parse_all_items(text: str) -> list[tuple[int, str, str | None]]:
     return results
 
 
-def _parse_all_sections(text: str) -> list[tuple[int, str, str]]:
-    """(section_start_line_index, match_text, heading) — 소제목 대표 그림용."""
+def _parse_all_sections(text: str) -> list[tuple[int, str, str, list[tuple[int, str]]]]:
+    """(section_start, heading_match_text, heading, items[(start_idx, item_text)])."""
     lines = preview_lines(text)
     if not lines:
         return []
 
-    results: list[tuple[int, str, str]] = []
+    results: list[tuple[int, str, str, list[tuple[int, str]]]] = []
     i = 0
     while i < len(lines):
         if not _is_section_heading(lines[i]):
@@ -271,12 +316,47 @@ def _parse_all_sections(text: str) -> list[tuple[int, str, str]]:
             body_lines.append(lines[i])
             i += 1
 
+        body_start = section_start + 1
+        items = [
+            (start_idx, item_text)
+            for start_idx, item_text, _section_heading in _parse_section_items(
+                body_lines, body_start, heading
+            )
+        ]
         heading_plain = normalize_match_text(heading.strip("<>").strip())
         body_sample = normalize_match_text(" ".join(body_lines[:3]))
         match_text = f"{heading_plain} {body_sample}".strip()
-        results.append((section_start, match_text or heading_plain, heading))
+        results.append((section_start, match_text or heading_plain, heading, items))
 
     return results
+
+
+def _normalize_existing_placements(
+    text: str,
+    existing: list[ImagePlacement],
+) -> list[ImagePlacement]:
+    """예전 소제목 줄(line_index) 배치를 해당 섹션 첫 항목으로 이동."""
+    section_starts = {start for start, *_rest in _parse_all_sections(text)}
+    first_item_by_section = {
+        start: items[0][0]
+        for start, _match, _heading, items in _parse_all_sections(text)
+        if items
+    }
+    normalized: list[ImagePlacement] = []
+    occupied: set[int] = set()
+
+    for placement in existing:
+        line_index = placement.line_index
+        if line_index in section_starts and line_index in first_item_by_section:
+            line_index = first_item_by_section[line_index]
+        if line_index in occupied:
+            continue
+        occupied.add(line_index)
+        if line_index != placement.line_index:
+            placement = placement.model_copy(update={"line_index": line_index})
+        normalized.append(placement)
+
+    return normalized
 
 
 def _make_auto_placement(
@@ -300,45 +380,33 @@ def fill_missing_item_placements(
     text: str,
     existing: list[ImagePlacement] | None = None,
 ) -> list[ImagePlacement]:
-    """Keep manual placements; auto-match LEGAL_DB images for empty section/item slots."""
-    existing = existing or []
+    """Keep manual placements; auto-fill empty slots (소제목 대표=첫 항목, 나머지=항목별)."""
+    existing = _normalize_existing_placements(text, existing or [])
     by_line = {p.line_index: p for p in existing}
     used_files = {p.image_file for p in existing}
     result = list(existing)
 
-    for section_start, match_text, heading in _parse_all_sections(text):
-        if section_start in by_line:
-            continue
-        matches = find_matching_images(match_text, max_images=1)
-        if not matches:
-            matches = find_matching_images(normalize_match_text(heading.strip("<>")), max_images=1)
-        if not matches:
-            continue
-        match = matches[0]
-        if match.image_file in used_files:
-            continue
-        placement = _make_auto_placement(
-            image_file=match.image_file,
-            line_index=section_start,
-            title=match.title,
-            section_heading=heading,
-        )
-        result.append(placement)
-        by_line[section_start] = placement
-        used_files.add(match.image_file)
+    first_item_heading: dict[int, tuple[str, str]] = {}
+    for _section_start, heading_match, heading, items in _parse_all_sections(text):
+        if items:
+            first_item_heading[items[0][0]] = (heading_match, heading)
 
     for start_idx, item_text, section_heading in _parse_all_items(text):
         if start_idx in by_line:
             continue
-        matches = find_matching_images(item_text, max_images=1)
-        if not matches and item_text:
-            first_line = item_text.split("\n", 1)[0]
-            matches = find_matching_images(first_line, max_images=1)
-        if not matches:
+
+        if start_idx in first_item_heading:
+            heading_match, heading = first_item_heading[start_idx]
+            match = resolve_auto_image(heading_match, used_files)
+            section_heading = heading
+        else:
+            match = resolve_auto_image(item_text, used_files)
+            if not match and item_text:
+                match = resolve_auto_image(item_text.split("\n", 1)[0], used_files)
+
+        if not match:
             continue
-        match = matches[0]
-        if match.image_file in used_files:
-            continue
+
         placement = _make_auto_placement(
             image_file=match.image_file,
             line_index=start_idx,

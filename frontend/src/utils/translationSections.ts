@@ -178,13 +178,14 @@ export function resolvePlacementForItem(
   return placements.find((p) => p.line_index === item.startLineIndex);
 }
 
-/** 소제목 줄(line_index)에 배치된 대표 그림. */
+/** @deprecated 섹션 대표 그림은 해당 섹션 첫 항목 line_index에 배치 */
 export function resolvePlacementForSectionHeading(
   placements: ImagePlacement[],
   section: TranslationSection,
 ): ImagePlacement | undefined {
-  if (!section.heading) return undefined;
-  return placements.find((p) => p.line_index === section.startLineIndex);
+  const items = parseSectionItems(section);
+  if (!items.length) return undefined;
+  return resolvePlacementForItem(placements, items[0]);
 }
 
 /** @deprecated 섹션 단위 — resolvePlacementForSectionHeading 사용 */

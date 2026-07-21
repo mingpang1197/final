@@ -9,7 +9,6 @@ import {
   parseSectionItems,
   parseTranslationSections,
   resolvePlacementForItem,
-  resolvePlacementForSectionHeading,
   splitStandardClosing,
   type TranslationItem,
   type TranslationSection,
@@ -156,25 +155,6 @@ function SectionBlock({
         </h3>
       )}
 
-      {section.heading && (
-        <ItemRow
-          item={{ lines: [], startLineIndex: section.startLineIndex }}
-          placement={resolvePlacementForSectionHeading(placements, section)}
-          dragOver={dragOverKey === `section-${section.startLineIndex}`}
-          onDragEnter={() => onDragOverKey(`section-${section.startLineIndex}`)}
-          onDragLeave={() => onDragOverKey(null)}
-          onDrop={(catalogItem) => onDropItem(section.startLineIndex, catalogItem)}
-          onRemove={() => onRemoveItem(section.startLineIndex)}
-          emptyLabel={
-            <>
-              소제목 대표 그림
-              <br />
-              (드래그하여 변경)
-            </>
-          }
-        />
-      )}
-
       <div className="space-y-5">
         {items.map((item) => (
           <ItemRow
@@ -201,7 +181,6 @@ function ItemRow({
   onDragLeave,
   onDrop,
   onRemove,
-  emptyLabel,
 }: {
   item: TranslationItem;
   placement?: ImagePlacement;
@@ -210,7 +189,6 @@ function ItemRow({
   onDragLeave: () => void;
   onDrop: (item: ImageCatalogItem) => void;
   onRemove: () => void;
-  emptyLabel?: ReactNode;
 }) {
   return (
     <div className="grid grid-cols-[minmax(120px,32%)_1fr] gap-4 items-start">
@@ -221,7 +199,6 @@ function ItemRow({
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         onRemove={onRemove}
-        emptyLabel={emptyLabel}
       />
       <div className="min-w-0 text-[12px] leading-[2] text-coolgray-90 space-y-1">
         {item.lines.map((line, i) => (
@@ -241,7 +218,6 @@ function ImageSlot({
   onDragLeave,
   onDrop,
   onRemove,
-  emptyLabel,
 }: {
   placement?: ImagePlacement;
   dragOver: boolean;
@@ -249,7 +225,6 @@ function ImageSlot({
   onDragLeave: () => void;
   onDrop: (item: ImageCatalogItem) => void;
   onRemove: () => void;
-  emptyLabel?: ReactNode;
 }) {
   function handleDragOver(e: DragEvent) {
     e.preventDefault();
@@ -303,13 +278,9 @@ function ImageSlot({
         </>
       ) : (
         <span className="text-sm text-center px-2 pointer-events-none">
-          {emptyLabel ?? (
-            <>
-              그림 DB에서
-              <br />
-              드래그하여 배치
-            </>
-          )}
+          그림 DB에서
+          <br />
+          드래그하여 배치
         </span>
       )}
     </div>

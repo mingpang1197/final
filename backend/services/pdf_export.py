@@ -22,9 +22,7 @@ logger = logging.getLogger(__name__)
 
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.export_layout import (
-    ExportItem,
     align_placements_to_items,
-    align_placements_to_section_headings,
     is_image_placeholder,
     parse_export_sections,
     parse_section_items,
@@ -217,22 +215,13 @@ def _item_row_html(
 def _section_block_html(
     section,
     by_item: dict[int, ImagePlacement],
-    by_section: dict[int, ImagePlacement] | None = None,
 ) -> str:
-    """소제목 + (소제목 대표 그림) + 항목마다 (삽화 | 글) — 작성양식 PDF 구조."""
+    """소제목 + 항목마다 (삽화 | 글) — 작성양식 PDF 구조."""
     blocks: list[str] = []
-    by_section = by_section or {}
     if section.heading:
         heading_html = _line_to_html(section.heading)
         if heading_html:
             blocks.append(heading_html)
-        section_placement = by_section.get(section.start_line_index)
-        if section_placement is not None and not isinstance(section_placement, ImagePlacement):
-            section_placement = ImagePlacement(**section_placement)  # type: ignore[arg-type]
-        if section_placement:
-            row = _item_row_html(ExportItem(lines=[], start_line_index=section.start_line_index), section_placement)
-            if row:
-                blocks.append(row)
 
     for item in parse_section_items(section):
         placement = by_item.get(item.start_line_index)
@@ -260,32 +249,22 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
 
     if has_section_layout:
         by_item_raw = align_placements_to_items(export_body, placements)
-        by_section_raw = align_placements_to_section_headings(export_body, placements)
         by_item = {
             k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
             for k, v in by_item_raw.items()
         }
-        by_section = {
-            k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
-            for k, v in by_section_raw.items()
-        }
         for section in sections:
-            section_html = _section_block_html(section, by_item, by_section)
+            section_html = _section_block_html(section, by_item)
             if section_html:
                 blocks.append(section_html)
     elif placements:
         by_item_raw = align_placements_to_items(export_body, placements)
-        by_section_raw = align_placements_to_section_headings(export_body, placements)
         by_item = {
             k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
             for k, v in by_item_raw.items()
         }
-        by_section = {
-            k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
-            for k, v in by_section_raw.items()
-        }
         for section in sections:
-            section_html = _section_block_html(section, by_item, by_section)
+            section_html = _section_block_html(section, by_item)
             if section_html:
                 blocks.append(section_html)
     else:

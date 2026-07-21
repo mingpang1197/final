@@ -138,7 +138,6 @@ def align_placements_to_items(body: str, placements: list) -> dict[int, object]:
         return {}
 
     sections = parse_export_sections(body)
-    section_starts = {section.start_line_index for section in sections if section.heading}
     typed = [p if isinstance(p, ImagePlacement) else ImagePlacement(**p) for p in placements]
 
     item_refs: list[tuple[ExportSection, ExportItem]] = []
@@ -153,8 +152,6 @@ def align_placements_to_items(body: str, placements: list) -> dict[int, object]:
     used: set[str] = set()
 
     for placement in typed:
-        if placement.line_index in section_starts:
-            continue
         if placement.id in used:
             continue
         assigned = False

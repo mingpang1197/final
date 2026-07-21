@@ -41,6 +41,12 @@ function segmentsToText(segments: TranslationSegment[]): string {
   return segments.map((s) => s.easy_text).filter(Boolean).join("\n\n");
 }
 
+function placementsChanged(before: ImagePlacement[], after: ImagePlacement[]): boolean {
+  if (before.length !== after.length) return true;
+  const keys = new Set(before.map((p) => `${p.line_index}:${p.image_file}:${p.auto_filled ? 1 : 0}`));
+  return after.some((p) => !keys.has(`${p.line_index}:${p.image_file}:${p.auto_filled ? 1 : 0}`));
+}
+
 export function ImagesPage() {
   const { id } = useParams<{ id: string }>();
   const [segments, setSegments] = useState<TranslationSegment[]>([]);
@@ -79,8 +85,7 @@ export function ImagesPage() {
             ...(ensurePayload ?? {}),
             existingPlacements: main.image_placements ?? [],
           });
-          const prevCount = main.image_placements?.length ?? 0;
-          if (filled.length > prevCount) {
+          if (placementsChanged(main.image_placements ?? [], filled)) {
             segs = segs.map((s, i) =>
               i === 0 ? { ...s, image_placements: filled } : s,
             );
@@ -90,8 +95,8 @@ export function ImagesPage() {
               await updateTranslation(id, segs);
             }
           }
-        } catch {
-          /* ignore auto-fill errors */
+        } catch (err) {
+          console.error("auto-fill image placements failed", err);
         }
       }
       setSegments(segs);
