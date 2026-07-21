@@ -12,8 +12,25 @@ const paneRowClass =
 
 const paneColumnClass = "flex min-h-0 min-w-0 flex-1 basis-0 h-full flex-col overflow-hidden";
 
-/** flex 자식이 남는 세로 공간을 채울 때 사용 (absolute 자식만 있으면 높이 0 되는 문제 방지) */
+/** flex 자식이 남는 세로 공간을 채울 때 사용 */
 export const workflowPaneFillClass = "min-h-0 flex-1 basis-0 h-0 grow";
+
+/** 테두리 안 스크롤 본문(번역·그림 왼쪽) */
+export function WorkflowPaneScrollBody({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`overflow-auto ${workflowPaneFillClass} ${className}`.trim()}
+    >
+      {children}
+    </div>
+  );
+}
 
 export function WorkflowTwoPaneGrid({ children }: { children: ReactNode }) {
   return <div className={paneRowClass}>{children}</div>;

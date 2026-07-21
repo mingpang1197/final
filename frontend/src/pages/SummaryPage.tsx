@@ -11,7 +11,13 @@ import {
 } from "../api/client";
 import { PageNavigator } from "../components/PageNavigator";
 import { PromptBar } from "../components/PromptBar";
-import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid, WorkflowTwoPaneLeftFill, workflowPaneFillClass } from "../components/ui/WorkflowLayout";
+import {
+  WorkflowLayout,
+  WorkflowTwoPaneColumn,
+  WorkflowTwoPaneGrid,
+  WorkflowTwoPaneLeftFill,
+  workflowPaneFillClass,
+} from "../components/ui/WorkflowLayout";
 import {
   ensurePayload,
   getCachedUpload,
@@ -42,7 +48,6 @@ export function SummaryPage() {
   const [originalPage, setOriginalPage] = useState("");
   const [sourcePreviewUrl, setSourcePreviewUrl] = useState<string | null>(null);
   const [sourceReady, setSourceReady] = useState(false);
-  const [sourceFilename, setSourceFilename] = useState<string>("");
   const [pageNum, setPageNum] = useState(1);
   const [pageCount, setPageCount] = useState(1);
   const [summary, setSummary] = useState("");
@@ -144,7 +149,6 @@ export function SummaryPage() {
     if (!id) return;
     const cached = getCachedUpload(id);
     const previewName = filename || cached?.filename || "";
-    setSourceFilename(previewName);
     setSourceReady(false);
     setSourcePreviewUrl(null);
 
@@ -260,30 +264,17 @@ export function SummaryPage() {
         <WorkflowTwoPaneColumn>
           <WorkflowTwoPaneLeftFill className="border border-coolgray-30 bg-white rounded-sm">
           {sourcePreviewUrl && sourceReady ? (
-            <>
-              <div className={`relative overflow-hidden ${workflowPaneFillClass}`}>
-                <iframe
-                  title="업로드 원문"
-                  src={sourcePreviewUrl}
-                  className="absolute inset-0 h-full w-full border-0"
-                />
-              </div>
-              <div className="px-3 py-2 text-xs text-coolgray-60 flex justify-between border-t border-coolgray-20 shrink-0">
-                <span className="truncate">{sourceFilename || filename}</span>
-                <a
-                  href={sourcePreviewUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary-60 hover:underline shrink-0 ml-2"
-                >
-                  새 탭
-                </a>
-              </div>
-            </>
+            <iframe
+              title="업로드 원문"
+              src={sourcePreviewUrl}
+              className={`workflow-pdf-iframe ${workflowPaneFillClass}`}
+            />
           ) : (
             <>
               <PageNavigator current={pageNum} total={pageCount} onChange={setPageNum} />
-              <pre className="flex-1 min-h-0 overflow-auto whitespace-pre-wrap text-base p-4 leading-relaxed">
+              <pre
+                className={`overflow-auto whitespace-pre-wrap text-base p-4 leading-relaxed ${workflowPaneFillClass}`}
+              >
                 {originalPage}
               </pre>
             </>

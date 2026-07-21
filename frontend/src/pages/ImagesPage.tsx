@@ -12,7 +12,13 @@ import {
 } from "../api/client";
 import { DraggableCatalogItem, EasyReadDocumentView } from "../components/EasyReadDocumentView";
 import { PromptBar } from "../components/PromptBar";
-import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid, WorkflowTwoPaneLeftFill } from "../components/ui/WorkflowLayout";
+import {
+  WorkflowLayout,
+  WorkflowPaneScrollBody,
+  WorkflowTwoPaneColumn,
+  WorkflowTwoPaneGrid,
+  WorkflowTwoPaneLeftFill,
+} from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { filterPlacementsForExport } from "../utils/translationSections";
@@ -266,11 +272,11 @@ export function ImagesPage() {
           <p className="text-center text-base text-primary-90 shrink-0">번역문</p>
           <WorkflowTwoPaneLeftFill className="border border-coolgray-40 bg-white">
             {segments.length === 0 ? (
-              <pre className="flex-1 min-h-0 w-full px-4 py-3 text-base overflow-auto whitespace-pre-wrap leading-relaxed text-coolgray-60 text-center flex items-center justify-center">
+              <WorkflowPaneScrollBody className="w-full px-4 py-3 text-base whitespace-pre-wrap leading-relaxed text-coolgray-60 text-center flex items-center justify-center">
                 {translationPlaceholder}
-              </pre>
+              </WorkflowPaneScrollBody>
             ) : (
-              <div className="flex-1 min-h-0 overflow-auto px-4 py-4">
+              <WorkflowPaneScrollBody className="px-4 py-4 flex flex-col min-h-0">
                 <EasyReadDocumentView
                   text={translationText}
                   placements={placements}
@@ -278,7 +284,7 @@ export function ImagesPage() {
                   fill
                   onPlacementsChange={editPlacements}
                 />
-              </div>
+              </WorkflowPaneScrollBody>
             )}
           </WorkflowTwoPaneLeftFill>
         </WorkflowTwoPaneColumn>

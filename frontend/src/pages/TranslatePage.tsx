@@ -11,7 +11,13 @@ import {
 } from "../api/client";
 import { PromptBar } from "../components/PromptBar";
 import { EasyReadDocumentView } from "../components/EasyReadDocumentView";
-import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid, WorkflowTwoPaneLeftFill } from "../components/ui/WorkflowLayout";
+import {
+  WorkflowLayout,
+  WorkflowPaneScrollBody,
+  WorkflowTwoPaneColumn,
+  WorkflowTwoPaneGrid,
+  WorkflowTwoPaneLeftFill,
+} from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
@@ -212,13 +218,13 @@ export function TranslatePage() {
         <WorkflowTwoPaneColumn className="gap-3">
           <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
           <WorkflowTwoPaneLeftFill className="border border-coolgray-40 bg-white">
-            <pre
-              className={`flex-1 min-h-0 w-full px-4 py-3 text-base overflow-auto whitespace-pre-wrap leading-relaxed text-coolgray-90 ${
+            <WorkflowPaneScrollBody
+              className={`w-full px-4 py-3 text-base whitespace-pre-wrap leading-relaxed text-coolgray-90 ${
                 summaryPlaceholder ? "text-coolgray-60 text-center flex items-center justify-center" : ""
               }`}
             >
               {summaryDisplay || summaryPlaceholder}
-            </pre>
+            </WorkflowPaneScrollBody>
           </WorkflowTwoPaneLeftFill>
         </WorkflowTwoPaneColumn>
 
