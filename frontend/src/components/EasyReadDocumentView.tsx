@@ -1,8 +1,9 @@
 /**
  * 이지리드 2단 레이아웃 — 양식: <소제목> + 항목마다 왼쪽 그림 / 오른쪽 본문.
  */
-import { useMemo, useState, type DragEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import type { ImageCatalogItem, ImagePlacement } from "../api/client";
+import { BoldText } from "./BoldText";
 import {
   formatHeadingDisplay,
   parseSectionItems,
@@ -12,6 +13,7 @@ import {
   type TranslationItem,
   type TranslationSection,
 } from "../utils/translationSections";
+import { hasBoldMarkers, toggleBoldMarkers, wrapSelectionBold } from "../utils/richText";
 
 export const IMAGE_DRAG_MIME = "application/x-easyread-image";
 
@@ -23,20 +25,6 @@ export function parseDraggedImageItem(dataTransfer: DataTransfer): ImageCatalogI
   } catch {
     return null;
   }
-}
-
-function renderBoldText(text: string) {
-  const parts = text.split(/(\*\*.+?\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
-      return (
-        <strong key={i} className="font-semibold">
-          {part.slice(2, -2)}
-        </strong>
-      );
-    }
-    return <span key={i}>{part.replace(/\*\*/g, "")}</span>;
-  });
 }
 
 interface EasyReadDocumentViewProps {
@@ -63,11 +51,14 @@ export function EasyReadDocumentView({
   const sections = useMemo(() => parseTranslationSections(text), [text]);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
 
-  function updateSectionBody(sectionIndex: number, body: string) {
+  function updateSectionLine(sectionIndex: number, lineIndex: number, value: string) {
     if (!onTextChange) return;
-    const next = sections.map((s, i) =>
-      i === sectionIndex ? { ...s, bodyLines: body.split("\n") } : s,
-    );
+    const next = sections.map((s, i) => {
+      if (i !== sectionIndex) return s;
+      const bodyLines = [...s.bodyLines];
+      bodyLines[lineIndex] = value;
+      return { ...s, bodyLines };
+    });
     onTextChange(sectionsToTranslationText(next));
   }
 
@@ -125,7 +116,7 @@ export function EasyReadDocumentView({
             setItemPlacement(lineIndex, item, section.heading);
           }}
           onRemoveItem={removeItemPlacement}
-          onBodyChange={(body) => updateSectionBody(sectionIndex, body)}
+          onLineChange={(lineIndex, value) => updateSectionLine(sectionIndex, lineIndex, value)}
         />
       ))}
     </div>
@@ -141,7 +132,7 @@ function SectionBlock({
   onDragOverKey,
   onDropItem,
   onRemoveItem,
-  onBodyChange,
+  onLineChange,
 }: {
   section: TranslationSection;
   mode: "translate" | "images";
@@ -151,11 +142,10 @@ function SectionBlock({
   onDragOverKey: (key: string | null) => void;
   onDropItem: (lineIndex: number, item: ImageCatalogItem) => void;
   onRemoveItem: (lineIndex: number) => void;
-  onBodyChange: (body: string) => void;
+  onLineChange: (lineIndex: number, value: string) => void;
 }) {
   const headingDisplay = section.heading ? formatHeadingDisplay(section.heading) : null;
   const items = useMemo(() => parseSectionItems(section), [section]);
-  const bodyText = section.bodyLines.join("\n");
 
   if (mode === "translate") {
     return (
@@ -163,13 +153,19 @@ function SectionBlock({
         {headingDisplay && (
           <h3 className="text-[17px] font-bold text-coolgray-90 leading-snug">{headingDisplay}</h3>
         )}
-        <textarea
-          className="w-full min-h-[120px] p-3 bg-coolgray-10 border border-coolgray-30 rounded-lg text-[15px] leading-relaxed resize-y outline-none focus:border-primary-60 disabled:opacity-60"
-          value={bodyText}
-          onChange={(e) => onBodyChange(e.target.value)}
-          disabled={disabled}
-          placeholder="본문을 입력하세요"
-        />
+        <p className="text-xs text-coolgray-60">
+          문장마다 한 줄 · B 버튼으로 강조(추출물에 굵게 반영)
+        </p>
+        <div className="space-y-2">
+          {section.bodyLines.map((line, lineIndex) => (
+            <TranslateLineRow
+              key={`${section.startLineIndex}-${lineIndex}`}
+              line={line}
+              disabled={disabled}
+              onChange={(value) => onLineChange(lineIndex, value)}
+            />
+          ))}
+        </div>
       </article>
     );
   }
@@ -179,7 +175,7 @@ function SectionBlock({
       {headingDisplay && (
         <h3 className="text-[17px] font-bold text-coolgray-90 leading-snug">
           {section.heading!.trim().startsWith("#") || section.heading!.trim().startsWith("■")
-            ? renderBoldText(headingDisplay)
+            ? <BoldText text={headingDisplay} />
             : headingDisplay}
         </h3>
       )}
@@ -199,6 +195,70 @@ function SectionBlock({
         ))}
       </div>
     </article>
+  );
+}
+
+function TranslateLineRow({
+  line,
+  disabled,
+  onChange,
+}: {
+  line: string;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function applyBold() {
+    const el = inputRef.current;
+    if (!el) {
+      onChange(toggleBoldMarkers(line));
+      return;
+    }
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? start;
+    const { text, selectionStart, selectionEnd } = wrapSelectionBold(line, start, end);
+    onChange(text);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(selectionStart, selectionEnd);
+    });
+  }
+
+  if (!line.trim()) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-0.5">
+      <div className="flex gap-2 items-center">
+        <input
+          ref={inputRef}
+          type="text"
+          value={line}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className="flex-1 min-w-0 px-2 py-1.5 bg-white border border-coolgray-30 rounded text-[13px] leading-tight outline-none focus:border-primary-60 disabled:opacity-60"
+        />
+        <button
+          type="button"
+          onClick={applyBold}
+          disabled={disabled}
+          title="강조 (**굵게**)"
+          aria-label="강조"
+          className={`shrink-0 size-8 rounded border text-sm font-bold transition-colors disabled:opacity-60 ${
+            hasBoldMarkers(line)
+              ? "border-primary-60 bg-primary-60/10 text-primary-60"
+              : "border-coolgray-30 text-coolgray-70 hover:border-coolgray-50"
+          }`}
+        >
+          B
+        </button>
+      </div>
+      <p className="text-[13px] leading-tight text-coolgray-80 pl-1">
+        <BoldText text={line} />
+      </p>
+    </div>
   );
 }
 
@@ -229,9 +289,11 @@ function ItemRow({
         onDrop={onDrop}
         onRemove={onRemove}
       />
-      <div className="min-w-0 text-[15px] leading-relaxed text-coolgray-90 space-y-2">
+      <div className="min-w-0 text-[13px] leading-tight text-coolgray-90 space-y-1">
         {item.lines.map((line, i) => (
-          <p key={i}>{renderBoldText(line)}</p>
+          <p key={i}>
+            <BoldText text={line} />
+          </p>
         ))}
       </div>
     </div>

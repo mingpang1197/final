@@ -29,6 +29,7 @@ from backend.services.export_layout import (
     prepare_placements_for_export,
 )
 from backend.services.image_assets import resolve_placement_image
+from backend.services.rich_text import iter_bold_runs
 from backend.services.image_matcher import MAX_IMAGES_PER_TEXT, find_images_for_line
 from backend.services.word_export import (
     _META_SECTION_START,
@@ -79,8 +80,8 @@ def _font_css() -> tuple[str, fitz.Archive]:
     }}
     body {{
       font-family: "Nanum Gothic", sans-serif;
-      font-size: 14px;
-      line-height: 1.35;
+      font-size: 12px;
+      line-height: 2;
       color: #21272a;
     }}
     p.body {{
@@ -147,11 +148,9 @@ def _line_to_html(line: str) -> str | None:
 
     parts = _BOLD.split(stripped)
     chunks: list[str] = []
-    for i, part in enumerate(parts):
-        if not part:
-            continue
-        escaped = html.escape(part.replace("**", ""))
-        if i % 2 == 1:
+    for part, is_bold in iter_bold_runs(stripped):
+        escaped = html.escape(part)
+        if is_bold:
             chunks.append(f"<strong>{escaped}</strong>")
         else:
             chunks.append(escaped)

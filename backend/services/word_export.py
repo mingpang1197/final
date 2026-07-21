@@ -30,8 +30,10 @@ from backend.services.export_layout import (
 )
 from backend.services.image_assets import resolve_placement_image
 from backend.services.image_matcher import MAX_IMAGES_PER_TEXT, find_images_for_line
+from backend.services.rich_text import iter_bold_runs
 
-BODY_PT = 14
+BODY_PT = 12
+BOLD_BODY_PT = 12
 HEADING_PT = 17
 FOOTER_PT = 11
 LINE_SPACING = 2.0  # 200% (이지리드 가이드)
@@ -43,14 +45,27 @@ IMAGE_CELL_FILL = "F5F0E8"
 
 _SKIP_LINE = re.compile(r"^(---+\s*|\(\d+/\d+\s*쪽\)|\d+/\d+\s*쪽|>\s)")
 _META_SECTION_START = re.compile(r"^###\s*수정\s*사항")
-_BOLD = re.compile(r"\*\*(.+?)\*\*")
 
 
 def _set_run_font(run, size_pt: float, bold: bool = False) -> None:
     run.font.name = "Malgun Gothic"
-    run._element.rPr.rFonts.set(qn("w:eastAsia"), "맑은 고딕")
     run.font.size = Pt(size_pt)
     run.font.bold = bold
+    r_pr = run._element.get_or_add_rPr()
+    r_fonts = r_pr.find(qn("w:rFonts"))
+    if r_fonts is None:
+        r_fonts = OxmlElement("w:rFonts")
+        r_pr.insert(0, r_fonts)
+    r_fonts.set(qn("w:ascii"), "Malgun Gothic")
+    r_fonts.set(qn("w:hAnsi"), "Malgun Gothic")
+    r_fonts.set(qn("w:eastAsia"), "맑은 고딕")
+    for tag in ("w:b", "w:bCs"):
+        existing = r_pr.find(qn(tag))
+        if bold:
+            if existing is None:
+                r_pr.append(OxmlElement(tag))
+        elif existing is not None:
+            r_pr.remove(existing)
 
 
 def _is_heading(line: str) -> bool:
@@ -203,18 +218,9 @@ def _apply_body_format(paragraph) -> None:
 
 
 def _add_runs_to_paragraph(paragraph, line: str, *, size_pt: float, bold_default: bool = False) -> None:
-    parts = _BOLD.split(line.strip())
-    for index, part in enumerate(parts):
-        if not part:
-            continue
-        if index % 2 == 1:
-            run = paragraph.add_run(part)
-            _set_run_font(run, size_pt, bold=True)
-        else:
-            cleaned = part.replace("**", "")
-            if cleaned:
-                run = paragraph.add_run(cleaned)
-                _set_run_font(run, size_pt, bold=bold_default)
+    for part, is_bold in iter_bold_runs(line):
+        run = paragraph.add_run(part)
+        _set_run_font(run, BOLD_BODY_PT if is_bold else size_pt, bold=is_bold or bold_default)
 
 
 def _add_heading_paragraph(doc: Document, line: str) -> None:
