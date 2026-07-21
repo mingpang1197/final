@@ -32,6 +32,7 @@ from backend.models.schemas import (
     DocTypeUpdate,
     DocumentResponse,
     DocumentEnsureRequest,
+    DetectPlacementsRequest,
     ExportRequest,
     ImageCatalogItem,
     ImagePlacement,
@@ -43,7 +44,11 @@ from backend.models.schemas import (
     UserProjectItem,
     UploadResponse,
 )
-from backend.services.image_matcher import detect_image_placements, list_image_catalog
+from backend.services.image_matcher import (
+    detect_image_placements,
+    fill_missing_item_placements,
+    list_image_catalog,
+)
 from backend.services.image_web_search import search_web_images
 from backend.services.easy_read_sanitize import extract_refined_translation
 from backend.services import parser, prompts, translator, upstage, word_export, pdf_export, user_storage
@@ -584,7 +589,7 @@ async def translate_document(
 @router.post("/{doc_id}/translation/detect-placements", response_model=list[ImagePlacement])
 async def detect_translation_placements(
     doc_id: str,
-    body: DocumentEnsureRequest | None = None,
+    body: DetectPlacementsRequest | None = None,
 ) -> list[ImagePlacement]:
     doc = await _ensure_doc_from_request(doc_id, body)
     text = doc.translation_text or "\n\n".join(
@@ -592,7 +597,8 @@ async def detect_translation_placements(
     )
     if not text.strip():
         raise HTTPException(400, "번역본이 없습니다.")
-    return detect_image_placements(text)
+    existing = body.existing_placements if body else []
+    return fill_missing_item_placements(text, existing)
 
 
 @router.patch("/{doc_id}/translation", response_model=DocumentResponse)

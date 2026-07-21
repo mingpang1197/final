@@ -99,8 +99,8 @@ POST   /api/documents/{doc_id}/translation/checklist
 - 쉬운 글 체크리스트 검사
 
 POST   /api/documents/{doc_id}/translation/detect-placements
-- 이미지 배치 추천
-- Request (optional, 서버 문서 유실 시 복구): { full_text, doc_type, filename, pages, summary? }
+- 이미지 배치 추천 (빈 항목 슬롯 자동 채움)
+- Request (optional): DetectPlacementsRequest { full_text, doc_type, filename, pages, summary?, existing_placements? }
 
 GET    /api/documents/{doc_id}/export.docx
 - Word 다운로드

@@ -176,6 +176,116 @@ def preview_lines(text: str) -> list[str]:
     ]
 
 
+_NUMBERED_ITEM = re.compile(r"^\s*\d+[\).]\s")
+
+
+def _is_section_heading(line: str) -> bool:
+    s = line.strip()
+    return (s.startswith("<") and s.endswith(">")) or s.startswith("■") or s.startswith("#")
+
+
+def _is_numbered_item_line(line: str) -> bool:
+    return bool(_NUMBERED_ITEM.match(line))
+
+
+def _parse_section_items(
+    body_lines: list[str],
+    body_start: int,
+    section_heading: str | None,
+) -> list[tuple[int, str, str | None]]:
+    if not body_lines:
+        return []
+
+    if not any(_is_numbered_item_line(line) for line in body_lines):
+        return [(body_start, "\n".join(body_lines), section_heading)]
+
+    items: list[tuple[int, str, str | None]] = []
+    current: list[str] = []
+    current_start = body_start
+
+    for offset, line in enumerate(body_lines):
+        global_idx = body_start + offset
+        if _is_numbered_item_line(line):
+            if current:
+                items.append((current_start, "\n".join(current), section_heading))
+            current = [line]
+            current_start = global_idx
+        else:
+            if not current:
+                current_start = global_idx
+            current.append(line)
+
+    if current:
+        items.append((current_start, "\n".join(current), section_heading))
+
+    return items
+
+
+def _parse_all_items(text: str) -> list[tuple[int, str, str | None]]:
+    """(start_line_index, item_text, section_heading) — mirrors frontend parseSectionItems."""
+    lines = preview_lines(text)
+    if not lines:
+        return []
+
+    results: list[tuple[int, str, str | None]] = []
+    i = 0
+    while i < len(lines):
+        section_heading: str | None = None
+        section_start = i
+        if _is_section_heading(lines[i]):
+            section_heading = lines[i]
+            i += 1
+
+        body_lines: list[str] = []
+        while i < len(lines) and not _is_section_heading(lines[i]):
+            body_lines.append(lines[i])
+            i += 1
+
+        if not body_lines:
+            continue
+
+        body_start = section_start + (1 if section_heading else 0)
+        results.extend(_parse_section_items(body_lines, body_start, section_heading))
+
+    return results
+
+
+def fill_missing_item_placements(
+    text: str,
+    existing: list[ImagePlacement] | None = None,
+) -> list[ImagePlacement]:
+    """Keep manual placements; auto-match LEGAL_DB images for empty item slots."""
+    existing = existing or []
+    by_line = {p.line_index: p for p in existing}
+    used_files = {p.image_file for p in existing}
+    result = list(existing)
+
+    for start_idx, item_text, section_heading in _parse_all_items(text):
+        if start_idx in by_line:
+            continue
+        matches = find_matching_images(item_text, max_images=1)
+        if not matches and item_text:
+            first_line = item_text.split("\n", 1)[0]
+            matches = find_matching_images(first_line, max_images=1)
+        if not matches:
+            continue
+        match = matches[0]
+        if match.image_file in used_files:
+            continue
+        placement = ImagePlacement(
+            id=str(uuid.uuid4()),
+            image_file=match.image_file,
+            line_index=start_idx,
+            title=match.title,
+            section_heading=section_heading,
+        )
+        result.append(placement)
+        by_line[start_idx] = placement
+        used_files.add(match.image_file)
+
+    return sorted(result, key=lambda p: p.line_index)
+
+
 def detect_image_placements(text: str) -> list[ImagePlacement]:
     """Auto-detect illustrations per preview line on first translation."""
     lines = preview_lines(text)

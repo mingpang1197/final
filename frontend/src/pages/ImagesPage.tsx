@@ -1,7 +1,7 @@
 /**
  * 그림 배치 페이지 (워크플로 4단계) — Figma 그림 80% ERAI UI.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { ImageCatalogItem, ImagePlacement, TranslationSegment } from "../api/client";
 import {
@@ -53,6 +53,10 @@ export function ImagesPage() {
   const [prompt, setPrompt] = useState("");
   const [promptLoading, setPromptLoading] = useState(false);
   const [webSearchActive, setWebSearchActive] = useState(false);
+  const [catalogVisibleCount, setCatalogVisibleCount] = useState(48);
+  const catalogScrollRef = useRef<HTMLDivElement>(null);
+
+  const CATALOG_PAGE_SIZE = 48;
 
   const mainSegment = segments[0];
   const translationText = useMemo(() => segmentsToText(segments), [segments]);
@@ -62,23 +66,32 @@ export function ImagesPage() {
     if (!id) return;
     setError("");
     const workflow = getWorkflowSnapshot(id);
-    const ensure = buildEnsureContext(id);
 
     try {
       const doc = await loadDocumentWithRecovery(id);
       setFilename(doc.filename);
       let segs = sanitizeSegments(resolveTranslationSegments(id, doc.translation_segments));
       const main = segs[0];
-      if (main?.easy_text && !(main.image_placements?.length ?? 0)) {
+      if (main?.easy_text) {
         try {
-          const detected = await detectImagePlacements(id, ensure);
-          if (detected.length) {
+          const ensurePayload = buildEnsureContext(id);
+          const filled = await detectImagePlacements(id, {
+            ...(ensurePayload ?? {}),
+            existingPlacements: main.image_placements ?? [],
+          });
+          const prevCount = main.image_placements?.length ?? 0;
+          if (filled.length > prevCount) {
             segs = segs.map((s, i) =>
-              i === 0 ? { ...s, image_placements: detected } : s,
+              i === 0 ? { ...s, image_placements: filled } : s,
             );
+            if (ensurePayload) {
+              await updateTranslation(id, segs, ensurePayload);
+            } else {
+              await updateTranslation(id, segs);
+            }
           }
         } catch {
-          /* ignore */
+          /* ignore auto-fill errors */
         }
       }
       setSegments(segs);
@@ -104,9 +117,10 @@ export function ImagesPage() {
     if (webSearchActive) return;
     let cancelled = false;
     setCatalogLoading(true);
+    setCatalogVisibleCount(CATALOG_PAGE_SIZE);
     getImageCatalog(catalogQuery)
       .then((data) => {
-        if (!cancelled) setCatalogItems(data.slice(0, 40));
+        if (!cancelled) setCatalogItems(data);
       })
       .catch(console.error)
       .finally(() => {
@@ -116,6 +130,21 @@ export function ImagesPage() {
       cancelled = true;
     };
   }, [catalogQuery, webSearchActive]);
+
+  const visibleCatalogItems = useMemo(
+    () => catalogItems.slice(0, catalogVisibleCount),
+    [catalogItems, catalogVisibleCount],
+  );
+
+  const handleCatalogScroll = useCallback(() => {
+    const el = catalogScrollRef.current;
+    if (!el) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
+      setCatalogVisibleCount((prev) =>
+        Math.min(prev + CATALOG_PAGE_SIZE, catalogItems.length),
+      );
+    }
+  }, [catalogItems.length]);
 
   const persistTranslation = useCallback(async () => {
     if (!id || segments.length === 0) return;
@@ -235,7 +264,11 @@ export function ImagesPage() {
               onChange={(e) => handleCatalogSearchChange(e.target.value)}
               className="w-full h-12 px-4 bg-coolgray-10 border-b border-coolgray-30 text-base text-coolgray-90 placeholder:text-coolgray-60 outline-none focus:border-primary-60 shrink-0"
             />
-            <div className="flex-1 min-h-0 overflow-auto px-4 py-3">
+            <div
+              ref={catalogScrollRef}
+              onScroll={handleCatalogScroll}
+              className="flex-1 min-h-0 overflow-auto px-4 py-3"
+            >
               {webSearchActive && (
                 <p className="text-xs text-primary-60 mb-2 text-center">
                   AI 프롬프트 웹 검색 결과 · 그림 DB로 돌아가려면 위 검색창을 사용하세요
@@ -246,20 +279,28 @@ export function ImagesPage() {
               ) : catalogItems.length === 0 ? (
                 <p className="text-base text-coolgray-60 text-center py-8">검색 결과가 없습니다.</p>
               ) : (
-                <ul className="grid grid-cols-2 gap-3">
-                  {catalogItems.map((item) => (
-                    <DraggableCatalogItem key={item.image_file} item={item}>
-                      <img
-                        src={item.url}
-                        alt={item.title}
-                        className="mx-auto h-24 w-full object-contain pointer-events-none"
-                      />
-                      <p className="mt-2 text-xs text-coolgray-90 line-clamp-2 text-center pointer-events-none">
-                        {item.title}
-                      </p>
-                    </DraggableCatalogItem>
-                  ))}
-                </ul>
+                <>
+                  <ul className="grid grid-cols-2 gap-3">
+                    {visibleCatalogItems.map((item) => (
+                      <DraggableCatalogItem key={item.image_file} item={item}>
+                        <img
+                          src={item.url}
+                          alt={item.title}
+                          className="mx-auto h-24 w-full object-contain pointer-events-none"
+                          loading="lazy"
+                        />
+                        <p className="mt-2 text-xs text-coolgray-90 line-clamp-2 text-center pointer-events-none">
+                          {item.title}
+                        </p>
+                      </DraggableCatalogItem>
+                    ))}
+                  </ul>
+                  {visibleCatalogItems.length < catalogItems.length && (
+                    <p className="text-xs text-coolgray-60 text-center py-3">
+                      {visibleCatalogItems.length} / {catalogItems.length} · 스크롤하면 더 불러옵니다
+                    </p>
+                  )}
+                </>
               )}
             </div>
 

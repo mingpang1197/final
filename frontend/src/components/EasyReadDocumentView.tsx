@@ -231,49 +231,53 @@ function ImageSlot({
 
   function handleDrop(e: DragEvent) {
     e.preventDefault();
+    onDragLeave();
     const item = parseDraggedImageItem(e.dataTransfer);
     if (item) onDrop(item);
   }
 
-  if (placement) {
-    const url = placement.image_url?.startsWith("http")
+  const url = placement
+    ? placement.image_url?.startsWith("http")
       ? placement.image_url
-      : `/images/${placement.image_file}`;
-    return (
-      <div className="relative rounded-lg border border-coolgray-30 bg-[#f5f0e8] p-2 min-h-[120px] flex items-center justify-center">
-        <img
-          src={url}
-          alt={placement.title || "시각자료"}
-          className="max-h-32 w-full object-contain"
-        />
-        <button
-          type="button"
-          onClick={onRemove}
-          className="absolute top-1 right-1 size-6 rounded-full bg-white/90 border border-coolgray-30 text-coolgray-60 hover:text-alert text-sm leading-none"
-          aria-label="그림 제거"
-        >
-          ×
-        </button>
-      </div>
-    );
-  }
+      : `/images/${placement.image_file}`
+    : null;
 
   return (
     <div
       onDragOver={handleDragOver}
       onDragLeave={onDragLeave}
       onDrop={handleDrop}
-      className={`rounded-lg border border-dashed min-h-[120px] flex items-center justify-center text-sm text-center px-2 ${
-        dragOver
-          ? "border-primary-60 bg-primary-60/5 text-primary-60"
-          : "border-coolgray-40 bg-[#f5f0e8] text-coolgray-60"
-      }`}
+      className={`relative rounded-lg border min-h-[120px] flex items-center justify-center p-2 ${
+        placement
+          ? "border-coolgray-30 bg-[#f5f0e8]"
+          : dragOver
+            ? "border-primary-60 border-dashed bg-primary-60/5 text-primary-60"
+            : "border-dashed border-coolgray-40 bg-[#f5f0e8] text-coolgray-60"
+      } ${dragOver && placement ? "ring-2 ring-primary-60 ring-offset-1" : ""}`}
     >
-      <span>
-        그림 DB에서
-        <br />
-        드래그하여 배치
-      </span>
+      {placement && url ? (
+        <>
+          <img
+            src={url}
+            alt={placement.title || "시각자료"}
+            className="max-h-32 w-full object-contain pointer-events-none"
+          />
+          <button
+            type="button"
+            onClick={onRemove}
+            className="absolute top-1 right-1 size-6 rounded-full bg-white/90 border border-coolgray-30 text-coolgray-60 hover:text-alert text-sm leading-none"
+            aria-label="그림 제거"
+          >
+            ×
+          </button>
+        </>
+      ) : (
+        <span className="text-sm text-center px-2 pointer-events-none">
+          그림 DB에서
+          <br />
+          드래그하여 배치
+        </span>
+      )}
     </div>
   );
 }
