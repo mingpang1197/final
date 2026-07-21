@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useEditorHistory } from "../hooks/useEditorHistory";
 import {
   clampFontSize,
   DEFAULT_FONT_SIZE,
@@ -113,12 +114,20 @@ function EditorToolbar({
   fontSize,
   onBold,
   onFontSize,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   onToolbarMouseDown,
 }: {
   disabled?: boolean;
   fontSize: FontSizePt;
   onBold: () => void;
   onFontSize: (size: FontSizePt) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   onToolbarMouseDown: (e: React.MouseEvent) => void;
 }) {
   return (
@@ -126,6 +135,27 @@ function EditorToolbar({
       className="flex items-center gap-2 px-2 py-1.5 border-b border-coolgray-20 bg-coolgray-10 shrink-0"
       onMouseDown={onToolbarMouseDown}
     >
+      <button
+        type="button"
+        disabled={disabled || !canUndo}
+        onClick={onUndo}
+        title="되돌리기 (Ctrl+Z)"
+        aria-label="되돌리기"
+        className="min-w-8 h-8 px-2 rounded border border-coolgray-30 bg-white text-sm text-coolgray-80 hover:border-coolgray-50 disabled:opacity-40"
+      >
+        ↶
+      </button>
+      <button
+        type="button"
+        disabled={disabled || !canRedo}
+        onClick={onRedo}
+        title="다시 실행 (Ctrl+Y)"
+        aria-label="다시 실행"
+        className="min-w-8 h-8 px-2 rounded border border-coolgray-30 bg-white text-sm text-coolgray-80 hover:border-coolgray-50 disabled:opacity-40"
+      >
+        ↷
+      </button>
+      <span className="w-px h-6 bg-coolgray-30 shrink-0" aria-hidden />
       <button
         type="button"
         disabled={disabled}
@@ -138,7 +168,7 @@ function EditorToolbar({
       </button>
       <FontSizeCombo value={fontSize} disabled={disabled} onApply={onFontSize} />
       <span className="text-[11px] text-coolgray-60 ml-auto hidden sm:inline">
-        드래그 선택 후 굵게 · 크기 (소제목 포함)
+        Ctrl+Z/Y · 드래그 후 굵게·크기
       </span>
     </div>
   );
@@ -157,13 +187,36 @@ export function RichTextEditor({
   const savedValueRef = useRef("");
   const initializedRef = useRef(false);
   const [fontSize, setFontSize] = useState<FontSizePt>(DEFAULT_FONT_SIZE);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const history = useEditorHistory(value);
+
+  const refreshHistoryFlags = useCallback(() => {
+    setCanUndo(history.canUndo());
+    setCanRedo(history.canRedo());
+  }, [history]);
+
+  const applyMarkersToEditor = useCallback(
+    (markers: string, notifyParent: boolean) => {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = markersToHtml(markers);
+      }
+      savedValueRef.current = markers;
+      if (notifyParent) onChange(markers);
+    },
+    [onChange],
+  );
 
   const syncFromDom = useCallback(() => {
-    if (!editorRef.current) return;
+    if (!editorRef.current || history.isApplying()) return;
     const markers = htmlToMarkers(editorRef.current.innerHTML);
+    if (markers === savedValueRef.current) return;
+    history.recordChange(markers);
     savedValueRef.current = markers;
     onChange(markers);
-  }, [onChange]);
+    refreshHistoryFlags();
+  }, [history, onChange, refreshHistoryFlags]);
 
   const saveSelection = useCallback(() => {
     const sel = window.getSelection();
@@ -184,14 +237,47 @@ export function RichTextEditor({
     return !sel.isCollapsed;
   }, []);
 
+  const performUndo = useCallback(() => {
+    if (disabled) return;
+    const prev = history.undo(savedValueRef.current);
+    if (prev === null) return;
+    history.runApplying(() => {
+      applyMarkersToEditor(prev, true);
+      editorRef.current?.focus();
+    });
+    refreshHistoryFlags();
+  }, [applyMarkersToEditor, disabled, history, refreshHistoryFlags]);
+
+  const performRedo = useCallback(() => {
+    if (disabled) return;
+    const next = history.redo(savedValueRef.current);
+    if (next === null) return;
+    history.runApplying(() => {
+      applyMarkersToEditor(next, true);
+      editorRef.current?.focus();
+    });
+    refreshHistoryFlags();
+  }, [applyMarkersToEditor, disabled, history, refreshHistoryFlags]);
+
   useEffect(() => {
-    if (!editorRef.current) return;
-    if (!initializedRef.current || value !== savedValueRef.current) {
+    if (!editorRef.current || history.isApplying()) return;
+
+    if (!initializedRef.current) {
       editorRef.current.innerHTML = markersToHtml(value);
       savedValueRef.current = value;
+      history.resetHistory(value);
       initializedRef.current = true;
+      refreshHistoryFlags();
+      return;
     }
-  }, [value]);
+
+    if (value !== savedValueRef.current) {
+      editorRef.current.innerHTML = markersToHtml(value);
+      savedValueRef.current = value;
+      history.resetHistory(value);
+      refreshHistoryFlags();
+    }
+  }, [value, history, refreshHistoryFlags]);
 
   function wrapRangeWithFontSize(range: Range, size: FontSizePt) {
     const span = document.createElement("span");
@@ -242,6 +328,20 @@ export function RichTextEditor({
     e.preventDefault();
   }
 
+  function handleEditorKeyDown(e: React.KeyboardEvent) {
+    if (disabled) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod) return;
+
+    if (e.key === "z" && !e.shiftKey) {
+      e.preventDefault();
+      performUndo();
+    } else if (e.key === "y" || (e.key === "z" && e.shiftKey) || (e.key === "Z" && e.shiftKey)) {
+      e.preventDefault();
+      performRedo();
+    }
+  }
+
   const editorClassName =
     "min-w-0 min-h-0 flex-1 px-2 py-2 text-[12px] leading-[2] text-coolgray-90 outline-none overflow-y-auto [&_strong]:font-bold disabled:opacity-60";
 
@@ -254,6 +354,7 @@ export function RichTextEditor({
       onBlur={syncFromDom}
       onMouseUp={saveSelection}
       onKeyUp={saveSelection}
+      onKeyDown={handleEditorKeyDown}
       className={editorClassName}
       style={fill ? undefined : { minHeight }}
       aria-label="번역문 편집"
@@ -271,6 +372,10 @@ export function RichTextEditor({
         fontSize={fontSize}
         onBold={applyBold}
         onFontSize={applyFontSize}
+        onUndo={performUndo}
+        onRedo={performRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
         onToolbarMouseDown={handleToolbarMouseDown}
       />
       {layout === "export-preview" ? (
