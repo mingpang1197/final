@@ -6,14 +6,10 @@ import { Link } from "react-router-dom";
 import { ChatbotWidget } from "./ChatbotWidget";
 import { StepIndicator, type WorkflowStep } from "./StepIndicator";
 
-/** compact ERAI 헤더·스텝퍼 제외 — 왼쪽 패널이 카드 하단까지 내려오도록 */
-export const workflowLeftPaneMinHeightClass =
-  "min-h-[calc(100dvh-13.75rem)]";
-
-/** 2단 그리드 — 행 높이는 뷰포트(부모 flex-1), 열은 서로 독립 */
+/** 75c2628 — 2단 grid, 좌·우 동일 행 높이 (대칭 padding 이전) */
 export function WorkflowTwoPaneGrid({ children }: { children: ReactNode }) {
   return (
-    <div className="grid min-h-0 flex-1 w-full min-w-0 grid-cols-2 gap-5 overflow-hidden p-5 pb-24 [grid-template-rows:minmax(0,1fr)]">
+    <div className="flex-1 grid min-h-0 grid-cols-2 gap-5 overflow-hidden px-5 pt-4 pb-5">
       {children}
     </div>
   );
@@ -22,46 +18,19 @@ export function WorkflowTwoPaneGrid({ children }: { children: ReactNode }) {
 export function WorkflowTwoPaneColumn({
   children,
   className = "",
+  side = "left",
 }: {
   children: ReactNode;
   className?: string;
+  /** right: FAB·프롬프트 여백만 오른쪽 열에 적용 */
+  side?: "left" | "right";
 }) {
+  const sideClass =
+    side === "right" ? "gap-3 overflow-hidden pb-24 pr-20" : "overflow-hidden";
   return (
     <div
-      className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${className}`.trim()}
+      className={`flex min-h-0 flex-col ${sideClass} ${className}`.trim()}
     >
-      {children}
-    </div>
-  );
-}
-
-/** 좌측 원문·참조 — 오른쪽 높이와 무관하게 아래까지 */
-export function WorkflowTwoPaneLeftFill({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`flex w-full flex-1 min-h-0 flex-col overflow-hidden ${workflowLeftPaneMinHeightClass} ${className}`.trim()}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** 테두리 안 스크롤 본문 */
-export function WorkflowPaneScrollBody({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={`min-h-0 flex-1 overflow-auto ${className}`.trim()}>
       {children}
     </div>
   );
@@ -95,15 +64,13 @@ export function WorkflowLayout({
   const compact = headerVariant === "compact";
 
   return (
-    <div className="h-screen overflow-hidden bg-coolgray-10 flex flex-col">
-      <div className={`flex-1 flex flex-col min-h-0 px-6 ${compact ? "pb-4 pt-4" : "pb-6 pt-6"}`}>
+    <div className="flex h-screen flex-col overflow-hidden bg-coolgray-10">
+      <div className={`px-6 ${compact ? "pt-4 pb-0" : "pt-6 pb-0"}`}>
         <div
-          className={`flex items-start justify-between gap-6 shrink-0 ${
-            compact ? "mb-3" : "mb-4"
-          }`}
+          className={`flex items-start justify-between gap-6 ${compact ? "mb-3" : "mb-6"}`}
         >
           <h1
-            className={`font-bold leading-tight text-coolgray-90 tracking-tight ${
+            className={`font-bold leading-tight tracking-tight text-coolgray-90 ${
               compact ? "text-[32px]" : "text-[42px]"
             }`}
           >
@@ -111,57 +78,59 @@ export function WorkflowLayout({
           </h1>
           {filename && (
             <span
-              className={`text-primary-60 font-medium text-base tracking-wide shrink-0 max-w-[min(48vw,640px)] truncate text-right ${
+              className={`shrink-0 text-base font-medium tracking-wide text-primary-60 ${
                 compact ? "pt-1" : "pt-2"
-              }`}
+              } max-w-[min(48vw,640px)] truncate text-right`}
             >
               {filename}
             </span>
           )}
         </div>
+      </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden w-full min-w-0 bg-white border border-coolgray-20">
-          <div className="shrink-0">
-            <StepIndicator current={step} docId={docId} />
+      <div
+        className={`mx-6 flex min-h-0 flex-1 flex-col overflow-hidden border border-coolgray-20 bg-white ${
+          compact ? "mb-4" : "mb-6"
+        }`}
+      >
+        <StepIndicator current={step} docId={docId} />
+
+        {(prevNav || nextNav) && (
+          <div className="flex items-center justify-between border-b border-coolgray-20 px-4 py-2">
+            {prevNav ? (
+              <Link
+                to={prevNav.to}
+                className="inline-flex items-center gap-1 text-base font-medium text-coolgray-60 hover:text-primary-60"
+              >
+                <span className="text-lg leading-none">‹</span>
+                {prevNav.label}
+              </Link>
+            ) : (
+              <span />
+            )}
+            {nextNav ? (
+              <Link
+                to={nextNav.to}
+                className="inline-flex items-center gap-1 text-base font-medium text-primary-60 hover:underline"
+              >
+                {nextNav.label}
+                <span className="text-lg leading-none">›</span>
+              </Link>
+            ) : (
+              <span />
+            )}
           </div>
+        )}
 
-          {(prevNav || nextNav) && (
-            <div className="flex shrink-0 items-center justify-between border-b border-coolgray-20 px-4 py-2">
-              {prevNav ? (
-                <Link
-                  to={prevNav.to}
-                  className="inline-flex items-center gap-1 text-coolgray-60 hover:text-primary-60 font-medium text-base"
-                >
-                  <span className="text-lg leading-none">‹</span>
-                  {prevNav.label}
-                </Link>
-              ) : (
-                <span />
-              )}
-              {nextNav ? (
-                <Link
-                  to={nextNav.to}
-                  className="inline-flex items-center gap-1 text-primary-60 hover:underline font-medium text-base"
-                >
-                  {nextNav.label}
-                  <span className="text-lg leading-none">›</span>
-                </Link>
-              ) : (
-                <span />
-              )}
-            </div>
-          )}
+        {error && (
+          <div className="mx-4 mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
-          {error && (
-            <div className="mx-4 mt-3 shrink-0 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          )}
+        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
-
-          {footerExtra}
-        </div>
+        {footerExtra}
       </div>
 
       <ChatbotWidget docId={docId} />

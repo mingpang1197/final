@@ -11,13 +11,7 @@ import {
 } from "../api/client";
 import { PromptBar } from "../components/PromptBar";
 import { EasyReadDocumentView } from "../components/EasyReadDocumentView";
-import {
-  WorkflowLayout,
-  WorkflowPaneScrollBody,
-  WorkflowTwoPaneColumn,
-  WorkflowTwoPaneGrid,
-  WorkflowTwoPaneLeftFill,
-} from "../components/ui/WorkflowLayout";
+import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
@@ -215,21 +209,21 @@ export function TranslatePage() {
       error={error || undefined}
     >
       <WorkflowTwoPaneGrid>
-        <WorkflowTwoPaneColumn className="min-h-0 gap-3">
+        <WorkflowTwoPaneColumn className="gap-3">
           <p className="shrink-0 text-center text-base text-primary-90">요약문</p>
-          <WorkflowTwoPaneLeftFill className="border border-coolgray-40 bg-white">
-            <WorkflowPaneScrollBody
-              className={`w-full px-4 py-3 text-base whitespace-pre-wrap leading-relaxed text-coolgray-90 ${
-                summaryPlaceholder ? "text-coolgray-60 text-center flex items-center justify-center" : ""
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden border border-coolgray-40 bg-white">
+            <pre
+              className={`min-h-0 w-full flex-1 overflow-auto px-4 py-3 text-base whitespace-pre-wrap leading-relaxed text-coolgray-90 ${
+                summaryPlaceholder ? "flex items-center justify-center text-center text-coolgray-60" : ""
               }`}
             >
               {summaryDisplay || summaryPlaceholder}
-            </WorkflowPaneScrollBody>
-          </WorkflowTwoPaneLeftFill>
+            </pre>
+          </div>
         </WorkflowTwoPaneColumn>
 
-        <WorkflowTwoPaneColumn className="gap-3">
-          <p className="text-center text-base text-primary-90 shrink-0">번역문</p>
+        <WorkflowTwoPaneColumn side="right">
+          <p className="shrink-0 text-center text-base text-primary-90">번역문</p>
 
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-coolgray-10 relative">
             {refining && (

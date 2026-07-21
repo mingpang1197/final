@@ -12,13 +12,7 @@ import {
 } from "../api/client";
 import { DraggableCatalogItem, EasyReadDocumentView } from "../components/EasyReadDocumentView";
 import { PromptBar } from "../components/PromptBar";
-import {
-  WorkflowLayout,
-  WorkflowPaneScrollBody,
-  WorkflowTwoPaneColumn,
-  WorkflowTwoPaneGrid,
-  WorkflowTwoPaneLeftFill,
-} from "../components/ui/WorkflowLayout";
+import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { filterPlacementsForExport } from "../utils/translationSections";
@@ -268,15 +262,15 @@ export function ImagesPage() {
       error={error || undefined}
     >
       <WorkflowTwoPaneGrid>
-        <WorkflowTwoPaneColumn className="min-h-0 gap-3">
+        <WorkflowTwoPaneColumn className="gap-3">
           <p className="shrink-0 text-center text-base text-primary-90">번역문</p>
-          <WorkflowTwoPaneLeftFill className="border border-coolgray-40 bg-white">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden border border-coolgray-40 bg-white">
             {segments.length === 0 ? (
-              <WorkflowPaneScrollBody className="w-full px-4 py-3 text-base whitespace-pre-wrap leading-relaxed text-coolgray-60 text-center flex items-center justify-center">
+              <pre className="flex min-h-0 w-full flex-1 items-center justify-center overflow-auto px-4 py-3 text-center text-base leading-relaxed whitespace-pre-wrap text-coolgray-60">
                 {translationPlaceholder}
-              </WorkflowPaneScrollBody>
+              </pre>
             ) : (
-              <WorkflowPaneScrollBody className="px-4 py-4 flex flex-col min-h-0">
+              <div className="min-h-0 flex-1 overflow-auto px-4 py-4">
                 <EasyReadDocumentView
                   text={translationText}
                   placements={placements}
@@ -284,13 +278,13 @@ export function ImagesPage() {
                   fill
                   onPlacementsChange={editPlacements}
                 />
-              </WorkflowPaneScrollBody>
+              </div>
             )}
-          </WorkflowTwoPaneLeftFill>
+          </div>
         </WorkflowTwoPaneColumn>
 
-        <WorkflowTwoPaneColumn className="gap-3">
-          <p className="text-center text-base text-primary-90 shrink-0">그림 DB</p>
+        <WorkflowTwoPaneColumn side="right">
+          <p className="shrink-0 text-center text-base text-primary-90">그림 DB</p>
 
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-coolgray-10">
             <input
