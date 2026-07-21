@@ -287,7 +287,7 @@ export function SummaryPage() {
           )}
         </div>
 
-        <div className="min-h-0 flex flex-col gap-3 overflow-hidden">
+        <div className="min-h-0 flex flex-col gap-3 overflow-hidden pb-24 pr-20">
           <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
 
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden relative">
