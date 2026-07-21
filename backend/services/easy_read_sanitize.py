@@ -73,6 +73,38 @@ def _apply_standard_closing(text: str) -> str:
     return f"{body}\n\n{STANDARD_CLOSING}"
 
 
+def split_standard_closing(text: str) -> tuple[str, str | None]:
+    """본문과 표준 마무리 문장 분리 (export·미리보기에서 2단 레이아웃 제외용)."""
+    if not text.strip():
+        return text, None
+
+    lines = text.split("\n")
+    while lines and not lines[-1].strip():
+        lines.pop()
+    if not lines:
+        return "", None
+
+    last = lines[-1].strip()
+    if _is_standard_closing_line(last) or _CLOSING_CONTACT.search(last):
+        lines.pop()
+        while lines and not lines[-1].strip():
+            lines.pop()
+        body = "\n".join(lines).rstrip()
+        return body, STANDARD_CLOSING
+
+    return text.rstrip(), None
+
+
+def merge_with_standard_closing(body: str, closing: str | None = STANDARD_CLOSING) -> str:
+    """편집 본문 + 표준 마무리 병합."""
+    trimmed = body.rstrip()
+    if not closing:
+        return trimmed
+    if not trimmed:
+        return closing
+    return f"{trimmed}\n\n{closing}"
+
+
 def _is_section_heading(line: str) -> bool:
     stripped = line.strip().lstrip("#").strip()
     if stripped.startswith("<") and stripped.endswith(">"):

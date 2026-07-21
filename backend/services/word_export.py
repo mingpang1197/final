@@ -28,6 +28,7 @@ from backend.services.export_layout import (
     parse_section_items,
     prepare_placements_for_export,
 )
+from backend.services.easy_read_sanitize import split_standard_closing
 from backend.services.image_assets import resolve_placement_image
 from backend.services.image_matcher import MAX_IMAGES_PER_TEXT, find_images_for_line
 from backend.services.rich_text import has_style_markers, iter_styled_runs
@@ -314,15 +315,26 @@ def _add_item_text_boxes(
     spacer.paragraph_format.space_after = Pt(12)
 
 
+def _add_closing_paragraph(doc: Document, line: str) -> None:
+    stripped = line.strip()
+    if not stripped:
+        return
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(12)
+    _apply_body_format(p)
+    _add_runs_to_paragraph(p, stripped, size_pt=BODY_PT)
+
+
 def _export_easy_read_layout(
     doc: Document,
     text: str,
     placements: list[ImagePlacement],
 ) -> None:
-    """작성양식 PDF: <소제목> + 항목별 (삽화 | 글)."""
-    by_item = align_placements_to_items(text, placements)
+    """작성양식 PDF: <소제목> + 항목별 (삽화 | 글). 마무리 문장은 2단 밖 전체 너비."""
+    body, closing = split_standard_closing(text)
+    by_item = align_placements_to_items(body, placements)
 
-    for section in parse_export_sections(text):
+    for section in parse_export_sections(body):
         if section.heading:
             _add_heading_paragraph(doc, section.heading)
         for item in parse_section_items(section):
@@ -330,6 +342,9 @@ def _export_easy_read_layout(
             if placement is not None and not isinstance(placement, ImagePlacement):
                 placement = ImagePlacement(**placement)  # type: ignore[arg-type]
             _add_item_text_boxes(doc, placement, item.lines)
+
+    if closing:
+        _add_closing_paragraph(doc, closing)
 
 
 def _add_rich_paragraph(doc: Document, line: str) -> None:

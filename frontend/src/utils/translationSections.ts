@@ -17,7 +17,48 @@ export interface TranslationItem {
   startLineIndex: number;
 }
 
+export const STANDARD_CLOSING =
+  "더 궁금한 것이 있으면 **소송구조 변호사**님에게 문의해 주세요.";
+
 const NUMBERED_ITEM = /^\s*\d+[\).]\s/;
+const CLOSING_CONTACT = /더\s*궁금한\s*것이\s*있으면.*문의/;
+
+function closingPlain(line: string): string {
+  return line.replace(/\*+/g, "").trim();
+}
+
+export function isStandardClosingLine(line: string): boolean {
+  return closingPlain(line) === closingPlain(STANDARD_CLOSING);
+}
+
+/** export·미리보기: 마무리 문장은 2단(그림) 레이아웃 밖 */
+export function splitStandardClosing(text: string): { body: string; closing: string | null } {
+  const lines = text.split("\n");
+  while (lines.length && !lines[lines.length - 1]?.trim()) {
+    lines.pop();
+  }
+  if (!lines.length) {
+    return { body: "", closing: null };
+  }
+
+  const last = lines[lines.length - 1].trim();
+  if (isStandardClosingLine(last) || CLOSING_CONTACT.test(last)) {
+    lines.pop();
+    while (lines.length && !lines[lines.length - 1]?.trim()) {
+      lines.pop();
+    }
+    return { body: lines.join("\n"), closing: STANDARD_CLOSING };
+  }
+
+  return { body: text, closing: null };
+}
+
+export function mergeWithStandardClosing(body: string, closing: string | null): string {
+  const trimmed = body.replace(/\s+$/, "");
+  if (!closing) return trimmed;
+  if (!trimmed) return closing;
+  return `${trimmed}\n\n${closing}`;
+}
 
 export function isSectionHeading(line: string): boolean {
   const s = line.trim();

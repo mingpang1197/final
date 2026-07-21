@@ -9,6 +9,7 @@ import {
   parseSectionItems,
   parseTranslationSections,
   resolvePlacementForItem,
+  splitStandardClosing,
   type TranslationItem,
   type TranslationSection,
 } from "../utils/translationSections";
@@ -46,7 +47,8 @@ export function EasyReadDocumentView({
   placeholder = "번역 결과",
   disabled = false,
 }: EasyReadDocumentViewProps) {
-  const sections = useMemo(() => parseTranslationSections(text), [text]);
+  const { body: documentBody, closing } = useMemo(() => splitStandardClosing(text), [text]);
+  const sections = useMemo(() => parseTranslationSections(documentBody), [documentBody]);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
 
   function setItemPlacement(
@@ -116,6 +118,11 @@ export function EasyReadDocumentView({
           onRemoveItem={removeItemPlacement}
         />
       ))}
+      {closing && (
+        <p className="text-[12px] leading-[2] text-coolgray-90 pt-2">
+          <StyledLine text={closing} />
+        </p>
+      )}
     </div>
   );
 }

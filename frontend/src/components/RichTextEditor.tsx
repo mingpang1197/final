@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorHistory } from "../hooks/useEditorHistory";
 import {
   clampFontSize,
@@ -8,6 +8,8 @@ import {
   markersToHtml,
   type FontSizePt,
 } from "../utils/richText";
+import { mergeWithStandardClosing, splitStandardClosing } from "../utils/translationSections";
+import { StyledLine } from "./BoldText";
 
 export type RichTextEditorLayout = "full" | "export-preview";
 
@@ -191,6 +193,21 @@ export function RichTextEditor({
   const [canRedo, setCanRedo] = useState(false);
 
   const history = useEditorHistory(value);
+  const { closing: standardClosing } = useMemo(() => splitStandardClosing(value), [value]);
+
+  const toEditorMarkers = useCallback(
+    (markers: string) =>
+      layout === "export-preview" ? splitStandardClosing(markers).body : markers,
+    [layout],
+  );
+
+  const toStoredMarkers = useCallback(
+    (bodyMarkers: string) =>
+      layout === "export-preview"
+        ? mergeWithStandardClosing(bodyMarkers, standardClosing)
+        : bodyMarkers,
+    [layout, standardClosing],
+  );
 
   const refreshHistoryFlags = useCallback(() => {
     setCanUndo(history.canUndo());
@@ -200,23 +217,24 @@ export function RichTextEditor({
   const applyMarkersToEditor = useCallback(
     (markers: string, notifyParent: boolean) => {
       if (editorRef.current) {
-        editorRef.current.innerHTML = markersToHtml(markers);
+        editorRef.current.innerHTML = markersToHtml(toEditorMarkers(markers));
       }
       savedValueRef.current = markers;
       if (notifyParent) onChange(markers);
     },
-    [onChange],
+    [onChange, toEditorMarkers],
   );
 
   const syncFromDom = useCallback(() => {
     if (!editorRef.current || history.isApplying()) return;
-    const markers = htmlToMarkers(editorRef.current.innerHTML);
+    const bodyMarkers = htmlToMarkers(editorRef.current.innerHTML);
+    const markers = toStoredMarkers(bodyMarkers);
     if (markers === savedValueRef.current) return;
     history.recordChange(markers);
     savedValueRef.current = markers;
     onChange(markers);
     refreshHistoryFlags();
-  }, [history, onChange, refreshHistoryFlags]);
+  }, [history, onChange, refreshHistoryFlags, toStoredMarkers]);
 
   const saveSelection = useCallback(() => {
     const sel = window.getSelection();
@@ -263,7 +281,7 @@ export function RichTextEditor({
     if (!editorRef.current || history.isApplying()) return;
 
     if (!initializedRef.current) {
-      editorRef.current.innerHTML = markersToHtml(value);
+      editorRef.current.innerHTML = markersToHtml(toEditorMarkers(value));
       savedValueRef.current = value;
       history.resetHistory(value);
       initializedRef.current = true;
@@ -272,12 +290,12 @@ export function RichTextEditor({
     }
 
     if (value !== savedValueRef.current) {
-      editorRef.current.innerHTML = markersToHtml(value);
+      editorRef.current.innerHTML = markersToHtml(toEditorMarkers(value));
       savedValueRef.current = value;
       history.resetHistory(value);
       refreshHistoryFlags();
     }
-  }, [value, history, refreshHistoryFlags]);
+  }, [value, history, refreshHistoryFlags, toEditorMarkers]);
 
   function wrapRangeWithFontSize(range: Range, size: FontSizePt) {
     const span = document.createElement("span");
@@ -379,21 +397,28 @@ export function RichTextEditor({
         onToolbarMouseDown={handleToolbarMouseDown}
       />
       {layout === "export-preview" ? (
-        <div
-          className={`grid grid-cols-[minmax(120px,32%)_1fr] gap-4 p-3 min-h-0 ${
-            fill ? "flex-1 overflow-hidden" : ""
-          }`}
-        >
-          <div className="rounded-lg border border-dashed border-coolgray-40 bg-[#f5f0e8] min-h-[120px] flex items-center justify-center text-xs text-center text-coolgray-60 px-2">
-            <span>
-              그림 영역
-              <br />
-              (그림·추출과 동일)
-            </span>
+        <div className={`flex flex-col min-h-0 ${fill ? "flex-1 overflow-hidden" : ""}`}>
+          <div
+            className={`grid grid-cols-[minmax(120px,32%)_1fr] gap-4 p-3 min-h-0 ${
+              fill ? "flex-1 overflow-hidden" : ""
+            }`}
+          >
+            <div className="rounded-lg border border-dashed border-coolgray-40 bg-[#f5f0e8] min-h-[120px] flex items-center justify-center text-xs text-center text-coolgray-60 px-2">
+              <span>
+                그림 영역
+                <br />
+                (그림·추출과 동일)
+              </span>
+            </div>
+            <div className={`min-w-0 min-h-0 flex flex-col ${fill ? "h-full overflow-hidden" : ""}`}>
+              {editor}
+            </div>
           </div>
-          <div className={`min-w-0 min-h-0 flex flex-col ${fill ? "h-full overflow-hidden" : ""}`}>
-            {editor}
-          </div>
+          {standardClosing && (
+            <p className="px-3 pb-3 text-[12px] leading-[2] text-coolgray-90">
+              <StyledLine text={standardClosing} />
+            </p>
+          )}
         </div>
       ) : (
         editor

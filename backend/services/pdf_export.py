@@ -28,6 +28,7 @@ from backend.services.export_layout import (
     parse_section_items,
     prepare_placements_for_export,
 )
+from backend.services.easy_read_sanitize import split_standard_closing
 from backend.services.image_assets import resolve_placement_image
 from backend.services.rich_text import iter_styled_runs
 from backend.services.image_matcher import MAX_IMAGES_PER_TEXT, find_images_for_line
@@ -128,6 +129,10 @@ def _font_css() -> tuple[str, fitz.Archive]:
     p.image-block img {{
       max-width: 230px;
       height: auto;
+    }}
+    p.closing-line {{
+      clear: both;
+      margin: 12px 0 0 0;
     }}
     """
     return css, archive
@@ -235,14 +240,15 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
         css, _ = _font_css()
         return "<body></body>", css
 
+    export_body, closing = split_standard_closing(body)
     blocks: list[str] = []
-    sections = parse_export_sections(body)
+    sections = parse_export_sections(export_body)
     raw_placements = _collect_placements(doc) or []
-    placements = prepare_placements_for_export(body, raw_placements)
+    placements = prepare_placements_for_export(export_body, raw_placements)
     has_section_layout = any(section.heading for section in sections)
 
     if has_section_layout:
-        by_item_raw = align_placements_to_items(body, placements)
+        by_item_raw = align_placements_to_items(export_body, placements)
         by_item = {
             k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
             for k, v in by_item_raw.items()
@@ -252,7 +258,7 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
             if section_html:
                 blocks.append(section_html)
     elif placements:
-        by_item_raw = align_placements_to_items(body, placements)
+        by_item_raw = align_placements_to_items(export_body, placements)
         by_item = {
             k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
             for k, v in by_item_raw.items()
@@ -264,7 +270,7 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
     else:
         in_meta_section = False
         inserted_images: set[str] = set()
-        for line in body.split("\n"):
+        for line in export_body.split("\n"):
             stripped = line.strip()
             if not stripped:
                 continue
@@ -295,6 +301,10 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
                     inserted_images.add(match.image_file)
 
     css, _ = _font_css()
+    if closing:
+        closing_html = _line_to_html(closing)
+        if closing_html:
+            blocks.append(closing_html.replace('class="body"', 'class="body closing-line"', 1))
     content = "\n".join(blocks)
     return f"<html><head></head><body>{content}</body></html>", css
 
