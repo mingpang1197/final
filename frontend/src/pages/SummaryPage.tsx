@@ -16,7 +16,6 @@ import {
   WorkflowTwoPaneColumn,
   WorkflowTwoPaneGrid,
   WorkflowTwoPaneLeftFill,
-  workflowPaneFillClass,
 } from "../components/ui/WorkflowLayout";
 import {
   ensurePayload,
@@ -261,20 +260,18 @@ export function SummaryPage() {
       error={error || undefined}
     >
       <WorkflowTwoPaneGrid>
-        <WorkflowTwoPaneColumn>
+        <WorkflowTwoPaneColumn className="min-h-0 flex-1">
           <WorkflowTwoPaneLeftFill className="border border-coolgray-30 bg-white rounded-sm">
           {sourcePreviewUrl && sourceReady ? (
             <iframe
               title="업로드 원문"
               src={sourcePreviewUrl}
-              className={`workflow-pdf-iframe ${workflowPaneFillClass}`}
+              className="workflow-pdf-iframe min-h-0 w-full flex-1 border-0"
             />
           ) : (
             <>
               <PageNavigator current={pageNum} total={pageCount} onChange={setPageNum} />
-              <pre
-                className={`overflow-auto whitespace-pre-wrap text-base p-4 leading-relaxed ${workflowPaneFillClass}`}
-              >
+              <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap p-4 text-base leading-relaxed">
                 {originalPage}
               </pre>
             </>

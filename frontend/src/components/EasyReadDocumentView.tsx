@@ -99,7 +99,7 @@ export function EasyReadDocumentView({
   if (!text.trim()) {
     return (
       <div
-        className={`flex items-center justify-center text-coolgray-60 text-base min-h-0 flex-1 basis-0 h-0 grow ${
+        className={`flex min-h-0 flex-1 items-center justify-center text-base text-coolgray-60 ${
           fill ? "" : "min-h-[200px]"
         }`}
       >
@@ -122,7 +122,7 @@ export function EasyReadDocumentView({
   }
 
   return (
-    <div className={`space-y-8 ${fill ? "min-h-0 flex-1 basis-0 h-0 grow" : ""}`}>
+    <div className={`space-y-8 ${fill ? "min-h-0 flex-1" : ""}`}>
       {sections.map((section, sectionIndex) => (
         <SectionBlock
           key={`${section.startLineIndex}-${sectionIndex}`}

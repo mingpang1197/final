@@ -6,34 +6,17 @@ import { Link } from "react-router-dom";
 import { ChatbotWidget } from "./ChatbotWidget";
 import { StepIndicator, type WorkflowStep } from "./StepIndicator";
 
-/** Figma 80% — 2단 flex; h-0+grow로 카드 남는 높이 전부 사용 (요약/번역/그림) */
-const paneRowClass =
-  "flex min-h-0 w-full min-w-0 flex-1 basis-0 h-0 grow items-stretch gap-5 overflow-hidden p-5 pb-24";
+/** compact ERAI 헤더·스텝퍼 제외 — 왼쪽 패널이 카드 하단까지 내려오도록 */
+export const workflowLeftPaneMinHeightClass =
+  "min-h-[calc(100dvh-13.75rem)]";
 
-const paneColumnClass = "flex min-h-0 min-w-0 flex-1 basis-0 h-full flex-col overflow-hidden";
-
-/** flex 자식이 남는 세로 공간을 채울 때 사용 */
-export const workflowPaneFillClass = "min-h-0 flex-1 basis-0 h-0 grow";
-
-/** 테두리 안 스크롤 본문(번역·그림 왼쪽) */
-export function WorkflowPaneScrollBody({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+/** 2단 그리드 — 행 높이는 뷰포트(부모 flex-1), 열은 서로 독립 */
+export function WorkflowTwoPaneGrid({ children }: { children: ReactNode }) {
   return (
-    <div
-      className={`overflow-auto ${workflowPaneFillClass} ${className}`.trim()}
-    >
+    <div className="grid min-h-0 flex-1 w-full min-w-0 grid-cols-2 gap-5 overflow-hidden p-5 pb-24 [grid-template-rows:minmax(0,1fr)]">
       {children}
     </div>
   );
-}
-
-export function WorkflowTwoPaneGrid({ children }: { children: ReactNode }) {
-  return <div className={paneRowClass}>{children}</div>;
 }
 
 export function WorkflowTwoPaneColumn({
@@ -44,11 +27,15 @@ export function WorkflowTwoPaneColumn({
   className?: string;
 }) {
   return (
-    <div className={`${paneColumnClass} ${className}`.trim()}>{children}</div>
+    <div
+      className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${className}`.trim()}
+    >
+      {children}
+    </div>
   );
 }
 
-/** 좌측 원문·참조 박스 — Figma처럼 열 하단까지 */
+/** 좌측 원문·참조 — 오른쪽 높이와 무관하게 아래까지 */
 export function WorkflowTwoPaneLeftFill({
   children,
   className = "",
@@ -58,8 +45,23 @@ export function WorkflowTwoPaneLeftFill({
 }) {
   return (
     <div
-      className={`flex w-full flex-col overflow-hidden ${workflowPaneFillClass} ${className}`.trim()}
+      className={`flex w-full flex-1 min-h-0 flex-col overflow-hidden ${workflowLeftPaneMinHeightClass} ${className}`.trim()}
     >
+      {children}
+    </div>
+  );
+}
+
+/** 테두리 안 스크롤 본문 */
+export function WorkflowPaneScrollBody({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`min-h-0 flex-1 overflow-auto ${className}`.trim()}>
       {children}
     </div>
   );
@@ -124,7 +126,7 @@ export function WorkflowLayout({
           </div>
 
           {(prevNav || nextNav) && (
-            <div className="flex items-center justify-between px-4 py-2 border-b border-coolgray-20">
+            <div className="flex shrink-0 items-center justify-between border-b border-coolgray-20 px-4 py-2">
               {prevNav ? (
                 <Link
                   to={prevNav.to}
@@ -151,14 +153,12 @@ export function WorkflowLayout({
           )}
 
           {error && (
-            <div className="mx-4 mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+            <div className="mx-4 mt-3 shrink-0 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
               {error}
             </div>
           )}
 
-          <div className="flex min-h-0 flex-1 basis-0 h-0 grow flex-col overflow-hidden">
-            {children}
-          </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
 
           {footerExtra}
         </div>

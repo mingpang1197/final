@@ -215,8 +215,8 @@ export function TranslatePage() {
       error={error || undefined}
     >
       <WorkflowTwoPaneGrid>
-        <WorkflowTwoPaneColumn className="gap-3">
-          <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
+        <WorkflowTwoPaneColumn className="min-h-0 gap-3">
+          <p className="shrink-0 text-center text-base text-primary-90">요약문</p>
           <WorkflowTwoPaneLeftFill className="border border-coolgray-40 bg-white">
             <WorkflowPaneScrollBody
               className={`w-full px-4 py-3 text-base whitespace-pre-wrap leading-relaxed text-coolgray-90 ${
