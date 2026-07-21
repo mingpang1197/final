@@ -111,13 +111,7 @@ export function ExportPage() {
     setError("");
     try {
       const payload = await buildExportPayload();
-      try {
-        await downloadPdf(id, payload);
-        return;
-      } catch {
-        // Vercel 등 Word/LibreOffice 없는 서버 — 브라우저 Print to PDF
-      }
-      window.print();
+      await downloadPdf(id, payload);
     } catch (err) {
       setError(err instanceof Error ? err.message : "PDF 추출 실패");
     } finally {

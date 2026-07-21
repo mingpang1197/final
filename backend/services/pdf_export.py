@@ -323,10 +323,32 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
     return f"<html><head></head><body>{content}</body></html>", css
 
 
+def _export_pdf_via_html(doc: DocumentResponse) -> bytes:
+    """Vercel 등 docx→pdf 불가 환경용 PyMuPDF HTML 렌더."""
+    html, css = _build_html(doc)
+    _, archive = _font_css()
+    story = fitz.Story(html=html, user_css=css, archive=archive)
+    mediabox = fitz.Rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT)
+    where = fitz.Rect(MARGIN, MARGIN, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - MARGIN)
+
+    def rectfn(_num: int, _filled: fitz.Rect) -> tuple[fitz.Rect, fitz.Rect, fitz.Matrix]:
+        return mediabox, where, fitz.Identity
+
+    pdf_doc = story.write_with_links(rectfn)
+    try:
+        return pdf_doc.tobytes()
+    finally:
+        pdf_doc.close()
+
+
 def export_to_pdf(doc: DocumentResponse) -> bytes:
-    """Word export → PDF 변환. Word/LibreOffice 없으면 DocxToPdfError."""
+    """Word export → PDF. 변환기 없으면 HTML/PyMuPDF 폴백."""
     from backend.services import word_export
-    from backend.services.docx_to_pdf import convert_docx_bytes_to_pdf
+    from backend.services.docx_to_pdf import DocxToPdfError, convert_docx_bytes_to_pdf
 
     docx_bytes = word_export.export_to_docx(doc)
-    return convert_docx_bytes_to_pdf(docx_bytes)
+    try:
+        return convert_docx_bytes_to_pdf(docx_bytes)
+    except DocxToPdfError as exc:
+        logger.warning("docx→pdf unavailable, using HTML/PyMuPDF fallback: %s", exc)
+        return _export_pdf_via_html(doc)
