@@ -36,7 +36,7 @@ export function LoginPage() {
       {/* 왼쪽 — ERAI 브랜딩 배경 */}
       <div className="relative hidden min-h-screen flex-1 overflow-hidden lg:block">
         <img
-          src="/login-bg.png"
+          src="/assets/login-bg.png"
           alt=""
           aria-hidden
           className="absolute inset-0 h-full w-full object-cover object-left"
