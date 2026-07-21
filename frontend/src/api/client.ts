@@ -89,6 +89,19 @@ export interface UploadResult {
   full_text?: string;
 }
 
+export interface UserProjectItem {
+  doc_id: string;
+  filename: string;
+  created_at: string;
+  updated_at: string;
+  has_summary: boolean;
+  has_translation: boolean;
+  has_easyread_pdf: boolean;
+  has_easyread: boolean;
+}
+
+export type UserProjectArtifactKind = "summary" | "translation" | "easyread";
+
 async function parseErrorResponse(res: Response): Promise<string> {
   const text = await res.text();
   if (!text) return res.statusText;
@@ -103,7 +116,16 @@ async function parseErrorResponse(res: Response): Promise<string> {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, init);
+  const headers = new Headers(init?.headers);
+  const authUser = localStorage.getItem("easyread-auth-user");
+  if (authUser) {
+    headers.set("X-User-Id", authUser);
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers,
+  });
   if (!res.ok) {
     throw new Error(await parseErrorResponse(res));
   }
@@ -317,6 +339,38 @@ export async function downloadDocx(id: string, payload: ExportPayload): Promise<
 export async function getImageCatalog(query = ""): Promise<ImageCatalogItem[]> {
   const q = query ? `?q=${encodeURIComponent(query)}` : "";
   return request<ImageCatalogItem[]>(`/documents/catalog/images${q}`);
+}
+
+export async function listUserProjects(): Promise<UserProjectItem[]> {
+  return request<UserProjectItem[]>("/documents/user-projects");
+}
+
+export async function deleteUserProject(docId: string): Promise<void> {
+  await request<void>(`/documents/user-projects/${docId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getUserProjectArtifact(
+  docId: string,
+  kind: UserProjectArtifactKind,
+): Promise<string> {
+  const data = await request<{ content: string }>(
+    `/documents/user-projects/${docId}/artifact/${kind}`,
+  );
+  return data.content;
+}
+
+export function getUserProjectSourceUrl(docId: string): string {
+  const userId = localStorage.getItem("easyread-auth-user") ?? "";
+  const q = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+  return `${API_BASE}/documents/user-projects/${docId}/source${q}`;
+}
+
+export function getUserProjectEasyreadPdfUrl(docId: string): string {
+  const userId = localStorage.getItem("easyread-auth-user") ?? "";
+  const q = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+  return `${API_BASE}/documents/user-projects/${docId}/easyread.pdf${q}`;
 }
 
 export async function searchWebImages(query: string): Promise<ImageCatalogItem[]> {

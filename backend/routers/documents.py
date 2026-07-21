@@ -11,8 +11,9 @@ import mimetypes
 import re
 import uuid
 from pathlib import Path
+from typing import Literal
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 
 from backend.config import UPLOAD_DIR, settings
@@ -34,16 +35,18 @@ from backend.models.schemas import (
     ExportRequest,
     ImageCatalogItem,
     ImagePlacement,
+    ArtifactTextResponse,
     RefineRequest,
     SummarizeRequest,
     SummaryUpdate,
     TranslationUpdate,
+    UserProjectItem,
     UploadResponse,
 )
 from backend.services.image_matcher import detect_image_placements, list_image_catalog
 from backend.services.image_web_search import search_web_images
 from backend.services.easy_read_sanitize import extract_refined_translation
-from backend.services import parser, prompts, translator, upstage, word_export, pdf_export
+from backend.services import parser, prompts, translator, upstage, word_export, pdf_export, user_storage
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -261,6 +264,13 @@ async def _ensure_doc_from_request(
         raise HTTPException(404, "문서를 복구하지 못했습니다.")
     return doc
 
+
+def _require_user_id(x_user_id: str | None, user_id_query: str | None = None) -> str:
+    user_id = (x_user_id or user_id_query or "").strip()
+    if not user_id:
+        raise HTTPException(401, "로그인 사용자가 필요합니다.")
+    return user_id
+
 # --- 업로드·조회 ---
 
 
@@ -277,7 +287,10 @@ async def image_catalog_web(q: str = Query(..., min_length=1)) -> list[ImageCata
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload_document(file: UploadFile = File(...)) -> UploadResponse:
+async def upload_document(
+    file: UploadFile = File(...),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> UploadResponse:
     if not file.filename:
         raise HTTPException(400, "파일명이 없습니다.")
 
@@ -298,6 +311,8 @@ async def upload_document(file: UploadFile = File(...)) -> UploadResponse:
 
     doc_id = await create_document(file.filename, doc_type, pages, full_text)
     _source_path(doc_id, file.filename).write_bytes(content)
+    if x_user_id:
+        user_storage.save_source(x_user_id, doc_id, file.filename, content)
     return UploadResponse(
         id=doc_id,
         filename=file.filename,
@@ -307,6 +322,81 @@ async def upload_document(file: UploadFile = File(...)) -> UploadResponse:
         pages=pages,
         full_text=full_text,
     )
+
+
+@router.get("/user-projects", response_model=list[UserProjectItem])
+async def list_user_projects(
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_id: str | None = Query(default=None),
+) -> list[UserProjectItem]:
+    resolved = _require_user_id(x_user_id, user_id)
+    return [UserProjectItem(**item) for item in user_storage.list_user_projects(resolved)]
+
+
+@router.get("/user-projects/{doc_id}/artifact/{kind}", response_model=ArtifactTextResponse)
+async def open_user_project_artifact(
+    doc_id: str,
+    kind: Literal["summary", "translation", "easyread"],
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_id: str | None = Query(default=None),
+) -> ArtifactTextResponse:
+    resolved = _require_user_id(x_user_id, user_id)
+    text = user_storage.read_artifact_text(resolved, doc_id, kind)
+    if text is None:
+        raise HTTPException(404, "저장된 파일을 찾을 수 없습니다.")
+    return ArtifactTextResponse(content=text)
+
+
+@router.get("/user-projects/{doc_id}/source")
+async def open_user_project_source(
+    doc_id: str,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_id: str | None = Query(default=None),
+) -> FileResponse:
+    resolved_user = _require_user_id(x_user_id, user_id)
+    resolved = user_storage.get_source_file(resolved_user, doc_id)
+    if not resolved:
+        raise HTTPException(404, "원본 파일을 찾을 수 없습니다.")
+    path, filename = resolved
+    media_type, _ = mimetypes.guess_type(filename)
+    return FileResponse(
+        path=path,
+        media_type=media_type or "application/octet-stream",
+        filename=filename,
+        content_disposition_type="inline",
+    )
+
+
+@router.get("/user-projects/{doc_id}/easyread.pdf")
+async def open_user_project_easyread_pdf(
+    doc_id: str,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_id: str | None = Query(default=None),
+) -> FileResponse:
+    resolved_user = _require_user_id(x_user_id, user_id)
+    resolved = user_storage.get_easyread_pdf_file(resolved_user, doc_id)
+    if not resolved:
+        raise HTTPException(404, "저장된 이지리드 PDF를 찾을 수 없습니다.")
+    path, filename = resolved
+    return FileResponse(
+        path=path,
+        media_type="application/pdf",
+        filename=filename,
+        content_disposition_type="inline",
+    )
+
+
+@router.delete("/user-projects/{doc_id}", status_code=204)
+async def delete_user_project(
+    doc_id: str,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_id: str | None = Query(default=None),
+) -> Response:
+    resolved_user = _require_user_id(x_user_id, user_id)
+    deleted = user_storage.delete_user_project(resolved_user, doc_id)
+    if not deleted:
+        raise HTTPException(404, "삭제할 프로젝트를 찾을 수 없습니다.")
+    return Response(status_code=204)
 
 
 @router.get("/{doc_id}/source")
@@ -379,6 +469,7 @@ async def summarize_document(
     doc_id: str,
     force: bool = Query(False),
     body: SummarizeRequest | None = None,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
 ) -> DocumentResponse:
     doc = await get_document(doc_id)
     if not doc:
@@ -403,11 +494,18 @@ async def summarize_document(
     summary = await upstage.chat_completion(system, user)
     summary = await _polish_summary_text(summary)
     await update_summary(doc_id, summary)
-    return (await get_document(doc_id))  # type: ignore[return-value]
+    updated = await get_document(doc_id)
+    if updated and x_user_id and updated.summary:
+        user_storage.save_summary(x_user_id, doc_id, updated.filename, updated.summary)
+    return updated  # type: ignore[return-value]
 
 
 @router.patch("/{doc_id}/summary", response_model=DocumentResponse)
-async def patch_summary(doc_id: str, body: SummaryUpdate) -> DocumentResponse:
+async def patch_summary(
+    doc_id: str,
+    body: SummaryUpdate,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> DocumentResponse:
     doc = await get_document(doc_id)
     if not doc and body.full_text:
         pages = body.pages or [body.full_text]
@@ -422,11 +520,18 @@ async def patch_summary(doc_id: str, body: SummaryUpdate) -> DocumentResponse:
     if not doc:
         raise HTTPException(404, "문서를 찾을 수 없습니다.")
     await update_summary(doc_id, body.summary)
-    return (await get_document(doc_id))  # type: ignore[return-value]
+    updated = await get_document(doc_id)
+    if updated and x_user_id and updated.summary:
+        user_storage.save_summary(x_user_id, doc_id, updated.filename, updated.summary)
+    return updated  # type: ignore[return-value]
 
 
 @router.post("/{doc_id}/summary/refine", response_model=DocumentResponse)
-async def refine_summary(doc_id: str, body: RefineRequest) -> DocumentResponse:
+async def refine_summary(
+    doc_id: str,
+    body: RefineRequest,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> DocumentResponse:
     doc = await get_document(doc_id)
     if not doc:
         raise HTTPException(404, "문서를 찾을 수 없습니다.")
@@ -445,7 +550,10 @@ async def refine_summary(doc_id: str, body: RefineRequest) -> DocumentResponse:
     revised = extract_refined_translation(revised, fallback=current)
     revised = await _polish_summary_text(revised)
     await update_summary(doc_id, revised)
-    return (await get_document(doc_id))  # type: ignore[return-value]
+    updated = await get_document(doc_id)
+    if updated and x_user_id and updated.summary:
+        user_storage.save_summary(x_user_id, doc_id, updated.filename, updated.summary)
+    return updated  # type: ignore[return-value]
 
 # --- 쉬운 글(번역) API ---
 
@@ -454,6 +562,7 @@ async def refine_summary(doc_id: str, body: RefineRequest) -> DocumentResponse:
 async def translate_document(
     doc_id: str,
     body: DocumentEnsureRequest | None = None,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
 ) -> DocumentResponse:
     doc = await _ensure_doc_from_request(doc_id, body)
     if not doc.summary:
@@ -465,7 +574,11 @@ async def translate_document(
         doc.summary, doc.full_text, doc.doc_type
     )
     await update_translation(doc_id, segments, text, checklist=checklist_report)
-    return (await get_document(doc_id))  # type: ignore[return-value]
+    updated = await get_document(doc_id)
+    if updated and x_user_id and updated.translation_text:
+        user_storage.save_translation(x_user_id, doc_id, updated.filename, updated.translation_text)
+        user_storage.save_easyread_text(x_user_id, doc_id, updated.filename, updated.translation_text)
+    return updated  # type: ignore[return-value]
 
 
 @router.post("/{doc_id}/translation/detect-placements", response_model=list[ImagePlacement])
@@ -483,7 +596,11 @@ async def detect_translation_placements(
 
 
 @router.patch("/{doc_id}/translation", response_model=DocumentResponse)
-async def patch_translation(doc_id: str, body: TranslationUpdate) -> DocumentResponse:
+async def patch_translation(
+    doc_id: str,
+    body: TranslationUpdate,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> DocumentResponse:
     doc = await get_document(doc_id)
     if not doc and body.full_text:
         pages = body.pages or [body.full_text]
@@ -505,11 +622,19 @@ async def patch_translation(doc_id: str, body: TranslationUpdate) -> DocumentRes
     text = "\n\n".join(s.easy_text for s in body.segments)
     checklist_report = translator.run_checklist(text)
     await update_translation(doc_id, body.segments, text, checklist=checklist_report)
-    return (await get_document(doc_id))  # type: ignore[return-value]
+    updated = await get_document(doc_id)
+    if updated and x_user_id and updated.translation_text:
+        user_storage.save_translation(x_user_id, doc_id, updated.filename, updated.translation_text)
+        user_storage.save_easyread_text(x_user_id, doc_id, updated.filename, updated.translation_text)
+    return updated  # type: ignore[return-value]
 
 
 @router.post("/{doc_id}/translation/refine", response_model=DocumentResponse)
-async def refine_translation(doc_id: str, body: RefineRequest) -> DocumentResponse:
+async def refine_translation(
+    doc_id: str,
+    body: RefineRequest,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> DocumentResponse:
     doc = await get_document(doc_id)
     if not doc:
         raise HTTPException(404, "문서를 찾을 수 없습니다.")
@@ -525,7 +650,11 @@ async def refine_translation(doc_id: str, body: RefineRequest) -> DocumentRespon
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     await update_translation(doc_id, segments, text, checklist=checklist_report)
-    return (await get_document(doc_id))  # type: ignore[return-value]
+    updated = await get_document(doc_id)
+    if updated and x_user_id and updated.translation_text:
+        user_storage.save_translation(x_user_id, doc_id, updated.filename, updated.translation_text)
+        user_storage.save_easyread_text(x_user_id, doc_id, updated.filename, updated.translation_text)
+    return updated  # type: ignore[return-value]
 
 
 @router.post("/{doc_id}/translation/checklist", response_model=ChecklistReport)
@@ -549,16 +678,28 @@ async def run_translation_checklist(doc_id: str) -> ChecklistReport:
 
 
 @router.get("/{doc_id}/export.docx")
-async def export_docx_get(doc_id: str) -> Response:
-    return await _export_docx(doc_id, None)
+async def export_docx_get(
+    doc_id: str,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> Response:
+    return await _export_docx(doc_id, None, x_user_id=x_user_id)
 
 
 @router.post("/{doc_id}/export.docx")
-async def export_docx_post(doc_id: str, body: ExportRequest | None = None) -> Response:
-    return await _export_docx(doc_id, body)
+async def export_docx_post(
+    doc_id: str,
+    body: ExportRequest | None = None,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> Response:
+    return await _export_docx(doc_id, body, x_user_id=x_user_id)
 
 
-async def _export_docx(doc_id: str, body: ExportRequest | None) -> Response:
+async def _export_docx(
+    doc_id: str,
+    body: ExportRequest | None,
+    *,
+    x_user_id: str | None,
+) -> Response:
     doc = await _resolve_document(doc_id, body)
     doc = _doc_for_export(doc_id, doc, body)
     if not doc:
@@ -567,6 +708,11 @@ async def _export_docx(doc_id: str, body: ExportRequest | None) -> Response:
         raise HTTPException(400, "내보낼 내용이 없습니다.")
 
     content = word_export.export_to_docx(doc)
+    if x_user_id:
+        easyread_text = doc.translation_text or doc.summary or ""
+        if easyread_text:
+            user_storage.save_easyread_text(x_user_id, doc_id, doc.filename, easyread_text)
+        user_storage.save_easyread_docx(x_user_id, doc_id, doc.filename, content)
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -578,8 +724,11 @@ async def _export_docx(doc_id: str, body: ExportRequest | None) -> Response:
 
 
 @router.get("/{doc_id}/export.pdf")
-async def export_pdf_get(doc_id: str) -> Response:
-    return await _export_pdf(doc_id, None, inline=True)
+async def export_pdf_get(
+    doc_id: str,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> Response:
+    return await _export_pdf(doc_id, None, inline=True, x_user_id=x_user_id)
 
 
 @router.post("/{doc_id}/export.pdf")
@@ -587,8 +736,9 @@ async def export_pdf_post(
     doc_id: str,
     body: ExportRequest | None = None,
     download: bool = Query(False),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
 ) -> Response:
-    return await _export_pdf(doc_id, body, inline=not download)
+    return await _export_pdf(doc_id, body, inline=not download, x_user_id=x_user_id)
 
 
 async def _export_pdf(
@@ -596,6 +746,7 @@ async def _export_pdf(
     body: ExportRequest | None,
     *,
     inline: bool,
+    x_user_id: str | None,
 ) -> Response:
     doc = await _resolve_document(doc_id, body)
     doc = _doc_for_export(doc_id, doc, body)
@@ -613,6 +764,12 @@ async def _export_pdf(
             503,
             "서버에 Word/LibreOffice PDF 변환기가 없습니다. 브라우저 인쇄(Microsoft Print to PDF)를 사용하세요.",
         ) from exc
+
+    if x_user_id:
+        easyread_text = doc.translation_text or doc.summary or ""
+        if easyread_text:
+            user_storage.save_easyread_text(x_user_id, doc_id, doc.filename, easyread_text)
+        user_storage.save_easyread_pdf(x_user_id, doc_id, doc.filename, content)
 
     disposition = "inline" if inline else "attachment"
     return Response(

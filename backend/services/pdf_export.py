@@ -242,7 +242,6 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
     has_section_layout = any(section.heading for section in sections)
 
     if has_section_layout:
-        blocks.append('<p class="form-header">부록 3. 이지리드 판결서 양식</p>')
         by_item_raw = align_placements_to_items(body, placements)
         by_item = {
             k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]

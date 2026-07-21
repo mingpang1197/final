@@ -125,6 +125,21 @@ class UploadResponse(BaseModel):
     full_text: str = ""
 
 
+class UserProjectItem(BaseModel):
+    doc_id: str
+    filename: str
+    created_at: str = ""
+    updated_at: str = ""
+    has_summary: bool = False
+    has_translation: bool = False
+    has_easyread_pdf: bool = False
+    has_easyread: bool = False
+
+
+class ArtifactTextResponse(BaseModel):
+    content: str
+
+
 class ImageCatalogItem(BaseModel):
     image_file: str
     title: str

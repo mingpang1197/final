@@ -6,6 +6,7 @@ import { RequireAuth } from "./components/RequireAuth";
 import { ExportPage } from "./pages/ExportPage";
 import { ImagesPage } from "./pages/ImagesPage";
 import { LoginPage } from "./pages/LoginPage";
+import { SignupPage } from "./pages/SignupPage";
 import { SummaryPage } from "./pages/SummaryPage";
 import { TranslatePage } from "./pages/TranslatePage";
 import { UploadPage } from "./pages/UploadPage";
@@ -15,6 +16,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
         <Route
           path="/"
           element={

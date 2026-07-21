@@ -314,21 +314,12 @@ def _add_item_text_boxes(
     spacer.paragraph_format.space_after = Pt(12)
 
 
-def _add_form_header(doc: Document) -> None:
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    p.paragraph_format.space_after = Pt(4)
-    run = p.add_run("부록 3. 이지리드 판결서 양식")
-    _set_run_font(run, HEADING_PT, bold=True)
-
-
 def _export_easy_read_layout(
     doc: Document,
     text: str,
     placements: list[ImagePlacement],
 ) -> None:
-    """작성양식 PDF: 부록 헤더 + <소제목> + 항목별 (삽화 | 글)."""
-    _add_form_header(doc)
+    """작성양식 PDF: <소제목> + 항목별 (삽화 | 글)."""
     by_item = align_placements_to_items(text, placements)
 
     for section in parse_export_sections(text):
