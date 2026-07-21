@@ -257,7 +257,7 @@ export function SummaryPage() {
       error={error || undefined}
     >
       <WorkflowTwoPaneGrid>
-        <WorkflowTwoPaneColumn>
+        <WorkflowTwoPaneColumn className="min-h-0 grid grid-rows-[minmax(0,1fr)]">
           <WorkflowTwoPaneLeftFill className="border border-coolgray-30 bg-white rounded-sm">
           {sourcePreviewUrl && sourceReady ? (
             <>

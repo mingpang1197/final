@@ -6,11 +6,13 @@ import { Link } from "react-router-dom";
 import { ChatbotWidget } from "./ChatbotWidget";
 import { StepIndicator, type WorkflowStep } from "./StepIndicator";
 
-/** Figma 80% — 2단 동일 너비, 좌·우 각각 카드 남는 세로 공간 채움 */
+/** Figma 80% — 2단; 부모 flex-1 영역 전체 높이를 absolute로 고정 */
 export function WorkflowTwoPaneGrid({ children }: { children: ReactNode }) {
   return (
-    <div className="grid min-h-0 flex-1 w-full min-w-0 grid-cols-2 grid-rows-[minmax(0,1fr)] gap-5 overflow-hidden p-5 pb-24">
-      {children}
+    <div className="relative min-h-0 flex-1 w-full min-w-0">
+      <div className="absolute inset-0 grid min-h-0 w-full grid-cols-2 gap-5 overflow-hidden p-5 pb-24 [grid-template-rows:minmax(0,1fr)]">
+        {children}
+      </div>
     </div>
   );
 }
@@ -41,7 +43,7 @@ export function WorkflowTwoPaneLeftFill({
 }) {
   return (
     <div
-      className={`flex min-h-0 flex-1 flex-col overflow-hidden ${className}`.trim()}
+      className={`flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden ${className}`.trim()}
     >
       {children}
     </div>
@@ -101,8 +103,10 @@ export function WorkflowLayout({
           )}
         </div>
 
-        <div className="flex-1 flex flex-col w-full min-w-0 min-h-0 bg-white border border-coolgray-20 overflow-hidden">
-          <StepIndicator current={step} docId={docId} />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden w-full min-w-0 bg-white border border-coolgray-20">
+          <div className="shrink-0">
+            <StepIndicator current={step} docId={docId} />
+          </div>
 
           {(prevNav || nextNav) && (
             <div className="flex items-center justify-between px-4 py-2 border-b border-coolgray-20">
