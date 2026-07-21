@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import re
 
-BOLD_PATTERN = re.compile(r"\*\*(.+?)\*\*")
-SIZE_PATTERN = re.compile(r"<(12|14|17)>(.+?)</\1>")
 STYLE_TOKEN = re.compile(r"\*\*(.+?)\*\*|<(12|14|17)>(.+?)</\2>")
+
+
+def has_style_markers(text: str) -> bool:
+    return bool(re.search(r"\*\*.+?\*\*", text)) or bool(
+        re.search(r"<(12|14|17)>.+?</(12|14|17)>", text)
+    )
 
 
 def iter_bold_runs(line: str) -> list[tuple[str, bool]]:

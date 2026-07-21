@@ -30,7 +30,7 @@ from backend.services.export_layout import (
 )
 from backend.services.image_assets import resolve_placement_image
 from backend.services.image_matcher import MAX_IMAGES_PER_TEXT, find_images_for_line
-from backend.services.rich_text import iter_styled_runs
+from backend.services.rich_text import has_style_markers, iter_styled_runs
 
 BODY_PT = 12
 BOLD_BODY_PT = 12
@@ -233,9 +233,12 @@ def _add_heading_paragraph(doc: Document, line: str) -> None:
     p.paragraph_format.space_after = Pt(8)
     p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
     p.paragraph_format.line_spacing = LINE_SPACING
-    text = _clean_heading(stripped) if _is_heading(stripped) else stripped
-    run = p.add_run(text)
-    _set_run_font(run, HEADING_PT, bold=True)
+    raw = _clean_heading(stripped) if _is_heading(stripped) else stripped
+    if has_style_markers(stripped):
+        _add_runs_to_paragraph(p, stripped, size_pt=HEADING_PT)
+    else:
+        run = p.add_run(raw)
+        _set_run_font(run, HEADING_PT, bold=True)
 
 
 def _add_body_paragraph_to_cell(cell, line: str, *, first: bool = False) -> None:

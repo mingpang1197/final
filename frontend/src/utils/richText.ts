@@ -1,5 +1,7 @@
 /** 이지리드 서식(**굵게**, <14>크기</14>) 편집·렌더 유틸 */
 
+import { isSectionHeading } from "./translationSections";
+
 export const FONT_SIZE_OPTIONS = [12, 14, 17] as const;
 export type FontSizePt = (typeof FONT_SIZE_OPTIONS)[number];
 
@@ -8,6 +10,10 @@ const STYLE_TOKEN =
 
 const BOLD_INNER = /^\*\*(.+)\*\*$/;
 const SIZE_INNER = /^<(12|14|17)>(.+)<\/\1>$/;
+
+export function hasStyleMarkers(text: string): boolean {
+  return /\*\*.+?\*\*/.test(text) || /<(12|14|17)>.+?<\/(12|14|17)>/.test(text);
+}
 
 export function escapeHtml(text: string): string {
   return text
@@ -66,6 +72,10 @@ export function markersToHtml(text: string): string {
     .split("\n")
     .map((line) => {
       if (!line) return "<br>";
+      if (isSectionHeading(line) && !hasStyleMarkers(line)) {
+        const inner = escapeHtml(line.replace(/^#+\s*/, "").trim());
+        return `<div data-er-heading="1" style="font-size:17px;font-weight:bold;margin-top:8px">${inner}</div>`;
+      }
       const html = parseStyledParts(line)
         .map(({ text: chunk, bold, sizePt }) => {
           let inner = escapeHtml(chunk);
@@ -116,6 +126,9 @@ function nodeToMarkers(node: Node, ctx: { bold: boolean; sizePt: FontSizePt }): 
 
   if (el.tagName === "DIV" || el.tagName === "P") {
     const inner = Array.from(el.childNodes).map((child) => nodeToMarkers(child, ctx)).join("");
+    if (el.dataset.erHeading === "1") {
+      return inner + "\n";
+    }
     return inner + "\n";
   }
 

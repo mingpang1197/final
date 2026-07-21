@@ -3,14 +3,12 @@
  */
 import { useMemo, useState, type DragEvent, type ReactNode } from "react";
 import type { ImageCatalogItem, ImagePlacement } from "../api/client";
-import { StyledText } from "./BoldText";
+import { StyledLine } from "./BoldText";
 import { RichTextEditor } from "./RichTextEditor";
 import {
-  formatHeadingDisplay,
   parseSectionItems,
   parseTranslationSections,
   resolvePlacementForItem,
-  sectionsToTranslationText,
   type TranslationItem,
   type TranslationSection,
 } from "../utils/translationSections";
@@ -51,14 +49,6 @@ export function EasyReadDocumentView({
   const sections = useMemo(() => parseTranslationSections(text), [text]);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
 
-  function updateSectionBody(sectionIndex: number, body: string) {
-    if (!onTextChange) return;
-    const next = sections.map((s, i) =>
-      i === sectionIndex ? { ...s, bodyLines: body.split("\n") } : s,
-    );
-    onTextChange(sectionsToTranslationText(next));
-  }
-
   function setItemPlacement(
     startLineIndex: number,
     item: ImageCatalogItem,
@@ -97,23 +87,33 @@ export function EasyReadDocumentView({
     );
   }
 
+  if (mode === "translate") {
+    return (
+      <RichTextEditor
+        value={text}
+        onChange={(v) => onTextChange?.(v)}
+        disabled={disabled}
+        layout="export-preview"
+        fill={fill}
+        minHeight={fill ? "100%" : "360px"}
+      />
+    );
+  }
+
   return (
     <div className={`space-y-8 ${fill ? "min-h-0" : ""}`}>
       {sections.map((section, sectionIndex) => (
         <SectionBlock
           key={`${section.startLineIndex}-${sectionIndex}`}
           section={section}
-          mode={mode}
           placements={placements}
           dragOverKey={dragOverKey}
-          disabled={disabled}
           onDragOverKey={setDragOverKey}
           onDropItem={(lineIndex, item) => {
             setDragOverKey(null);
             setItemPlacement(lineIndex, item, section.heading);
           }}
           onRemoveItem={removeItemPlacement}
-          onBodyChange={(body) => updateSectionBody(sectionIndex, body)}
         />
       ))}
     </div>
@@ -122,52 +122,26 @@ export function EasyReadDocumentView({
 
 function SectionBlock({
   section,
-  mode,
   placements,
   dragOverKey,
-  disabled,
   onDragOverKey,
   onDropItem,
   onRemoveItem,
-  onBodyChange,
 }: {
   section: TranslationSection;
-  mode: "translate" | "images";
   placements: ImagePlacement[];
   dragOverKey: string | null;
-  disabled?: boolean;
   onDragOverKey: (key: string | null) => void;
   onDropItem: (lineIndex: number, item: ImageCatalogItem) => void;
   onRemoveItem: (lineIndex: number) => void;
-  onBodyChange: (body: string) => void;
 }) {
-  const headingDisplay = section.heading ? formatHeadingDisplay(section.heading) : null;
   const items = useMemo(() => parseSectionItems(section), [section]);
-  const bodyText = section.bodyLines.join("\n");
-
-  if (mode === "translate") {
-    return (
-      <article className="space-y-3">
-        {headingDisplay && (
-          <h3 className="text-[17px] font-bold text-coolgray-90 leading-snug">{headingDisplay}</h3>
-        )}
-        <RichTextEditor
-          value={bodyText}
-          onChange={onBodyChange}
-          disabled={disabled}
-          minHeight="100px"
-        />
-      </article>
-    );
-  }
 
   return (
     <article className="space-y-4">
-      {headingDisplay && (
-        <h3 className="text-[17px] font-bold text-coolgray-90 leading-snug">
-          {section.heading!.trim().startsWith("#") || section.heading!.trim().startsWith("■")
-            ? <StyledText text={headingDisplay} />
-            : headingDisplay}
+      {section.heading && (
+        <h3 className="leading-snug">
+          <StyledLine text={section.heading} heading />
         </h3>
       )}
 
@@ -219,7 +193,7 @@ function ItemRow({
       <div className="min-w-0 text-[12px] leading-[2] text-coolgray-90 space-y-1">
         {item.lines.map((line, i) => (
           <p key={i}>
-            <StyledText text={line} />
+            <StyledLine text={line} />
           </p>
         ))}
       </div>

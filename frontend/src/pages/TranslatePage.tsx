@@ -232,7 +232,7 @@ export function TranslatePage() {
                 AI가 번역문을 수정하고 있습니다...
               </div>
             )}
-            <div className="flex-1 min-h-0 overflow-auto px-4 py-4">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-4 py-4">
               <EasyReadDocumentView
                 text={translationText}
                 mode="translate"
