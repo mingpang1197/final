@@ -39,11 +39,18 @@ BOLD_BODY_PT = 12
 HEADING_PT = 17
 FOOTER_PT = 11
 LINE_SPACING = 2.0  # 200% (이지리드 가이드)
-IMAGE_COL_WIDTH = Inches(2.05)
-GAP_COL_WIDTH = Inches(0.12)
-BODY_COL_WIDTH = Inches(3.83)
+PAGE_MARGIN_IN = 0.6
+PAGE_MARGIN = Inches(PAGE_MARGIN_IN)
+IMAGE_COL_IN = 2.05
+GAP_COL_IN = 0.1
+BODY_COL_IN = 8.5 - PAGE_MARGIN_IN * 2 - IMAGE_COL_IN - GAP_COL_IN
+IMAGE_COL_WIDTH = Inches(IMAGE_COL_IN)
+GAP_COL_WIDTH = Inches(GAP_COL_IN)
+BODY_COL_WIDTH = Inches(BODY_COL_IN)
 IMAGE_DISPLAY_WIDTH = Inches(1.85)
 IMAGE_CELL_FILL = "FFFFFF"
+CELL_PAD_V = 40  # twips — 셀 상하 여백
+CELL_PAD_GAP = 48  # twips — 그림·본문 사이 간격
 
 _SKIP_LINE = re.compile(r"^(---+\s*|\(\d+/\d+\s*쪽\)|\d+/\d+\s*쪽|>\s)")
 _META_SECTION_START = re.compile(r"^###\s*수정\s*사항")
@@ -84,11 +91,15 @@ def _clean_heading(line: str) -> str:
 
 
 def _configure_section(section) -> None:
-    section.top_margin = Inches(1.25)
-    section.bottom_margin = Inches(1.25)
-    section.left_margin = Inches(1.25)
-    section.right_margin = Inches(1.25)
+    section.top_margin = PAGE_MARGIN
+    section.bottom_margin = PAGE_MARGIN
+    section.left_margin = PAGE_MARGIN
+    section.right_margin = PAGE_MARGIN
     _set_page_number_footer(section)
+
+
+def _inches_to_twips(width: Inches) -> int:
+    return int(width.inches * 1440)
 
 
 def _set_page_number_footer(section) -> None:
@@ -187,6 +198,44 @@ def _set_column_widths(table, widths: list[Inches]) -> None:
             row.cells[idx].width = width
 
 
+def _set_cell_width_fixed(cell, width: Inches) -> None:
+    tc_pr = cell._tc.get_or_add_tcPr()
+    for child in list(tc_pr):
+        if child.tag == qn("w:tcW"):
+            tc_pr.remove(child)
+    tc_w = OxmlElement("w:tcW")
+    tc_w.set(qn("w:w"), str(_inches_to_twips(width)))
+    tc_w.set(qn("w:type"), "dxa")
+    tc_pr.insert(0, tc_w)
+
+
+def _set_table_fixed_layout(table, widths: list[Inches]) -> None:
+    """행마다 열 너비가 흔들리지 않도록 고정(그림 유무 본문 정렬 일치)."""
+    tbl = table._tbl
+    tbl_pr = tbl.tblPr
+    for child in list(tbl_pr):
+        if child.tag == qn("w:tblLayout"):
+            tbl_pr.remove(child)
+        if child.tag == qn("w:tblInd"):
+            tbl_pr.remove(child)
+    layout = OxmlElement("w:tblLayout")
+    layout.set(qn("w:type"), "fixed")
+    tbl_pr.append(layout)
+    tbl_ind = OxmlElement("w:tblInd")
+    tbl_ind.set(qn("w:w"), "0")
+    tbl_ind.set(qn("w:type"), "dxa")
+    tbl_pr.append(tbl_ind)
+
+    for existing in tbl.findall(qn("w:tblGrid")):
+        tbl.remove(existing)
+    tbl_grid = OxmlElement("w:tblGrid")
+    for width in widths:
+        grid_col = OxmlElement("w:gridCol")
+        grid_col.set(qn("w:w"), str(_inches_to_twips(width)))
+        tbl_grid.append(grid_col)
+    tbl_pr.addnext(tbl_grid)
+
+
 def _resolve_placement_path(placement: ImagePlacement) -> Path | None:
     raw = (placement.image_base64 or "").strip()
     if raw:
@@ -214,6 +263,8 @@ def _resolve_placement_path(placement: ImagePlacement) -> Path | None:
 def _apply_body_format(paragraph) -> None:
     paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
     paragraph.paragraph_format.first_line_indent = Pt(0)
+    paragraph.paragraph_format.left_indent = Pt(0)
+    paragraph.paragraph_format.right_indent = Pt(0)
     paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
     paragraph.paragraph_format.line_spacing = LINE_SPACING
     paragraph.paragraph_format.space_after = Pt(6)
@@ -281,12 +332,16 @@ def _add_item_text_boxes(
     table.autofit = False
     table.allow_autofit = False
     _remove_table_borders(table)
-    _set_column_widths(table, [IMAGE_COL_WIDTH, BODY_COL_WIDTH + GAP_COL_WIDTH])
+    col_widths = [IMAGE_COL_WIDTH, Inches(BODY_COL_IN + GAP_COL_IN)]
+    _set_table_fixed_layout(table, col_widths)
+    _set_column_widths(table, col_widths)
 
     row = table.rows[0]
     row.height_rule = WD_ROW_HEIGHT_RULE.AUTO
     image_cell = row.cells[0]
     body_cell = row.cells[1]
+    _set_cell_width_fixed(image_cell, col_widths[0])
+    _set_cell_width_fixed(body_cell, col_widths[1])
 
     for cell in (image_cell, body_cell):
         _set_cell_borders_transparent(cell)
@@ -301,11 +356,10 @@ def _add_item_text_boxes(
         p = image_cell.paragraphs[0]
         run = p.add_run("\u00a0")
         _set_run_font(run, BODY_PT)
-        p.paragraph_format.space_after = Pt(72)
 
     _set_cell_shading(body_cell, "FFFFFF")
-    _set_cell_margins(image_cell, top=80, bottom=80, left=80, right=40)
-    _set_cell_margins(body_cell, top=80, bottom=80, left=80, right=0)
+    _set_cell_margins(image_cell, top=CELL_PAD_V, bottom=CELL_PAD_V, left=0, right=CELL_PAD_GAP)
+    _set_cell_margins(body_cell, top=CELL_PAD_V, bottom=CELL_PAD_V, left=CELL_PAD_GAP, right=0)
 
     first = True
     for line in body_lines:
