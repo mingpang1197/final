@@ -7,7 +7,7 @@ import { isAuthenticated, login } from "../utils/auth";
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -20,7 +20,7 @@ export function LoginPage() {
     e.preventDefault();
     setError("");
     setSubmitting(true);
-    const ok = login(email, password);
+    const ok = login(userId, password);
     setSubmitting(false);
     if (!ok) {
       setError("회원가입된 계정 정보와 일치하지 않습니다.");
@@ -50,13 +50,13 @@ export function LoginPage() {
 
           <div className="w-full max-w-[575px]">
             <label className="block">
-              <span className="mb-[9px] block text-base leading-[1.4] text-[#9d9d9d]">Email</span>
+              <span className="mb-[9px] block text-base leading-[1.4] text-[#9d9d9d]">ID</span>
               <input
-                type="email"
-                name="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                name="userId"
+                autoComplete="username"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
                 className="w-full border-0 border-b border-coolgray-30 bg-transparent pb-[11px] text-base text-coolgray-90 outline-none focus:border-primary-60"
                 required
               />

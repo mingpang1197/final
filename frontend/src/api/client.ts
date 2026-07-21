@@ -5,6 +5,8 @@
  * 주요 기능: fetch 래퍼, Document/TranslationSegment 타입, 파일 다운로드.
  * 연관 파일: pages/*.tsx, components/*.tsx, utils/docCache.ts
  */
+import { getAuthUserId } from "../utils/auth";
+
 const API_BASE = "/api";
 
 export type DocType = "criminal" | "civil" | "family" | "administrative" | "unknown";
@@ -117,7 +119,7 @@ async function parseErrorResponse(res: Response): Promise<string> {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
-  const authUser = localStorage.getItem("easyread-auth-user");
+  const authUser = getAuthUserId();
   if (authUser) {
     headers.set("X-User-Id", authUser);
   }
@@ -362,13 +364,13 @@ export async function getUserProjectArtifact(
 }
 
 export function getUserProjectSourceUrl(docId: string): string {
-  const userId = localStorage.getItem("easyread-auth-user") ?? "";
+  const userId = getAuthUserId() ?? "";
   const q = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
   return `${API_BASE}/documents/user-projects/${docId}/source${q}`;
 }
 
 export function getUserProjectEasyreadPdfUrl(docId: string): string {
-  const userId = localStorage.getItem("easyread-auth-user") ?? "";
+  const userId = getAuthUserId() ?? "";
   const q = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
   return `${API_BASE}/documents/user-projects/${docId}/easyread.pdf${q}`;
 }

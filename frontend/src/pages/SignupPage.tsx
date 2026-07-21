@@ -95,10 +95,10 @@ export function SignupPage() {
             </label>
 
             <label className="block">
-              <span className="mb-[9px] block text-base leading-[1.4] text-[#9d9d9d]">Email</span>
+              <span className="mb-[9px] block text-base leading-[1.4] text-[#9d9d9d]">ID</span>
               <input
-                type="email"
-                name="email"
+                type="text"
+                name="userId"
                 autoComplete="username"
                 value={form.email}
                 onChange={(e) => onChange("email", e.target.value)}

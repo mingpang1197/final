@@ -2,6 +2,22 @@ export const USERS_STORAGE_KEY = "easyread-users";
 const AUTH_FLAG_KEY = "easyread-auth";
 const AUTH_USER_KEY = "easyread-auth-user";
 
+function authStorage(): Storage {
+  return sessionStorage;
+}
+
+/** 이전 localStorage 세션 키 정리 (탭 종료 시 로그아웃 정책 전환) */
+function clearLegacyAuthStorage(): void {
+  try {
+    localStorage.removeItem(AUTH_FLAG_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+clearLegacyAuthStorage();
+
 export interface StoredUser {
   name: string;
   email: string;
@@ -42,7 +58,7 @@ export function writeUsers(users: StoredUser[]): void {
 
 export function isAuthenticated(): boolean {
   try {
-    return localStorage.getItem(AUTH_FLAG_KEY) === "signed-in";
+    return authStorage().getItem(AUTH_FLAG_KEY) === "signed-in";
   } catch {
     return false;
   }
@@ -50,7 +66,7 @@ export function isAuthenticated(): boolean {
 
 export function getAuthUserId(): string | null {
   try {
-    const userId = localStorage.getItem(AUTH_USER_KEY);
+    const userId = authStorage().getItem(AUTH_USER_KEY);
     return userId?.trim() || null;
   } catch {
     return null;
@@ -69,21 +85,23 @@ export function getAuthSession(): AuthSession | null {
   };
 }
 
-export function login(email: string, password: string): boolean {
-  const normalized = email.trim().toLowerCase();
+export function login(userId: string, password: string): boolean {
+  const normalized = userId.trim().toLowerCase();
   const matched = readUsers().find(
     (user) => user.email.toLowerCase() === normalized && user.password === password,
   );
   if (!matched) return false;
 
-  localStorage.setItem(AUTH_FLAG_KEY, "signed-in");
-  localStorage.setItem(AUTH_USER_KEY, matched.email);
+  clearLegacyAuthStorage();
+  authStorage().setItem(AUTH_FLAG_KEY, "signed-in");
+  authStorage().setItem(AUTH_USER_KEY, matched.email);
   return true;
 }
 
 export function logout(): void {
-  localStorage.removeItem(AUTH_FLAG_KEY);
-  localStorage.removeItem(AUTH_USER_KEY);
+  clearLegacyAuthStorage();
+  authStorage().removeItem(AUTH_FLAG_KEY);
+  authStorage().removeItem(AUTH_USER_KEY);
 }
 
 export function registerUser(input: {
