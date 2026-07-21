@@ -12,7 +12,7 @@ import {
 } from "../api/client";
 import { DraggableCatalogItem, EasyReadDocumentView } from "../components/EasyReadDocumentView";
 import { PromptBar } from "../components/PromptBar";
-import { WorkflowLayout } from "../components/ui/WorkflowLayout";
+import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { filterPlacementsForExport } from "../utils/translationSections";
@@ -261,8 +261,8 @@ export function ImagesPage() {
       filename={filenameLabel}
       error={error || undefined}
     >
-      <div className="flex-1 grid w-full min-w-0 grid-cols-2 gap-5 min-h-0 overflow-hidden px-4 pt-4 pb-24 pr-20">
-        <div className="min-h-0 min-w-0 flex flex-col gap-3 overflow-hidden">
+      <WorkflowTwoPaneGrid>
+        <WorkflowTwoPaneColumn className="gap-3">
           <p className="text-center text-base text-primary-90 shrink-0">번역문</p>
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-white">
             {segments.length === 0 ? (
@@ -281,9 +281,9 @@ export function ImagesPage() {
               </div>
             )}
           </div>
-        </div>
+        </WorkflowTwoPaneColumn>
 
-        <div className="min-h-0 min-w-0 flex flex-col gap-3 overflow-hidden">
+        <WorkflowTwoPaneColumn className="gap-3">
           <p className="text-center text-base text-primary-90 shrink-0">그림 DB</p>
 
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-coolgray-10">
@@ -345,8 +345,8 @@ export function ImagesPage() {
               placeholder="찾을 그림을 설명하세요 (예: 각하, 징역, 무죄)"
             />
           </div>
-        </div>
-      </div>
+        </WorkflowTwoPaneColumn>
+      </WorkflowTwoPaneGrid>
     </WorkflowLayout>
   );
 }

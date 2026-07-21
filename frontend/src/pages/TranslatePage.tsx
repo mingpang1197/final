@@ -11,7 +11,7 @@ import {
 } from "../api/client";
 import { PromptBar } from "../components/PromptBar";
 import { EasyReadDocumentView } from "../components/EasyReadDocumentView";
-import { WorkflowLayout } from "../components/ui/WorkflowLayout";
+import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
@@ -208,8 +208,8 @@ export function TranslatePage() {
       filename={filenameLabel}
       error={error || undefined}
     >
-      <div className="flex-1 grid w-full min-w-0 grid-cols-2 gap-5 min-h-0 overflow-hidden px-4 pt-4 pb-24 pr-20">
-        <div className="min-h-0 min-w-0 flex flex-col gap-3 overflow-hidden">
+      <WorkflowTwoPaneGrid>
+        <WorkflowTwoPaneColumn className="gap-3">
           <p className="text-center text-base text-primary-90 shrink-0">요약문</p>
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-white">
             <pre
@@ -220,9 +220,9 @@ export function TranslatePage() {
               {summaryDisplay || summaryPlaceholder}
             </pre>
           </div>
-        </div>
+        </WorkflowTwoPaneColumn>
 
-        <div className="min-h-0 min-w-0 flex flex-col gap-3 overflow-hidden">
+        <WorkflowTwoPaneColumn className="gap-3">
           <p className="text-center text-base text-primary-90 shrink-0">번역문</p>
 
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-coolgray-10 relative">
@@ -253,8 +253,8 @@ export function TranslatePage() {
               loadingLabel="번역 수정 중..."
             />
           </div>
-        </div>
-      </div>
+        </WorkflowTwoPaneColumn>
+      </WorkflowTwoPaneGrid>
     </WorkflowLayout>
   );
 }
