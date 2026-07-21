@@ -7,7 +7,6 @@ from __future__ import annotations
 관계: database(저장), services(upstage·translator·word_export 등), models/schemas(요청·응답).
 """
 
-import logging
 import mimetypes
 import re
 import uuid
@@ -18,8 +17,6 @@ from fastapi import APIRouter, File, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 
 from backend.config import UPLOAD_DIR, settings
-
-logger = logging.getLogger(__name__)
 from backend.database import (
     create_document,
     ensure_document,
@@ -766,11 +763,15 @@ async def _export_pdf(
     if not doc.translation_text and not doc.summary and not doc.translation_segments:
         raise HTTPException(400, "내보낼 내용이 없습니다.")
 
+    from backend.services.docx_to_pdf import DocxToPdfError
+
     try:
         content = pdf_export.export_to_pdf(doc)
-    except Exception as exc:
-        logger.exception("PDF export failed")
-        raise HTTPException(500, "PDF 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.") from exc
+    except DocxToPdfError as exc:
+        raise HTTPException(
+            503,
+            "서버에 Word/LibreOffice PDF 변환기가 없습니다. 브라우저 인쇄(Microsoft Print to PDF)를 사용하세요.",
+        ) from exc
 
     if x_user_id:
         easyread_text = doc.translation_text or doc.summary or ""
