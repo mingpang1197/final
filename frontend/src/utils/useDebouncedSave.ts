@@ -43,3 +43,15 @@ export function useDebouncedSave(
 
   return { flush };
 }
+
+/** 라우트 이탈 시 debounce 저장 즉시 반영 (회원 저장소·기존 프로젝트 목록용) */
+export function useFlushSaveOnUnmount(flush: () => void | Promise<void>) {
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+
+  useEffect(() => {
+    return () => {
+      void Promise.resolve(flushRef.current()).catch(console.error);
+    };
+  }, []);
+}

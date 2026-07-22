@@ -18,7 +18,7 @@ import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentL
 import { filterPlacementsRespectingClears } from "../utils/imageSlotPrefs";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { filterPlacementsForExport } from "../utils/translationSections";
-import { useDebouncedSave } from "../utils/useDebouncedSave";
+import { useDebouncedSave, useFlushSaveOnUnmount } from "../utils/useDebouncedSave";
 import {
   getWorkflowSnapshot,
   resolveTranslationSegments,
@@ -218,6 +218,7 @@ export function ImagesPage() {
   }, [persistSegments, segments]);
 
   const { flush: flushTranslationSave } = useDebouncedSave(segments, persistTranslation);
+  useFlushSaveOnUnmount(flushTranslationSave);
 
   async function applyImagePrompt() {
     if (!prompt.trim()) return;
@@ -242,12 +243,6 @@ export function ImagesPage() {
     setWebSearchActive(false);
     setError("");
   }
-
-  useEffect(() => {
-    return () => {
-      void flushTranslationSave();
-    };
-  }, [flushTranslationSave]);
 
   function editPlacements(next: ImagePlacement[]) {
     setSegments((prev) => {

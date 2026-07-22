@@ -2,8 +2,8 @@
  * 기존 프로젝트 대시보드 (로그인 사용자별 저장 항목).
  * 원문·요약문·번역문·최종본은 서버 user_storage에 보관(삭제 전까지 유지).
  */
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   deleteUserProject,
   getUserProjectArtifact,
@@ -16,6 +16,7 @@ import {
 
 export function ExistingProjectsTable() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [rows, setRows] = useState<UserProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -24,27 +25,35 @@ export function ExistingProjectsTable() {
   const [modalOpen, setModalOpen] = useState(false);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refreshProjects = useCallback(async () => {
     setLoading(true);
     setError("");
-    listUserProjects()
-      .then((items) => {
-        if (!cancelled) setRows(items);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "기존 프로젝트를 불러오지 못했습니다.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    try {
+      const items = await listUserProjects();
+      setRows(items);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "기존 프로젝트를 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (location.pathname !== "/") return;
+
+    let cancelled = false;
+    void refreshProjects();
+
+    // 요약·번역·그림 탭 이탈 직후 flush 저장이 끝난 뒤 목록 반영
+    const retryTimer = window.setTimeout(() => {
+      if (!cancelled) void refreshProjects();
+    }, 1500);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(retryTimer);
     };
-  }, []);
+  }, [location.pathname, location.key, refreshProjects]);
 
   async function openArtifact(docId: string, kind: UserProjectArtifactKind) {
     try {

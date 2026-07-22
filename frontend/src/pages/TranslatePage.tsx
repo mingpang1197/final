@@ -15,7 +15,7 @@ import { EasyReadDocumentView } from "../components/EasyReadDocumentView";
 import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../components/ui/WorkflowLayout";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
-import { useDebouncedSave } from "../utils/useDebouncedSave";
+import { useDebouncedSave, useFlushSaveOnUnmount } from "../utils/useDebouncedSave";
 import {
   getWorkflowSnapshot,
   resolveSummary,
@@ -148,6 +148,7 @@ export function TranslatePage() {
   }, [id, segments, summary]);
 
   const { flush: flushTranslationSave } = useDebouncedSave(segments, persistTranslation);
+  useFlushSaveOnUnmount(flushTranslationSave);
 
   function editTranslationText(text: string) {
     if (segments.length === 0) return;

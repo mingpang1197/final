@@ -20,7 +20,7 @@ import {
 } from "../utils/docCache";
 import { loadDocumentWithRecovery } from "../utils/documentLoader";
 import { getSourceObjectUrl } from "../utils/sourceStore";
-import { useDebouncedSave } from "../utils/useDebouncedSave";
+import { useDebouncedSave, useFlushSaveOnUnmount } from "../utils/useDebouncedSave";
 import {
   getWorkflowSnapshot,
   resolveSummary,
@@ -73,6 +73,7 @@ export function SummaryPage() {
   }, [id, summary]);
 
   const { flush: flushSummarySave } = useDebouncedSave(summary, persistSummary);
+  useFlushSaveOnUnmount(flushSummarySave);
 
   const load = useCallback(async () => {
     if (!id) return;
