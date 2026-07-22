@@ -13,7 +13,9 @@ import {
 import { DraggableCatalogItem, EasyReadDocumentView } from "../components/EasyReadDocumentView";
 import { PromptBar } from "../components/PromptBar";
 import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../components/ui/WorkflowLayout";
+import { IconSpinner } from "../components/ui/icons";
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
+import { filterPlacementsRespectingClears } from "../utils/imageSlotPrefs";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { filterPlacementsForExport } from "../utils/translationSections";
 import { useDebouncedSave } from "../utils/useDebouncedSave";
@@ -60,6 +62,8 @@ export function ImagesPage() {
   const [promptLoading, setPromptLoading] = useState(false);
   const [webSearchActive, setWebSearchActive] = useState(false);
   const [catalogVisibleCount, setCatalogVisibleCount] = useState(48);
+  const [autoPlacing, setAutoPlacing] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const catalogScrollRef = useRef<HTMLDivElement>(null);
 
   const CATALOG_PAGE_SIZE = 48;
@@ -71,7 +75,13 @@ export function ImagesPage() {
   const load = useCallback(async () => {
     if (!id) return;
     setError("");
+    setPageLoading(true);
     const workflow = getWorkflowSnapshot(id);
+    const cachedSegs = workflow?.translation_segments ?? [];
+    if (cachedSegs.length) {
+      setSegments(sanitizeSegments(cachedSegs));
+      if (workflow?.filename) setFilename(workflow.filename);
+    }
 
     try {
       const doc = await loadDocumentWithRecovery(id);
@@ -79,16 +89,26 @@ export function ImagesPage() {
       let segs = sanitizeSegments(resolveTranslationSegments(id, doc.translation_segments));
       const main = segs[0];
       if (main?.easy_text) {
+        setAutoPlacing(true);
         try {
           const ensurePayload = buildEnsureContext(id);
-          const filled = await detectImagePlacements(id, {
+          const clearedExisting = filterPlacementsRespectingClears(
+            id,
+            main.image_placements ?? [],
+          );
+          let filled = await detectImagePlacements(id, {
             ...(ensurePayload ?? {}),
             translationText: main.easy_text,
-            existingPlacements: main.image_placements ?? [],
+            existingPlacements: clearedExisting,
           });
-          if (placementsChanged(main.image_placements ?? [], filled)) {
+          filled = filterPlacementsRespectingClears(id, filled);
+          if (placementsChanged(clearedExisting, filled)) {
             segs = segs.map((s, i) =>
               i === 0 ? { ...s, image_placements: filled } : s,
+            );
+          } else if (clearedExisting.length !== (main.image_placements ?? []).length) {
+            segs = segs.map((s, i) =>
+              i === 0 ? { ...s, image_placements: clearedExisting } : s,
             );
           }
         } catch (err) {
@@ -98,6 +118,8 @@ export function ImagesPage() {
               ? `그림 자동 배치 실패: ${err.message}`
               : "그림 자동 배치에 실패했습니다.",
           );
+        } finally {
+          setAutoPlacing(false);
         }
       }
       setSegments(segs);
@@ -128,6 +150,8 @@ export function ImagesPage() {
         return;
       }
       setError(err instanceof Error ? err.message : "문서를 불러오지 못했습니다");
+    } finally {
+      setPageLoading(false);
     }
   }, [id]);
 
@@ -226,10 +250,10 @@ export function ImagesPage() {
   }, [flushTranslationSave]);
 
   function editPlacements(next: ImagePlacement[]) {
-    if (!mainSegment) return;
     setSegments((prev) => {
-      const updated = prev.map((s) =>
-        s.id === mainSegment.id ? { ...s, image_placements: next } : s,
+      if (!prev.length) return prev;
+      const updated = prev.map((s, i) =>
+        i === 0 ? { ...s, image_placements: next } : s,
       );
       if (id) {
         saveWorkflowSnapshot(id, { translation_segments: updated });
@@ -238,6 +262,8 @@ export function ImagesPage() {
       return updated;
     });
   }
+
+  const showPlacementBusy = pageLoading || autoPlacing;
 
   const filenameLabel = [
     filename || "파일명",
@@ -264,8 +290,15 @@ export function ImagesPage() {
       <WorkflowTwoPaneGrid>
         <WorkflowTwoPaneColumn className="gap-3">
           <p className="shrink-0 text-center text-base text-primary-90">번역문</p>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden border border-coolgray-40 bg-white">
-            {segments.length === 0 ? (
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden border border-coolgray-40 bg-white">
+            {showPlacementBusy ? (
+              <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center gap-3 px-4 py-8 text-primary-60 text-sm">
+                <IconSpinner className="size-10" />
+                {autoPlacing
+                  ? "AI가 그림을 배치하고 있습니다..."
+                  : "번역문을 불러오는 중..."}
+              </div>
+            ) : segments.length === 0 ? (
               <pre className="flex min-h-0 w-full flex-1 items-center justify-center overflow-auto px-4 py-3 text-center text-base leading-relaxed whitespace-pre-wrap text-coolgray-60">
                 {translationPlaceholder}
               </pre>
@@ -275,6 +308,7 @@ export function ImagesPage() {
                   text={translationText}
                   placements={placements}
                   mode="images"
+                  docId={id}
                   fill
                   onPlacementsChange={editPlacements}
                 />

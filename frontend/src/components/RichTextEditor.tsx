@@ -5,6 +5,8 @@ import {
   DEFAULT_FONT_SIZE,
   FONT_SIZE_PRESETS,
   htmlToMarkers,
+  htmlToMarkersExportPreview,
+  exportPreviewBodyToHtml,
   markersToHtml,
   type FontSizePt,
 } from "../utils/richText";
@@ -230,10 +232,18 @@ export function RichTextEditor({
     setCanRedo(history.canRedo());
   }, [history]);
 
+  const toEditorHtml = useCallback(
+    (markers: string) => {
+      const body = toEditorMarkers(markers);
+      return layout === "export-preview" ? exportPreviewBodyToHtml(body) : markersToHtml(body);
+    },
+    [layout, toEditorMarkers],
+  );
+
   const applyMarkersToEditor = useCallback(
     (markers: string, notifyParent: boolean) => {
       if (editorRef.current) {
-        editorRef.current.innerHTML = markersToHtml(toEditorMarkers(markers));
+        editorRef.current.innerHTML = toEditorHtml(markers);
       }
       if (layout === "export-preview" && closingEditorRef.current) {
         const { closing } = splitStandardClosing(markers);
@@ -243,33 +253,37 @@ export function RichTextEditor({
       savedValueRef.current = markers;
       if (notifyParent) onChange(markers);
     },
-    [layout, onChange, toEditorMarkers],
+    [layout, onChange, toEditorHtml],
   );
+
+  const bodyMarkersFromEditor = useCallback(() => {
+    if (!editorRef.current) return "";
+    const html = editorRef.current.innerHTML;
+    return layout === "export-preview" ? htmlToMarkersExportPreview(html) : htmlToMarkers(html);
+  }, [layout]);
 
   const syncFromDom = useCallback(() => {
     if (!editorRef.current || history.isApplying()) return;
-    const bodyMarkers = htmlToMarkers(editorRef.current.innerHTML);
+    const bodyMarkers = bodyMarkersFromEditor();
     const markers = toStoredMarkers(bodyMarkers);
     if (markers === savedValueRef.current) return;
     history.recordChange(markers);
     savedValueRef.current = markers;
     onChange(markers);
     refreshHistoryFlags();
-  }, [history, onChange, refreshHistoryFlags, toStoredMarkers]);
+  }, [bodyMarkersFromEditor, history, onChange, refreshHistoryFlags, toStoredMarkers]);
 
   const syncClosingFromDom = useCallback(() => {
     if (!closingEditorRef.current || history.isApplying()) return;
     const closingMarkers = htmlToMarkers(closingEditorRef.current.innerHTML).trim();
-    const bodyMarkers = editorRef.current
-      ? htmlToMarkers(editorRef.current.innerHTML)
-      : splitStandardClosing(savedValueRef.current).body;
+    const bodyMarkers = editorRef.current ? bodyMarkersFromEditor() : splitStandardClosing(savedValueRef.current).body;
     const markers = mergeWithStandardClosing(bodyMarkers, closingMarkers || STANDARD_CLOSING);
     if (markers === savedValueRef.current) return;
     history.recordChange(markers);
     savedValueRef.current = markers;
     onChange(markers);
     refreshHistoryFlags();
-  }, [history, onChange, refreshHistoryFlags]);
+  }, [bodyMarkersFromEditor, history, onChange, refreshHistoryFlags, toStoredMarkers]);
 
   const syncActiveSurfaceFromDom = useCallback(() => {
     if (activeSurfaceRef.current === "closing") {
@@ -329,7 +343,7 @@ export function RichTextEditor({
     if (!editorRef.current || history.isApplying()) return;
 
     if (!initializedRef.current) {
-      editorRef.current.innerHTML = markersToHtml(toEditorMarkers(value));
+      editorRef.current.innerHTML = toEditorHtml(value);
       savedValueRef.current = value;
       history.resetHistory(value);
       initializedRef.current = true;
@@ -338,7 +352,7 @@ export function RichTextEditor({
     }
 
     if (value !== savedValueRef.current) {
-      editorRef.current.innerHTML = markersToHtml(toEditorMarkers(value));
+      editorRef.current.innerHTML = toEditorHtml(value);
       savedValueRef.current = value;
       history.resetHistory(value);
       refreshHistoryFlags();
@@ -346,7 +360,7 @@ export function RichTextEditor({
         closingInitializedRef.current = false;
       }
     }
-  }, [value, history, layout, refreshHistoryFlags, toEditorMarkers]);
+  }, [value, history, layout, refreshHistoryFlags, toEditorHtml]);
 
   useEffect(() => {
     if (layout !== "export-preview" || !closingEditorRef.current || history.isApplying()) return;
@@ -427,6 +441,9 @@ export function RichTextEditor({
 
   const editorClassName =
     "min-w-0 min-h-0 flex-1 px-2 py-2 text-[12px] leading-[2] text-coolgray-90 outline-none overflow-y-auto [&_strong]:font-bold" +
+    (layout === "export-preview"
+      ? " [&_.er-export-item-row]:grid [&_.er-export-item-row]:grid-cols-[minmax(120px,32%)_1fr] [&_.er-export-item-row]:gap-4 [&_.er-export-item-row]:items-start [&_.er-export-item-row]:mb-5 [&_.er-export-img-slot]:rounded-lg [&_.er-export-img-slot]:border [&_.er-export-img-slot]:border-dashed [&_.er-export-img-slot]:border-coolgray-40 [&_.er-export-img-slot]:bg-[#f5f0e8] [&_.er-export-img-slot]:min-h-[120px] [&_.er-export-img-slot]:flex [&_.er-export-img-slot]:items-center [&_.er-export-img-slot]:justify-center [&_.er-export-img-slot]:text-xs [&_.er-export-img-slot]:text-center [&_.er-export-img-slot]:text-coolgray-60 [&_.er-export-img-slot]:px-2 [&_.er-export-img-slot]:select-none"
+      : "") +
     (disabled && !readOnly ? " disabled:opacity-60" : "");
 
   const editor = (
@@ -469,22 +486,7 @@ export function RichTextEditor({
       )}
       {layout === "export-preview" ? (
         <div className={`flex flex-col min-h-0 ${fill ? "flex-1 overflow-hidden" : ""}`}>
-          <div
-            className={`grid grid-cols-[minmax(120px,32%)_1fr] gap-4 p-3 min-h-0 ${
-              fill ? "flex-1 overflow-hidden" : ""
-            }`}
-          >
-            <div className="rounded-lg border border-dashed border-coolgray-40 bg-[#f5f0e8] min-h-[120px] flex items-center justify-center text-xs text-center text-coolgray-60 px-2">
-              <span>
-                그림 영역
-                <br />
-                (그림·추출과 동일)
-              </span>
-            </div>
-            <div className={`min-w-0 min-h-0 flex flex-col ${fill ? "h-full overflow-hidden" : ""}`}>
-              {editor}
-            </div>
-          </div>
+          <div className={`min-h-0 p-3 ${fill ? "flex-1 overflow-hidden" : ""}`}>{editor}</div>
           <div className="shrink-0 border-t border-coolgray-20 px-3 py-3">
             <div
               ref={closingEditorRef}

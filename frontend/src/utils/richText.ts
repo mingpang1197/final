@@ -1,6 +1,10 @@
 /** 이지리드 서식(**굵게**, <14>크기</14>) 편집·렌더 유틸 */
 
-import { isSectionHeading } from "./translationSections";
+import {
+  isSectionHeading,
+  parseSectionItems,
+  parseTranslationSections,
+} from "./translationSections";
 
 /** Word 글꼴 크기 프리셋 */
 export const FONT_SIZE_PRESETS = [
@@ -75,31 +79,90 @@ export function parseStyledParts(text: string, defaultSize: FontSizePt = DEFAULT
   return parts;
 }
 
+function markersLineToHtmlDiv(line: string): string {
+  if (!line) return "<div><br></div>";
+  if (isSectionHeading(line) && !hasStyleMarkers(line)) {
+    const inner = escapeHtml(line.replace(/^#+\s*/, "").trim());
+    return `<div data-er-heading="1" style="font-size:17px;font-weight:bold;margin-top:8px">${inner}</div>`;
+  }
+  const html = parseStyledParts(line)
+    .map(({ text: chunk, bold, sizePt }) => {
+      let inner = escapeHtml(chunk);
+      if (bold) inner = `<strong>${inner}</strong>`;
+      if (sizePt !== DEFAULT_FONT_SIZE) {
+        inner = `<span data-font-pt="${sizePt}" style="font-size:${sizePt}px">${inner}</span>`;
+      }
+      return inner;
+    })
+    .join("");
+  return `<div>${html || "<br>"}</div>`;
+}
+
+const EXPORT_PREVIEW_IMAGE_SLOT =
+  '<div contenteditable="false" class="er-export-img-slot"><span>그림 영역<br>(그림·추출과 동일)</span></div>';
+
+/** 번역 탭 export-preview — 소제목 전체 너비, 항목마다 왼쪽 그림 영역 */
+export function exportPreviewBodyToHtml(body: string): string {
+  if (!body.trim()) return "";
+
+  const sections = parseTranslationSections(body);
+  const parts: string[] = [];
+
+  for (const section of sections) {
+    if (section.heading) {
+      parts.push(markersLineToHtmlDiv(section.heading));
+    }
+    for (const item of parseSectionItems(section)) {
+      const itemHtml = item.lines.map((line) => markersLineToHtmlDiv(line)).join("");
+      parts.push(
+        `<div class="er-export-item-row" data-er-item-row="1">${EXPORT_PREVIEW_IMAGE_SLOT}<div class="er-export-item-body min-w-0">${itemHtml}</div></div>`,
+      );
+    }
+  }
+
+  return parts.join("");
+}
+
+function markersFromLineElement(el: HTMLElement): string {
+  return Array.from(el.childNodes)
+    .map((n) => nodeToMarkers(n, { bold: false, sizePt: DEFAULT_FONT_SIZE }))
+    .join("");
+}
+
+/** export-preview 편집 DOM → 저장 형식 */
+export function htmlToMarkersExportPreview(html: string): string {
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html");
+  const lines: string[] = [];
+
+  for (const child of Array.from(doc.body.children)) {
+    const el = child as HTMLElement;
+    if (el.dataset.erHeading === "1") {
+      lines.push(markersFromLineElement(el));
+      continue;
+    }
+    if (el.dataset.erItemRow === "1") {
+      const bodyEl = el.querySelector(".er-export-item-body");
+      if (bodyEl) {
+        for (const lineEl of Array.from(bodyEl.children)) {
+          if (lineEl instanceof HTMLElement && lineEl.tagName === "DIV") {
+            lines.push(markersFromLineElement(lineEl));
+          }
+        }
+      }
+      continue;
+    }
+    if (el.tagName === "DIV") {
+      lines.push(markersFromLineElement(el));
+    }
+  }
+
+  return lines.join("\n").replace(/\n+$/, "");
+}
+
 /** 저장 형식 → WYSIWYG HTML */
 export function markersToHtml(text: string): string {
   if (!text) return "";
-
-  return text
-    .split("\n")
-    .map((line) => {
-      if (!line) return "<br>";
-      if (isSectionHeading(line) && !hasStyleMarkers(line)) {
-        const inner = escapeHtml(line.replace(/^#+\s*/, "").trim());
-        return `<div data-er-heading="1" style="font-size:17px;font-weight:bold;margin-top:8px">${inner}</div>`;
-      }
-      const html = parseStyledParts(line)
-        .map(({ text: chunk, bold, sizePt }) => {
-          let inner = escapeHtml(chunk);
-          if (bold) inner = `<strong>${inner}</strong>`;
-          if (sizePt !== DEFAULT_FONT_SIZE) {
-            inner = `<span data-font-pt="${sizePt}" style="font-size:${sizePt}px">${inner}</span>`;
-          }
-          return inner;
-        })
-        .join("");
-      return `<div>${html || "<br>"}</div>`;
-    })
-    .join("");
+  return text.split("\n").map((line) => markersLineToHtmlDiv(line)).join("");
 }
 
 function parseFontPt(el: HTMLElement): FontSizePt | null {

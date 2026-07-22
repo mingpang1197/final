@@ -7,13 +7,14 @@ import { StyledLine } from "./BoldText";
 import { RichTextEditor } from "./RichTextEditor";
 import {
   alignPlacementsOnePerSection,
+  findSectionForLineIndex,
   parseSectionItems,
   parseTranslationSections,
   splitStandardClosing,
-  findSectionForLineIndex,
   type TranslationItem,
   type TranslationSection,
 } from "../utils/translationSections";
+import { addClearedImageSlot } from "../utils/imageSlotPrefs";
 
 export const IMAGE_DRAG_MIME = "application/x-easyread-image";
 
@@ -31,6 +32,7 @@ interface EasyReadDocumentViewProps {
   text: string;
   placements?: ImagePlacement[];
   mode: "translate" | "images";
+  docId?: string;
   onTextChange?: (text: string) => void;
   onPlacementsChange?: (placements: ImagePlacement[]) => void;
   fill?: boolean;
@@ -42,6 +44,7 @@ export function EasyReadDocumentView({
   text,
   placements = [],
   mode,
+  docId,
   onTextChange,
   onPlacementsChange,
   fill = false,
@@ -90,10 +93,33 @@ export function EasyReadDocumentView({
 
   function removeItemPlacement(startLineIndex: number) {
     if (!onPlacementsChange) return;
-    const target = alignedPlacements.get(startLineIndex);
-    if (target?.auto_filled) return;
-    if (!target) return;
-    onPlacementsChange(placements.filter((p) => p.id !== target.id));
+    const section = findSectionForLineIndex(documentBody, startLineIndex);
+    const firstIdx =
+      section != null
+        ? parseSectionItems(section)[0]?.startLineIndex ?? startLineIndex
+        : startLineIndex;
+    const target =
+      alignedPlacements.get(firstIdx) ??
+      alignedPlacements.get(startLineIndex) ??
+      placements.find(
+        (p) =>
+          p.line_index === firstIdx ||
+          p.line_index === startLineIndex ||
+          findSectionForLineIndex(documentBody, p.line_index)?.startLineIndex ===
+            section?.startLineIndex,
+      );
+    if (!target && !section) return;
+
+    if (docId) addClearedImageSlot(docId, firstIdx);
+
+    onPlacementsChange(
+      placements.filter((p) => {
+        if (target?.id && p.id) return p.id !== target.id;
+        const pSection = findSectionForLineIndex(documentBody, p.line_index);
+        if (section && pSection?.startLineIndex === section.startLineIndex) return false;
+        return true;
+      }),
+    );
   }
 
   if (!text.trim()) {
@@ -274,23 +300,30 @@ function ImageSlot({
             : "border-dashed border-coolgray-40 bg-[#f5f0e8] text-coolgray-60"
       } ${dragOver && placement ? "ring-2 ring-primary-60 ring-offset-1" : ""}`}
     >
-      {placement && url ? (
+      {placement ? (
         <>
-          <img
-            src={url}
-            alt={placement.title || "시각자료"}
-            className="max-h-32 w-full object-contain pointer-events-none"
-          />
-          {!placement.auto_filled && (
-            <button
-              type="button"
-              onClick={onRemove}
-              className="absolute top-1 right-1 size-6 rounded-full bg-white/90 border border-coolgray-30 text-coolgray-60 hover:text-alert text-sm leading-none"
-              aria-label="그림 제거"
-            >
-              ×
-            </button>
+          {url ? (
+            <img
+              src={url}
+              alt={placement.title || "시각자료"}
+              className="max-h-32 w-full object-contain pointer-events-none"
+            />
+          ) : (
+            <span className="text-xs text-center text-coolgray-60 px-2 pointer-events-none">
+              {placement.title || placement.image_file}
+            </span>
           )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="absolute top-1 right-1 z-10 size-6 rounded-full bg-white/90 border border-coolgray-30 text-coolgray-60 hover:text-alert text-sm leading-none shadow-sm"
+            aria-label="그림 제거"
+          >
+            ×
+          </button>
         </>
       ) : (
         <span className="text-sm text-center px-2 pointer-events-none">
