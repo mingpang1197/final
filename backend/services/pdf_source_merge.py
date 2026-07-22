@@ -29,20 +29,37 @@ def _is_reason_heading(text: str) -> bool:
     return bool(_REASON_NORMALIZED.match(_normalized_reason(text)))
 
 
-def _find_reason_paragraph(doc: Document):
+def _find_reason_paragraph_fuzzy(doc: Document):
+    """pdf2docx가 「이」「유」를 나누거나 주변 텍스트와 붙인 경우."""
+    for paragraph in _iter_all_paragraphs(doc):
+        raw = paragraph.text or ""
+        combined = "".join(run.text for run in paragraph.runs)
+        for candidate in (raw, combined):
+            normalized = _normalized_reason(candidate)
+            if normalized == "이유":
+                return paragraph
+            if "이유" in normalized and len(normalized) <= 12:
+                return paragraph
+    return None
+
+
+def _iter_all_paragraphs(doc: Document):
     for paragraph in doc.paragraphs:
+        yield paragraph
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    yield paragraph
+
+
+def _find_reason_paragraph(doc: Document):
+    for paragraph in _iter_all_paragraphs(doc):
         if _is_reason_heading(paragraph.text):
             return paragraph
         combined = "".join(run.text for run in paragraph.runs)
         if _is_reason_heading(combined):
             return paragraph
-
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for paragraph in cell.paragraphs:
-                    if _is_reason_heading(paragraph.text):
-                        return paragraph
     return None
 
 
@@ -69,11 +86,13 @@ def merge_pdf_with_easy_read_insert(pdf_path: Path, doc: DocumentResponse) -> by
         with tempfile.TemporaryDirectory() as tmp:
             converted = Path(tmp) / "source.docx"
             converter = Converter(str(pdf_path))
-            converter.convert(str(converted))
+            converter.convert(str(converted), start=0, end=None)
             converter.close()
 
             base = Document(str(converted))
             anchor = _find_reason_paragraph(base)
+            if anchor is None:
+                anchor = _find_reason_paragraph_fuzzy(base)
             if anchor is None:
                 logger.info("pdf merge: 「이유」 문단을 찾지 못함 — OCR 병합으로 폴백")
                 return None

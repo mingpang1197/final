@@ -287,10 +287,19 @@ function buildExportBody(payload: ExportPayload) {
   };
 }
 
+function exportRequestHeaders(): HeadersInit {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  const authUser = getAuthUserId();
+  if (authUser) {
+    headers.set("X-User-Id", authUser);
+  }
+  return headers;
+}
+
 export async function fetchExportDocx(id: string, payload: ExportPayload): Promise<Blob> {
   const res = await fetch(`${API_BASE}/documents/${id}/export.docx`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: exportRequestHeaders(),
     body: JSON.stringify(buildExportBody(payload)),
   });
   if (!res.ok) {
@@ -300,9 +309,9 @@ export async function fetchExportDocx(id: string, payload: ExportPayload): Promi
 }
 
 export async function fetchExportPdf(id: string, payload: ExportPayload): Promise<Blob> {
-  const res = await fetch(`${API_BASE}/documents/${id}/export.pdf`, {
+  const res = await fetch(`${API_BASE}/documents/${id}/export.pdf?download=false`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: exportRequestHeaders(),
     body: JSON.stringify(buildExportBody(payload)),
   });
   if (!res.ok) {
@@ -314,7 +323,7 @@ export async function fetchExportPdf(id: string, payload: ExportPayload): Promis
 export async function downloadPdf(id: string, payload: ExportPayload): Promise<void> {
   const res = await fetch(`${API_BASE}/documents/${id}/export.pdf?download=true`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: exportRequestHeaders(),
     body: JSON.stringify(buildExportBody(payload)),
   });
   if (!res.ok) {
@@ -334,7 +343,7 @@ export async function downloadPdf(id: string, payload: ExportPayload): Promise<v
 export async function downloadDocx(id: string, payload: ExportPayload): Promise<void> {
   const res = await fetch(`${API_BASE}/documents/${id}/export.docx`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: exportRequestHeaders(),
     body: JSON.stringify(buildExportBody(payload)),
   });
   if (!res.ok) {

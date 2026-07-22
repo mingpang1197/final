@@ -550,10 +550,8 @@ def collect_body_text(doc: DocumentResponse) -> str:
 
 
 def build_easy_read_insert_document(doc: DocumentResponse) -> Document:
-    """「이유」 직후 삽입용 — 고지문 + 그림 포함 이지리드 본문만."""
+    """「이유」 직후 삽입용 — 고지문 + 그림 포함 이지리드 본문만 (섹션 설정은 원문 docx 유지)."""
     word = Document()
-    for section in word.sections:
-        _configure_section(section)
 
     easy_body = _collect_body_text(doc)
     if not easy_body:
