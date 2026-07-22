@@ -6,10 +6,10 @@ import { Link } from "react-router-dom";
 import { ChatbotWidget } from "./ChatbotWidget";
 import { StepIndicator, type WorkflowStep } from "./StepIndicator";
 
-/** 2단 grid — 좌 원본 넓게(3:2), 좌·우 카드 안쪽 여백 동일(px-5) */
+/** 2단 grid — 중앙선 기준 1:1, 좌·우 바깥 여백 동일(px-5) */
 export function WorkflowTwoPaneGrid({ children }: { children: ReactNode }) {
   return (
-    <div className="flex-1 grid min-h-0 grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-5 overflow-hidden px-5 pt-4 pb-5">
+    <div className="flex-1 grid min-h-0 grid-cols-2 gap-5 overflow-hidden px-5 pt-4 pb-5">
       {children}
     </div>
   );
