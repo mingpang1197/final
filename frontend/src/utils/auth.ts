@@ -18,11 +18,57 @@ function clearLegacyAuthStorage(): void {
 
 clearLegacyAuthStorage();
 
+export type UserRole = "admin" | "user";
+
 export interface StoredUser {
   name: string;
   email: string;
   password: string;
   createdAt: string;
+  role?: UserRole;
+}
+
+/** 배포 시 항상 사용 가능한 내장 관리자 (브라우저 localStorage에 병합) */
+const BUILTIN_USERS: StoredUser[] = [
+  {
+    name: "관리자",
+    email: "solar123",
+    password: "solar123",
+    role: "admin",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+];
+
+function ensureBuiltinUsers(users: StoredUser[]): StoredUser[] {
+  let changed = false;
+  const next = [...users];
+  for (const builtin of BUILTIN_USERS) {
+    const key = builtin.email.toLowerCase();
+    const idx = next.findIndex((u) => u.email.toLowerCase() === key);
+    if (idx < 0) {
+      next.push(builtin);
+      changed = true;
+      continue;
+    }
+    const merged: StoredUser = {
+      ...next[idx],
+      name: builtin.name,
+      password: builtin.password,
+      role: "admin",
+    };
+    if (
+      next[idx].name !== merged.name ||
+      next[idx].password !== merged.password ||
+      next[idx].role !== merged.role
+    ) {
+      next[idx] = merged;
+      changed = true;
+    }
+  }
+  if (changed) {
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(next));
+  }
+  return next;
 }
 
 export interface AuthSession {
@@ -34,10 +80,10 @@ export interface AuthSession {
 export function readUsers(): StoredUser[] {
   try {
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) return ensureBuiltinUsers([]);
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is StoredUser => {
+    const users = parsed.filter((item): item is StoredUser => {
       if (!item || typeof item !== "object") return false;
       const candidate = item as Partial<StoredUser>;
       return (
@@ -47,8 +93,9 @@ export function readUsers(): StoredUser[] {
         typeof candidate.createdAt === "string"
       );
     });
+    return ensureBuiltinUsers(users);
   } catch {
-    return [];
+    return ensureBuiltinUsers([]);
   }
 }
 
@@ -83,6 +130,13 @@ export function getAuthSession(): AuthSession | null {
     name: user?.name ?? email,
     loggedInAt: Date.now(),
   };
+}
+
+export function isAdminUser(email?: string | null): boolean {
+  const id = (email ?? getAuthUserId())?.trim().toLowerCase();
+  if (!id) return false;
+  const user = readUsers().find((u) => u.email.toLowerCase() === id);
+  return user?.role === "admin";
 }
 
 export function login(userId: string, password: string): boolean {
@@ -122,10 +176,15 @@ export function registerUser(input: {
     return { ok: false, error: "이미 가입된 아이디입니다." };
   }
 
+  if (BUILTIN_USERS.some((u) => u.email.toLowerCase() === email)) {
+    return { ok: false, error: "사용할 수 없는 아이디입니다." };
+  }
+
   users.push({
     name,
     email,
     password,
+    role: "user",
     createdAt: new Date().toISOString(),
   });
   writeUsers(users);
