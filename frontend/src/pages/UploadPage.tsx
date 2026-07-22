@@ -8,7 +8,7 @@ import { ExistingProjectsTable } from "../components/ui/ExistingProjectsTable";
 import { ChatbotWidget } from "../components/ui/ChatbotWidget";
 import { IconUploadCloud } from "../components/ui/icons";
 import { StepIndicator } from "../components/ui/StepIndicator";
-import { UploadCaseTypeBar } from "../components/ui/UploadCaseTypeBar";
+import { UploadCaseTypeModal } from "../components/ui/UploadCaseTypeModal";
 import { cacheUpload, getCachedUpload, getLastDocId } from "../utils/docCache";
 import { saveSourceFile } from "../utils/sourceStore";
 
@@ -21,6 +21,7 @@ export function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [caseTypeModalOpen, setCaseTypeModalOpen] = useState(false);
 
   const filenameLabel = useMemo(() => {
     if (pendingFile?.name) return pendingFile.name;
@@ -49,6 +50,7 @@ export function UploadPage() {
         });
         void saveSourceFile(result.id, file);
       }
+      setCaseTypeModalOpen(false);
       navigate(`/documents/${result.id}/summary`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "업로드 실패");
@@ -77,7 +79,17 @@ export function UploadPage() {
 
   function handleDone() {
     if (pendingFile && !loading) {
-      handleUpload(pendingFile);
+      setCaseTypeModalOpen(true);
+    }
+  }
+
+  function closeCaseTypeModal() {
+    if (!loading) setCaseTypeModalOpen(false);
+  }
+
+  function confirmUploadWithCaseType() {
+    if (pendingFile && !loading) {
+      void handleUpload(pendingFile);
     }
   }
 
@@ -96,7 +108,6 @@ export function UploadPage() {
 
       <div className="flex-1 flex flex-col mx-6 mb-4 min-h-0 bg-white border border-coolgray-20 overflow-hidden">
         <StepIndicator current="upload" docId={lastDocId ?? undefined} />
-        <UploadCaseTypeBar active={docType} disabled={loading} onChange={setDocType} />
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <section className="mx-5 mt-4">
@@ -165,6 +176,16 @@ export function UploadPage() {
       </div>
 
       <ChatbotWidget />
+
+      <UploadCaseTypeModal
+        open={caseTypeModalOpen}
+        active={docType}
+        filename={pendingFile?.name}
+        loading={loading}
+        onChange={setDocType}
+        onConfirm={confirmUploadWithCaseType}
+        onCancel={closeCaseTypeModal}
+      />
     </div>
   );
 }

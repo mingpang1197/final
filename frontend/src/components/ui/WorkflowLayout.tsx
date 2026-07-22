@@ -9,7 +9,7 @@ import { StepIndicator, type WorkflowStep } from "./StepIndicator";
 /** 75c2628 — 2단 grid, 좌·우 동일 행 높이 (대칭 padding 이전) */
 export function WorkflowTwoPaneGrid({ children }: { children: ReactNode }) {
   return (
-    <div className="flex-1 grid min-h-0 grid-cols-2 gap-5 overflow-hidden px-5 pt-4 pb-5">
+    <div className="flex-1 grid min-h-0 grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-5 overflow-hidden px-5 pt-4 pb-5">
       {children}
     </div>
   );
