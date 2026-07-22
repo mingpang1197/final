@@ -29,6 +29,8 @@ export function ExportPage() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
 
+  const [fullText, setFullText] = useState("");
+
   const load = useCallback(async () => {
     if (!id) return;
     setError("");
@@ -36,6 +38,7 @@ export function ExportPage() {
       const doc = await loadDocumentWithRecovery(id);
       setFilename(doc.filename);
       setSummary(resolveSummary(id, doc.summary));
+      setFullText(doc.full_text ?? "");
       const segs = resolveTranslationSegments(id, doc.translation_segments);
       setSegments(segs);
       if (segs.length) {
@@ -48,6 +51,7 @@ export function ExportPage() {
       if (segs.length) {
         setFilename(workflow?.filename ?? cached?.filename ?? "");
         setSummary(resolveSummary(id, workflow?.summary));
+        setFullText(cached?.full_text ?? "");
         setSegments(segs);
         return;
       }
@@ -63,16 +67,17 @@ export function ExportPage() {
     const cached = id ? getCachedUpload(id) : null;
     const mergedSegments = id ? resolveTranslationSegments(id, segments) : segments;
     const exportSegments = await enrichSegmentsForExport(mergedSegments);
+    const mergedFullText = fullText || cached?.full_text || "";
     return {
       segments: exportSegments,
       translation_text: exportSegments.map((s) => s.easy_text).filter(Boolean).join("\n\n"),
       summary,
       filename,
       doc_type: cached?.doc_type,
-      full_text: cached?.full_text,
+      full_text: mergedFullText,
       pages: cached?.pages,
     };
-  }, [id, segments, summary, filename]);
+  }, [id, segments, summary, filename, fullText]);
 
   useEffect(() => {
     if (!id || segments.length === 0) {
@@ -141,6 +146,10 @@ export function ExportPage() {
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-5 pt-4 pb-5">
         <div className="flex-1 flex flex-col items-center gap-4 min-h-0 overflow-hidden w-full max-w-[916px] mx-auto">
           <div className="w-full flex-1 min-h-0 border border-coolgray-30 overflow-hidden rounded-sm shadow-inner bg-[#e8e8e8]">
+            <p className="shrink-0 border-b border-coolgray-20 bg-white px-3 py-2 text-xs text-coolgray-60">
+              원문에 「이유」가 있으면 주문~이유, Easy-Read 제공 고지, 그림 포함 번역본, 이어지는 원문
+              순으로 합쳐 미리보기합니다.
+            </p>
             {previewLoading ? (
               <div className="h-full flex items-center justify-center text-coolgray-60 text-base">
                 미리보기 생성 중...

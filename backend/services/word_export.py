@@ -30,6 +30,10 @@ from backend.services.export_layout import (
     split_item_lines_into_blocks,
 )
 from backend.services.easy_read_sanitize import split_standard_closing
+from backend.services.judgment_merge import (
+    EASY_READ_PROVISION_PARAGRAPHS,
+    split_judgment_at_reason,
+)
 from backend.services.image_assets import resolve_placement_image
 from backend.services.image_matcher import MAX_IMAGES_PER_TEXT, find_images_for_line
 from backend.services.rich_text import has_style_markers, iter_styled_runs
@@ -468,6 +472,52 @@ def _export_text(doc: Document, text: str, *, skip_meta: bool = True) -> None:
             inserted_images.add(match.image_file)
 
 
+def _export_judgment_plain(doc: Document, text: str) -> None:
+    """OCR 원문 판결 — 줄바꿈 유지, 자동 그림 매칭 없음."""
+    for line in text.split("\n"):
+        if not line.strip():
+            doc.add_paragraph()
+            continue
+        p = doc.add_paragraph()
+        _apply_body_format(p)
+        run = p.add_run(line.rstrip())
+        _set_run_font(run, BODY_PT)
+
+
+def _export_easy_read_provision(doc: Document) -> None:
+    """이유 직후 — Easy-Read 제공 고지(가·나)."""
+    for block in EASY_READ_PROVISION_PARAGRAPHS:
+        lines = block.split("\n")
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("※"):
+                p = doc.add_paragraph()
+                _apply_body_format(p)
+                run = p.add_run(stripped)
+                _set_run_font(run, BODY_PT, bold=True)
+            elif stripped.startswith(("가.", "나.")):
+                p = doc.add_paragraph()
+                _apply_body_format(p)
+                run = p.add_run(stripped)
+                _set_run_font(run, BODY_PT, bold=True)
+            else:
+                _add_rich_paragraph(doc, line)
+        if len(lines) > 1:
+            spacer = doc.add_paragraph()
+            spacer.paragraph_format.space_after = Pt(4)
+
+
+def _export_easy_read_body(doc: Document, easy_body: str, raw_placements: list[ImagePlacement]) -> None:
+    placements = prepare_placements_for_export(easy_body, raw_placements)
+    sections = parse_export_sections(easy_body)
+    if any(section.heading for section in sections):
+        _export_easy_read_layout(doc, easy_body, placements)
+    else:
+        _export_text(doc, easy_body, skip_meta=True)
+
+
 def _collect_placements(doc: DocumentResponse) -> list[ImagePlacement] | None:
     for segment in doc.translation_segments or []:
         if segment.image_placements:
@@ -508,15 +558,20 @@ def export_to_docx(doc: DocumentResponse, *, include_meta: bool = False) -> byte
         meta = word.add_paragraph(f"원본 파일: {doc.filename}  |  유형: {doc.doc_type}")
         meta.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
-    body = _collect_body_text(doc)
-    if body:
+    easy_body = _collect_body_text(doc)
+    split = split_judgment_at_reason(doc.full_text or "") if (doc.full_text or "").strip() else None
+
+    if split and easy_body:
+        prefix, suffix = split
+        _export_judgment_plain(word, prefix)
+        _export_easy_read_provision(word)
         raw_placements = _collect_placements(doc) or []
-        placements = prepare_placements_for_export(body, raw_placements)
-        sections = parse_export_sections(body)
-        if any(section.heading for section in sections):
-            _export_easy_read_layout(word, body, placements)
-        else:
-            _export_text(word, body, skip_meta=not include_meta)
+        _export_easy_read_body(word, easy_body, raw_placements)
+        if suffix.strip():
+            _export_judgment_plain(word, suffix)
+    elif easy_body:
+        raw_placements = _collect_placements(doc) or []
+        _export_easy_read_body(word, easy_body, raw_placements)
 
     buffer = io.BytesIO()
     word.save(buffer)
