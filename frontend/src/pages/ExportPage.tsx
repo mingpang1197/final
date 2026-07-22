@@ -32,7 +32,6 @@ export function ExportPage() {
   const [previewReady, setPreviewReady] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
-  const [previewHint, setPreviewHint] = useState("");
 
   const [fullText, setFullText] = useState("");
 
@@ -91,14 +90,12 @@ export function ExportPage() {
     if (!id || segments.length === 0) {
       setPreviewBlob(null);
       setPreviewReady(false);
-      setPreviewHint("");
       return;
     }
 
     let cancelled = false;
     setPreviewLoading(true);
     setPreviewReady(false);
-    setPreviewHint("");
     setError("");
 
     void (async () => {
@@ -109,21 +106,12 @@ export function ExportPage() {
           if (cancelled) return;
           setPreviewMode("pdf");
           setPreviewBlob(pdfBlob);
-          setPreviewHint(
-            "원문 PDF → Word(pdf2docx) → 이지리드 삽입 → PDF 변환본 미리보기입니다.",
-          );
           return;
-        } catch (pdfErr) {
-          const message = pdfErr instanceof Error ? pdfErr.message : "";
+        } catch {
           const docxBlob = await fetchExportDocx(id, payload);
           if (cancelled) return;
           setPreviewMode("docx");
           setPreviewBlob(docxBlob);
-          setPreviewHint(
-            message.includes("503") || message.includes("변환기")
-              ? "서버 PDF 변환기를 사용할 수 없어 Word 미리보기로 표시합니다. PDF 추출은 Word 인쇄를 이용하세요."
-              : "PDF 미리보기 생성에 실패해 Word 미리보기로 표시합니다.",
-          );
         }
       } catch (err) {
         if (!cancelled) {
@@ -186,13 +174,9 @@ export function ExportPage() {
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-5 pt-4 pb-5">
         <div className="flex-1 flex flex-col items-center gap-4 min-h-0 overflow-hidden w-full max-w-[916px] mx-auto">
           <div className="w-full flex-1 min-h-0 flex flex-col border border-coolgray-30 overflow-hidden rounded-sm shadow-inner bg-[#e8e8e8]">
-            <p className="shrink-0 border-b border-coolgray-20 bg-white px-3 py-2 text-xs text-coolgray-60">
-              {previewHint ||
-                "원문 PDF를 pdf2docx로 Word 변환 후 「이유」 다음에 Easy-Read를 넣고, 최종 PDF로 미리보기합니다."}
-            </p>
             {previewLoading ? (
               <div className="flex flex-1 items-center justify-center text-coolgray-60 text-base">
-                최종 PDF 생성 중… (원문 변환 · 이지리드 삽입 · PDF 변환)
+                최종 PDF 생성 중…
               </div>
             ) : previewBlob && previewMode === "pdf" ? (
               <div className="flex-1 min-h-0">

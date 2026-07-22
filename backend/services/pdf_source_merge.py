@@ -99,7 +99,11 @@ def merge_pdf_with_easy_read_insert(pdf_path: Path, doc: DocumentResponse) -> by
                 logger.info("pdf merge: 「이유」 문단을 찾지 못함 — OCR 병합으로 폴백")
                 return None
 
-            insert_doc = word_export.build_easy_read_insert_document(doc)
+            font_profile = word_export.infer_font_profile_from_document(base)
+            insert_doc = word_export.build_easy_read_insert_document(
+                doc,
+                font_profile=font_profile,
+            )
             _insert_document_after(anchor, insert_doc)
 
             buffer = io.BytesIO()

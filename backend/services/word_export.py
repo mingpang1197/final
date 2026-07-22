@@ -11,6 +11,8 @@ import base64
 import io
 import re
 import tempfile
+from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 
 from docx import Document
@@ -59,9 +61,100 @@ CELL_PAD_GAP = 48  # twips — 그림·본문 사이 간격
 _SKIP_LINE = re.compile(r"^(---+\s*|\(\d+/\d+\s*쪽\)|\d+/\d+\s*쪽|>\s)")
 _META_SECTION_START = re.compile(r"^###\s*수정\s*사항")
 
+DEFAULT_ASCII_FONT = "Malgun Gothic"
+DEFAULT_EAST_ASIA_FONT = "맑은 고딕"
+
+
+@dataclass(frozen=True)
+class ExportFontProfile:
+    ascii: str = DEFAULT_ASCII_FONT
+    h_ansi: str = DEFAULT_ASCII_FONT
+    east_asia: str = DEFAULT_EAST_ASIA_FONT
+    body_pt: float = BODY_PT
+
+
+_FONT_PROFILE_STACK: list[ExportFontProfile] = []
+
+
+def _active_font_profile() -> ExportFontProfile:
+    if _FONT_PROFILE_STACK:
+        return _FONT_PROFILE_STACK[-1]
+    return ExportFontProfile()
+
+
+def _push_font_profile(profile: ExportFontProfile | None) -> None:
+    _FONT_PROFILE_STACK.append(profile or ExportFontProfile())
+
+
+def _pop_font_profile() -> None:
+    if _FONT_PROFILE_STACK:
+        _FONT_PROFILE_STACK.pop()
+
+
+def _iter_all_paragraphs(doc: Document):
+    for paragraph in doc.paragraphs:
+        yield paragraph
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    yield paragraph
+
+
+def infer_font_profile_from_document(doc: Document) -> ExportFontProfile:
+    """pdf2docx 원문 DOCX에서 가장 많이 쓰인 글꼴·본문 크기 추정."""
+    font_weights: Counter[str] = Counter()
+    size_weights: Counter[float] = Counter()
+
+    for paragraph in _iter_all_paragraphs(doc):
+        for run in paragraph.runs:
+            text = run.text or ""
+            if not text.strip():
+                continue
+            weight = len(text)
+            r_pr = run._element.find(qn("w:rPr"))
+            if r_pr is not None:
+                r_fonts = r_pr.find(qn("w:rFonts"))
+                if r_fonts is not None:
+                    for key in ("eastAsia", "ascii", "hAnsi"):
+                        name = r_fonts.get(qn(f"w:{key}"))
+                        if name:
+                            font_weights[name] += weight
+                            break
+                else:
+                    if run.font.name:
+                        font_weights[run.font.name] += weight
+                sz = r_pr.find(qn("w:sz"))
+                if sz is not None and sz.get(qn("w:val")):
+                    try:
+                        size_weights[int(sz.get(qn("w:val"))) / 2] += weight
+                    except (TypeError, ValueError):
+                        pass
+            elif run.font.name:
+                font_weights[run.font.name] += weight
+
+    if not font_weights:
+        return ExportFontProfile()
+
+    dominant = font_weights.most_common(1)[0][0]
+    body_pt = size_weights.most_common(1)[0][0] if size_weights else BODY_PT
+    return ExportFontProfile(
+        ascii=dominant,
+        h_ansi=dominant,
+        east_asia=dominant,
+        body_pt=body_pt,
+    )
+
+
+def _body_pt() -> float:
+    return _active_font_profile().body_pt
+
 
 def _set_run_font(run, size_pt: float, bold: bool = False) -> None:
-    run.font.name = "Malgun Gothic"
+    profile = _active_font_profile()
+    ascii_name = profile.ascii
+    east_name = profile.east_asia
+    run.font.name = ascii_name
     run.font.size = Pt(size_pt)
     run.font.bold = bold
     r_pr = run._element.get_or_add_rPr()
@@ -69,9 +162,9 @@ def _set_run_font(run, size_pt: float, bold: bool = False) -> None:
     if r_fonts is None:
         r_fonts = OxmlElement("w:rFonts")
         r_pr.insert(0, r_fonts)
-    r_fonts.set(qn("w:ascii"), "Malgun Gothic")
-    r_fonts.set(qn("w:hAnsi"), "Malgun Gothic")
-    r_fonts.set(qn("w:eastAsia"), "맑은 고딕")
+    r_fonts.set(qn("w:ascii"), ascii_name)
+    r_fonts.set(qn("w:hAnsi"), profile.h_ansi)
+    r_fonts.set(qn("w:eastAsia"), east_name)
     for tag in ("w:b", "w:bCs"):
         existing = r_pr.find(qn(tag))
         if bold:
@@ -312,7 +405,7 @@ def _add_body_paragraph_to_cell(cell, line: str, *, first: bool = False) -> None
     _apply_body_format(p)
     if first:
         p.paragraph_format.space_before = Pt(0)
-    _add_runs_to_paragraph(p, stripped, size_pt=BODY_PT)
+    _add_runs_to_paragraph(p, stripped, size_pt=_body_pt())
 
 
 def _add_picture_to_cell(cell, placement: ImagePlacement) -> None:
@@ -359,7 +452,7 @@ def _add_item_text_boxes(
         _set_cell_shading(image_cell, "FFFFFF")
         p = image_cell.paragraphs[0]
         run = p.add_run("\u00a0")
-        _set_run_font(run, BODY_PT)
+        _set_run_font(run, _body_pt())
 
     _set_cell_shading(body_cell, "FFFFFF")
     _set_cell_margins(image_cell, top=CELL_PAD_V, bottom=CELL_PAD_V, left=0, right=CELL_PAD_GAP)
@@ -382,7 +475,7 @@ def _add_closing_paragraph(doc: Document, line: str) -> None:
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(12)
     _apply_body_format(p)
-    _add_runs_to_paragraph(p, stripped, size_pt=BODY_PT)
+    _add_runs_to_paragraph(p, stripped, size_pt=_body_pt())
 
 
 def _export_easy_read_layout(
@@ -428,7 +521,7 @@ def _add_rich_paragraph(doc: Document, line: str) -> None:
 
     p = doc.add_paragraph()
     _apply_body_format(p)
-    _add_runs_to_paragraph(p, stripped, size_pt=BODY_PT)
+    _add_runs_to_paragraph(p, stripped, size_pt=_body_pt())
 
 
 def _add_picture(doc: Document, image_file: str, image_url: str | None = None) -> None:
@@ -481,7 +574,7 @@ def _export_judgment_plain(doc: Document, text: str) -> None:
         p = doc.add_paragraph()
         _apply_body_format(p)
         run = p.add_run(line.rstrip())
-        _set_run_font(run, BODY_PT)
+        _set_run_font(run, _body_pt())
 
 
 def _export_easy_read_provision(doc: Document) -> None:
@@ -496,12 +589,12 @@ def _export_easy_read_provision(doc: Document) -> None:
                 p = doc.add_paragraph()
                 _apply_body_format(p)
                 run = p.add_run(stripped)
-                _set_run_font(run, BODY_PT, bold=True)
+                _set_run_font(run, _body_pt(), bold=True)
             elif stripped.startswith(("가.", "나.")):
                 p = doc.add_paragraph()
                 _apply_body_format(p)
                 run = p.add_run(stripped)
-                _set_run_font(run, BODY_PT, bold=True)
+                _set_run_font(run, _body_pt(), bold=True)
             else:
                 _add_rich_paragraph(doc, line)
         if len(lines) > 1:
@@ -549,18 +642,30 @@ def collect_body_text(doc: DocumentResponse) -> str:
     return _collect_body_text(doc)
 
 
-def build_easy_read_insert_document(doc: DocumentResponse) -> Document:
-    """「이유」 직후 삽입용 — 고지문 + 그림 포함 이지리드 본문만 (섹션 설정은 원문 docx 유지)."""
-    word = Document()
-
+def build_easy_read_insert_document(
+    doc: DocumentResponse,
+    *,
+    font_profile: ExportFontProfile | None = None,
+) -> Document:
+    """「이유」 직후 삽입용 — 고지·이지리드 본문을 Word 글상자 1개에 담는다."""
+    inner = Document()
     easy_body = _collect_body_text(doc)
     if not easy_body:
-        return word
+        return inner
 
-    _export_easy_read_provision(word)
-    raw_placements = _collect_placements(doc) or []
-    _export_easy_read_body(word, easy_body, raw_placements)
-    return word
+    _push_font_profile(font_profile)
+    try:
+        _export_easy_read_provision(inner)
+        raw_placements = _collect_placements(doc) or []
+        _export_easy_read_body(inner, easy_body, raw_placements)
+    finally:
+        _pop_font_profile()
+
+    host = Document()
+    from backend.services.word_textbox import wrap_document_in_textbox
+
+    wrap_document_in_textbox(host, inner)
+    return host
 
 
 def export_to_docx(
