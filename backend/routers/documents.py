@@ -10,6 +10,7 @@ from __future__ import annotations
 import mimetypes
 import re
 import uuid
+import base64
 from pathlib import Path
 from typing import Literal
 
@@ -882,9 +883,21 @@ def _resolve_upload_source_path(
     doc_id: str,
     filename: str,
     user_id: str | None = None,
+    body: ExportRequest | None = None,
 ) -> Path | None:
+    if body and body.source_pdf_base64:
+        try:
+            raw = base64.b64decode(body.source_pdf_base64, validate=True)
+        except Exception:
+            raw = b""
+        if raw.startswith(b"%PDF"):
+            path = _source_path(doc_id, filename or "source.pdf")
+            path.write_bytes(raw)
+            if user_id:
+                user_storage.save_source(user_id, doc_id, filename or path.name, raw)
+
     path = _source_path(doc_id, filename)
-    if path.is_file():
+    if path.is_file() and path.suffix.lower() == ".pdf":
         return path
     if user_id:
         resolved = user_storage.get_source_file(user_id, doc_id)
@@ -910,7 +923,7 @@ async def _export_docx(
 
     content = word_export.export_to_docx(
         doc,
-        source_file=_resolve_upload_source_path(doc_id, doc.filename, x_user_id),
+        source_file=_resolve_upload_source_path(doc_id, doc.filename, x_user_id, body),
     )
     if x_user_id:
         easyread_text = doc.translation_text or doc.summary or ""
@@ -965,7 +978,7 @@ async def _export_pdf(
     try:
         content = pdf_export.export_to_pdf(
             doc,
-            source_file=_resolve_upload_source_path(doc_id, doc.filename, x_user_id),
+            source_file=_resolve_upload_source_path(doc_id, doc.filename, x_user_id, body),
         )
     except DocxToPdfError as exc:
         raise HTTPException(

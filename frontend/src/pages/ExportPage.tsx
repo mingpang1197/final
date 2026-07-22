@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { TranslationSegment } from "../api/client";
-import { downloadPdf, fetchExportDocx, fetchExportPdf } from "../api/client";
+import { downloadPdf, fetchExportDocx, fetchExportPdf, attachSourcePdfForExport } from "../api/client";
 import { DocxPreviewPanel } from "../components/DocxPreviewPanel";
 import { ExportPdfPreviewPanel } from "../components/ExportPdfPreviewPanel";
 import { IconArrowRight } from "../components/ui/icons";
@@ -69,11 +69,14 @@ export function ExportPage() {
   }, [load]);
 
   const buildExportPayload = useCallback(async () => {
+    if (!id) {
+      throw new Error("문서 ID가 없습니다.");
+    }
     const cached = id ? getCachedUpload(id) : null;
     const mergedSegments = id ? resolveTranslationSegments(id, segments) : segments;
     const exportSegments = await enrichSegmentsForExport(mergedSegments);
     const mergedFullText = fullText || cached?.full_text || "";
-    return {
+    return attachSourcePdfForExport(id, filename, {
       segments: exportSegments,
       translation_text: exportSegments.map((s) => s.easy_text).filter(Boolean).join("\n\n"),
       summary,
@@ -81,7 +84,7 @@ export function ExportPage() {
       doc_type: cached?.doc_type,
       full_text: mergedFullText,
       pages: cached?.pages,
-    };
+    });
   }, [id, segments, summary, filename, fullText]);
 
   useEffect(() => {

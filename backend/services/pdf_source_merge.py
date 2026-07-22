@@ -86,8 +86,10 @@ def merge_pdf_with_easy_read_insert(pdf_path: Path, doc: DocumentResponse) -> by
         with tempfile.TemporaryDirectory() as tmp:
             converted = Path(tmp) / "source.docx"
             converter = Converter(str(pdf_path))
-            converter.convert(str(converted), start=0, end=None)
-            converter.close()
+            try:
+                converter.convert(str(converted), start=0, end=None)
+            finally:
+                converter.close()
 
             base = Document(str(converted))
             anchor = _find_reason_paragraph(base)

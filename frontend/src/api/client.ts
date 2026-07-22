@@ -276,6 +276,58 @@ export interface ExportPayload {
   doc_type?: DocType;
   full_text?: string;
   pages?: string[];
+  /** 서버에 원본 PDF가 없을 때 IndexedDB PDF (base64) */
+  source_pdf_base64?: string;
+}
+
+export async function serverHasDocumentSource(docId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/documents/${docId}/source`, { method: "HEAD" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
+
+/** export 시 pdf2docx 병합을 위해 서버·페이로드에 원본 PDF를 확보한다. */
+export async function attachSourcePdfForExport(
+  docId: string,
+  filename: string,
+  payload: ExportPayload,
+): Promise<ExportPayload> {
+  if (await serverHasDocumentSource(docId)) {
+    return payload;
+  }
+  const stored = await getSourceFile(docId);
+  if (!stored) {
+    return payload;
+  }
+  const name = (stored.name || filename || "").toLowerCase();
+  if (!name.endsWith(".pdf")) {
+    return payload;
+  }
+  const authUser = getAuthUserId();
+  if (authUser) {
+    await uploadUserProjectSource(docId, stored.blob, stored.name || filename).catch(() => {
+      /* ignore */
+    });
+    if (await serverHasDocumentSource(docId)) {
+      return payload;
+    }
+  }
+  return {
+    ...payload,
+    source_pdf_base64: arrayBufferToBase64(await stored.blob.arrayBuffer()),
+  };
 }
 
 function buildExportBody(payload: ExportPayload) {

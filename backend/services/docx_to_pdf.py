@@ -82,12 +82,30 @@ def _read_pdf_output(docx_path: Path, directory: Path) -> bytes:
 def _convert_via_docx2pdf(docx_bytes: bytes) -> bytes:
     from docx2pdf import convert
 
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_dir = Path(tmp)
-        docx_path = _write_temp_docx(docx_bytes, tmp_dir)
-        pdf_path = tmp_dir / f"{docx_path.stem}.pdf"
-        convert(str(docx_path), str(pdf_path))
-        return pdf_path.read_bytes()
+    co_initialized = False
+    if sys.platform == "win32":
+        try:
+            import pythoncom
+
+            pythoncom.CoInitialize()
+            co_initialized = True
+        except ImportError:
+            pass
+
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_dir = Path(tmp)
+            docx_path = _write_temp_docx(docx_bytes, tmp_dir)
+            pdf_path = tmp_dir / f"{docx_path.stem}.pdf"
+            convert(str(docx_path.resolve()), str(pdf_path.resolve()))
+            if not pdf_path.is_file():
+                raise FileNotFoundError("docx2pdf did not create a PDF (Microsoft Word 필요)")
+            return pdf_path.read_bytes()
+    finally:
+        if co_initialized:
+            import pythoncom
+
+            pythoncom.CoUninitialize()
 
 
 def _convert_via_libreoffice(docx_bytes: bytes) -> bytes:

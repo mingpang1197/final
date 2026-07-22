@@ -93,6 +93,7 @@ class ExportRequest(BaseModel):
     doc_type: DocType | None = None
     full_text: str | None = None
     pages: list[str] | None = None
+    source_pdf_base64: str | None = None  # 서버 원본 유실 시 브라우저 IndexedDB PDF
 
 
 class SummarizeRequest(BaseModel):

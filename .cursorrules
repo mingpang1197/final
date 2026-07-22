@@ -130,7 +130,7 @@ GET    /api/documents/{doc_id}/export.docx
 POST   /api/documents/{doc_id}/export.docx
 - Word 생성·다운로드 (3×3 표 2단 레이아웃, segments·image_base64 지원)
 - Header (optional): X-User-Id — docx/이지리드 텍스트 저장
-- Request (optional): ExportRequest (segments, summary, filename 등)
+- Request (optional): ExportRequest (segments, summary, filename, source_pdf_base64? 등)
 
 GET    /api/documents/{doc_id}/export.pdf
 - PDF 미리보기 (inline, POST body로 segments 등 전달 가능)
@@ -140,7 +140,7 @@ POST   /api/documents/{doc_id}/export.pdf
 - PDF 생성·다운로드
 - Header (optional): X-User-Id — pdf/이지리드 텍스트 저장
 - Query: download(boolean) — true면 attachment, false면 inline 미리보기
-- Request (optional): ExportRequest (segments, summary, filename 등)
+- Request (optional): ExportRequest (segments, summary, filename, source_pdf_base64? 등)
 - segments[].image_placements[].image_base64 — 추출 시 브라우저에서 인코딩한 data URL (선택)
 
 POST   /api/chat

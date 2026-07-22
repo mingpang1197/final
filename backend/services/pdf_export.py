@@ -14,6 +14,7 @@ import logging
 import mimetypes
 import os
 import re
+import tempfile
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -323,10 +324,76 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
     return f"<html><head></head><body>{content}</body></html>", css
 
 
+def _provision_blocks_html() -> list[str]:
+    from backend.services.judgment_merge import EASY_READ_PROVISION_PARAGRAPHS
+
+    blocks: list[str] = []
+    for block in EASY_READ_PROVISION_PARAGRAPHS:
+        for line in block.split("\n"):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            cls = "body"
+            if stripped.startswith("※") or stripped.startswith(("가.", "나.")):
+                cls = "heading"
+            blocks.append(f'<p class="{cls}">{html.escape(stripped)}</p>')
+    return blocks
+
+
+def _html_story_to_pdf(html_doc: str, css: str) -> bytes:
+    _, archive = _font_css()
+    story = fitz.Story(html=html_doc, user_css=css, archive=archive)
+    mediabox = fitz.Rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT)
+    content_rect = fitz.Rect(MARGIN, MARGIN, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - MARGIN)
+
+    out_path = Path(tempfile.mktemp(suffix=".pdf"))
+    writer = fitz.DocumentWriter(str(out_path))
+    more = 1
+    try:
+        while more:
+            dev = writer.begin_page(mediabox)
+            more, _ = story.place(content_rect)
+            story.draw(dev)
+            writer.end_page()
+    finally:
+        writer.close()
+
+    try:
+        return out_path.read_bytes()
+    finally:
+        try:
+            out_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def render_easy_read_insert_html_pdf(doc: DocumentResponse) -> bytes | None:
+    body_html, css = _build_html(doc)
+    if not body_html.strip():
+        return None
+    provision = "".join(_provision_blocks_html())
+    inner = body_html.replace("<body>", f"<body>{provision}", 1)
+    return _html_story_to_pdf(inner, css)
+
+
 def export_to_pdf(doc: DocumentResponse, *, source_file: Path | None = None) -> bytes:
-    """Word export → PDF 변환. Word/LibreOffice 없으면 DocxToPdfError."""
+    """pdf2docx 병합 DOCX → PDF 우선. 변환기 없으면 원본 PDF+이지리드 PyMuPDF 병합."""
     from backend.services import word_export
-    from backend.services.docx_to_pdf import convert_docx_bytes_to_pdf
+    from backend.services.docx_to_pdf import DocxToPdfError, convert_docx_bytes_to_pdf
 
     docx_bytes = word_export.export_to_docx(doc, source_file=source_file)
-    return convert_docx_bytes_to_pdf(docx_bytes)
+    try:
+        return convert_docx_bytes_to_pdf(docx_bytes)
+    except DocxToPdfError as exc:
+        if source_file and source_file.suffix.lower() == ".pdf":
+            from backend.services.pdf_native_merge import merge_original_pdf_with_easy_read
+
+            merged = merge_original_pdf_with_easy_read(source_file, doc)
+            if merged:
+                logger.info("export pdf: native PDF merge (docx→pdf unavailable)")
+                return merged
+        rendered = render_easy_read_insert_html_pdf(doc)
+        if rendered:
+            logger.warning("export pdf: easy-read only PyMuPDF fallback")
+            return rendered
+        raise exc
