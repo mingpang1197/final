@@ -6,6 +6,7 @@
  * 연관 파일: pages/*.tsx, components/*.tsx, utils/docCache.ts
  */
 import { getAuthUserId } from "../utils/auth";
+import { getSourceFile } from "../utils/sourceStore";
 
 const API_BASE = "/api";
 
@@ -365,6 +366,35 @@ export async function deleteUserProject(docId: string): Promise<void> {
   });
 }
 
+export async function getUserProjectTranslationSegments(
+  docId: string,
+): Promise<TranslationSegment[]> {
+  try {
+    return await request<TranslationSegment[]>(
+      `/documents/user-projects/${docId}/translation-segments`,
+    );
+  } catch {
+    const doc = await getDocument(docId);
+    if (doc.translation_segments?.length) {
+      return doc.translation_segments;
+    }
+    throw new Error("저장된 번역(그림 포함)을 찾을 수 없습니다.");
+  }
+}
+
+export async function uploadUserProjectSource(
+  docId: string,
+  file: Blob,
+  filename: string,
+): Promise<void> {
+  const form = new FormData();
+  form.append("file", file, filename);
+  await request<void>(`/documents/user-projects/${docId}/source`, {
+    method: "POST",
+    body: form,
+  });
+}
+
 export async function getUserProjectArtifact(
   docId: string,
   kind: UserProjectArtifactKind,
@@ -418,17 +448,36 @@ function openBlobInNewTab(blob: Blob): void {
 }
 
 export async function openUserProjectSourceInNewTab(docId: string): Promise<void> {
+  const openBlob = (blob: Blob) => openBlobInNewTab(blob);
+
   try {
     const blob = await fetchAuthenticatedBlob(`/documents/user-projects/${docId}/source`);
-    openBlobInNewTab(blob);
-  } catch (firstErr) {
-    try {
-      const blob = await fetchAuthenticatedBlob(`/documents/${docId}/source`);
-      openBlobInNewTab(blob);
-    } catch {
-      throw firstErr instanceof Error ? firstErr : new Error("원문을 열지 못했습니다.");
-    }
+    openBlob(blob);
+    return;
+  } catch {
+    /* try fallbacks */
   }
+
+  try {
+    const blob = await fetchAuthenticatedBlob(`/documents/${docId}/source`);
+    openBlob(blob);
+    return;
+  } catch {
+    /* try local */
+  }
+
+  const stored = await getSourceFile(docId);
+  if (stored) {
+    openBlob(stored.blob);
+    void uploadUserProjectSource(docId, stored.blob, stored.name).catch(() => {
+      /* 서버 동기화 실패해도 로컬 미리보기는 성공 */
+    });
+    return;
+  }
+
+  throw new Error(
+    "원본 파일을 찾을 수 없습니다. 이 기기에서 업로드한 적이 없거나 서버 저장소가 초기화되었을 수 있습니다.",
+  );
 }
 
 export async function openUserProjectEasyreadPdfInNewTab(docId: string): Promise<void> {

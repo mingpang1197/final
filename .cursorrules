@@ -35,6 +35,17 @@ GET    /api/documents/user-projects/{doc_id}/artifact/{kind}
 - Header: X-User-Id (또는 Query: user_id)
 - Response: { content: string }
 
+GET    /api/documents/user-projects/{doc_id}/translation-segments
+- 저장된 번역 세그먼트(그림 배치 image_placements 포함) 조회
+- Header: X-User-Id (또는 Query: user_id)
+- Response: TranslationSegment[]
+
+POST   /api/documents/user-projects/{doc_id}/source
+- 회원 저장소에 업로드 원본 재업로드(브라우저 IndexedDB 동기화 등)
+- Request: multipart/form-data(file)
+- Header: X-User-Id (또는 Query: user_id)
+- Response: 204
+
 GET    /api/documents/user-projects/{doc_id}/source
 - 회원 저장소의 업로드 원본 inline 제공
 - Header: X-User-Id (또는 Query: user_id)

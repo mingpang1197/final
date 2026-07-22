@@ -32,6 +32,8 @@ _ARTIFACT_DEFAULT_FILE: dict[ArtifactKind, str] = {
     "easyread": "easyread.txt",
 }
 
+TRANSLATION_SEGMENTS_FILE = "translation_segments.json"
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -163,6 +165,57 @@ def save_translation(user_id: str, doc_id: str, filename: str, translation: str)
     meta = _touch_meta(user_id, doc_id, filename=filename)
     meta["translation_file"] = "translation.txt"
     _save_meta(user_id, doc_id, meta)
+
+
+def save_translation_segments(
+    user_id: str,
+    doc_id: str,
+    filename: str,
+    segments: list[dict],
+) -> None:
+    project_dir = _project_dir(user_id, doc_id)
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / TRANSLATION_SEGMENTS_FILE).write_text(
+        json.dumps(segments, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    meta = _touch_meta(user_id, doc_id, filename=filename)
+    meta["translation_segments_file"] = TRANSLATION_SEGMENTS_FILE
+    _save_meta(user_id, doc_id, meta)
+
+
+def read_translation_segments(user_id: str, doc_id: str) -> list[dict] | None:
+    project_dir = resolve_project_dir(user_id, doc_id)
+    if not project_dir:
+        return None
+
+    meta_path = project_dir / "metadata.json"
+    meta: dict = {}
+    if meta_path.is_file():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            meta = {}
+
+    candidates: list[str] = []
+    named = meta.get("translation_segments_file")
+    if isinstance(named, str) and named.strip():
+        candidates.append(named.strip())
+    if TRANSLATION_SEGMENTS_FILE not in candidates:
+        candidates.append(TRANSLATION_SEGMENTS_FILE)
+
+    for filename in candidates:
+        path = project_dir / filename
+        if not path.is_file():
+            continue
+        try:
+            parsed = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if isinstance(parsed, list):
+            return [item for item in parsed if isinstance(item, dict)]
+    return None
 
 
 def save_easyread_text(user_id: str, doc_id: str, filename: str, content: str) -> None:

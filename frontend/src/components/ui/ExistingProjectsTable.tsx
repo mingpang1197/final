@@ -2,17 +2,20 @@
  * 기존 프로젝트 대시보드 (로그인 사용자별 저장 항목).
  * 원문·요약문·번역문·최종본은 서버 user_storage에 보관(삭제 전까지 유지).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import type { TranslationSegment } from "../../api/client";
 import {
   deleteUserProject,
   getUserProjectArtifact,
+  getUserProjectTranslationSegments,
   listUserProjects,
   openUserProjectEasyreadPdfInNewTab,
   openUserProjectSourceInNewTab,
   type UserProjectArtifactKind,
   type UserProjectItem,
 } from "../../api/client";
+import { EasyReadDocumentView } from "../EasyReadDocumentView";
 
 export function ExistingProjectsTable() {
   const navigate = useNavigate();
@@ -23,6 +26,8 @@ export function ExistingProjectsTable() {
   const [modalTitle, setModalTitle] = useState("");
   const [modalText, setModalText] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalView, setModalView] = useState<"text" | "translation">("text");
+  const [modalSegments, setModalSegments] = useState<TranslationSegment[]>([]);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const [openingSourceId, setOpeningSourceId] = useState<string | null>(null);
   const [openingArtifactKey, setOpeningArtifactKey] = useState<string | null>(null);
@@ -63,14 +68,33 @@ export function ExistingProjectsTable() {
     setOpeningArtifactKey(key);
     setError("");
     try {
-      const content = await getUserProjectArtifact(docId, kind);
       const titleMap: Record<UserProjectArtifactKind, string> = {
         summary: "요약문",
         translation: "번역문",
         easyread: "최종본(텍스트)",
       };
+
+      if (kind === "translation") {
+        try {
+          const segments = await getUserProjectTranslationSegments(docId);
+          if (segments.some((s) => s.easy_text?.trim())) {
+            setModalTitle(titleMap[kind]);
+            setModalSegments(segments);
+            setModalView("translation");
+            setModalText("");
+            setModalOpen(true);
+            return;
+          }
+        } catch {
+          /* plain text fallback */
+        }
+      }
+
+      const content = await getUserProjectArtifact(docId, kind);
       setModalTitle(titleMap[kind]);
       setModalText(content);
+      setModalSegments([]);
+      setModalView("text");
       setModalOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "파일을 열지 못했습니다.");
@@ -78,6 +102,12 @@ export function ExistingProjectsTable() {
       setOpeningArtifactKey(null);
     }
   }
+
+  const modalTranslationText = useMemo(
+    () => modalSegments.map((s) => s.easy_text).filter(Boolean).join("\n\n"),
+    [modalSegments],
+  );
+  const modalPlacements = modalSegments[0]?.image_placements ?? [];
 
   async function openSource(docId: string) {
     setOpeningSourceId(docId);
@@ -270,7 +300,11 @@ export function ExistingProjectsTable() {
 
       {modalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4">
-          <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl">
+          <div
+            className={`w-full rounded-xl bg-white shadow-xl ${
+              modalView === "translation" ? "max-w-5xl" : "max-w-3xl"
+            }`}
+          >
             <div className="flex items-center justify-between border-b border-coolgray-20 px-4 py-3">
               <h3 className="text-base font-bold text-coolgray-90">{modalTitle}</h3>
               <button
@@ -281,9 +315,21 @@ export function ExistingProjectsTable() {
                 닫기
               </button>
             </div>
-            <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap px-4 py-4 text-sm text-coolgray-90">
-              {modalText}
-            </pre>
+            {modalView === "translation" ? (
+              <div className="max-h-[70vh] overflow-auto px-4 py-4">
+                <EasyReadDocumentView
+                  text={modalTranslationText}
+                  placements={modalPlacements}
+                  mode="images"
+                  readOnly
+                  disabled
+                />
+              </div>
+            ) : (
+              <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap px-4 py-4 text-sm text-coolgray-90">
+                {modalText}
+              </pre>
+            )}
           </div>
         </div>
       )}

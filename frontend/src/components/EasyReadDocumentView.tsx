@@ -38,6 +38,8 @@ interface EasyReadDocumentViewProps {
   fill?: boolean;
   placeholder?: string;
   disabled?: boolean;
+  /** 미리보기 — 드래그·삭제 비활성 */
+  readOnly?: boolean;
 }
 
 export function EasyReadDocumentView({
@@ -50,6 +52,7 @@ export function EasyReadDocumentView({
   fill = false,
   placeholder = "번역 결과",
   disabled = false,
+  readOnly = false,
 }: EasyReadDocumentViewProps) {
   const { body: documentBody, closing } = useMemo(() => splitStandardClosing(text), [text]);
   const sections = useMemo(() => parseTranslationSections(documentBody), [documentBody]);
@@ -157,12 +160,17 @@ export function EasyReadDocumentView({
           section={section}
           alignedPlacements={alignedPlacements}
           dragOverKey={dragOverKey}
+          readOnly={readOnly}
           onDragOverKey={setDragOverKey}
           onDropItem={(lineIndex, item) => {
+            if (readOnly) return;
             setDragOverKey(null);
             setItemPlacement(lineIndex, item, section.heading);
           }}
-          onRemoveItem={removeItemPlacement}
+          onRemoveItem={(lineIndex) => {
+            if (readOnly) return;
+            removeItemPlacement(lineIndex);
+          }}
         />
       ))}
       {closing && (
@@ -178,6 +186,7 @@ function SectionBlock({
   section,
   alignedPlacements,
   dragOverKey,
+  readOnly,
   onDragOverKey,
   onDropItem,
   onRemoveItem,
@@ -185,6 +194,7 @@ function SectionBlock({
   section: TranslationSection;
   alignedPlacements: Map<number, ImagePlacement>;
   dragOverKey: string | null;
+  readOnly?: boolean;
   onDragOverKey: (key: string | null) => void;
   onDropItem: (lineIndex: number, item: ImageCatalogItem) => void;
   onRemoveItem: (lineIndex: number) => void;
@@ -210,6 +220,7 @@ function SectionBlock({
             onDragLeave={() => onDragOverKey(null)}
             onDrop={(catalogItem) => onDropItem(item.startLineIndex, catalogItem)}
             onRemove={() => onRemoveItem(item.startLineIndex)}
+            readOnly={readOnly}
           />
         ))}
       </div>
@@ -225,6 +236,7 @@ function ItemRow({
   onDragLeave,
   onDrop,
   onRemove,
+  readOnly = false,
 }: {
   item: TranslationItem;
   placement?: ImagePlacement;
@@ -233,12 +245,14 @@ function ItemRow({
   onDragLeave: () => void;
   onDrop: (item: ImageCatalogItem) => void;
   onRemove: () => void;
+  readOnly?: boolean;
 }) {
   return (
     <div className="grid grid-cols-[minmax(120px,32%)_1fr] gap-4 items-start">
       <ImageSlot
         placement={placement}
-        dragOver={dragOver}
+        dragOver={readOnly ? false : dragOver}
+        readOnly={readOnly}
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
@@ -258,6 +272,7 @@ function ItemRow({
 function ImageSlot({
   placement,
   dragOver,
+  readOnly = false,
   onDragEnter,
   onDragLeave,
   onDrop,
@@ -265,18 +280,21 @@ function ImageSlot({
 }: {
   placement?: ImagePlacement;
   dragOver: boolean;
+  readOnly?: boolean;
   onDragEnter: () => void;
   onDragLeave: () => void;
   onDrop: (item: ImageCatalogItem) => void;
   onRemove: () => void;
 }) {
   function handleDragOver(e: DragEvent) {
+    if (readOnly) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
     onDragEnter();
   }
 
   function handleDrop(e: DragEvent) {
+    if (readOnly) return;
     e.preventDefault();
     onDragLeave();
     const item = parseDraggedImageItem(e.dataTransfer);
@@ -291,16 +309,18 @@ function ImageSlot({
 
   return (
     <div
-      onDragOver={handleDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={handleDrop}
+      onDragOver={readOnly ? undefined : handleDragOver}
+      onDragLeave={readOnly ? undefined : onDragLeave}
+      onDrop={readOnly ? undefined : handleDrop}
       className={`relative rounded-lg border min-h-[120px] flex items-center justify-center p-2 ${
         placement
           ? "border-coolgray-30 bg-[#f5f0e8]"
-          : dragOver
-            ? "border-primary-60 border-dashed bg-primary-60/5 text-primary-60"
-            : "border-dashed border-coolgray-40 bg-[#f5f0e8] text-coolgray-60"
-      } ${dragOver && placement ? "ring-2 ring-primary-60 ring-offset-1" : ""}`}
+          : readOnly
+            ? "border-coolgray-20 bg-coolgray-10"
+            : dragOver
+              ? "border-primary-60 border-dashed bg-primary-60/5 text-primary-60"
+              : "border-dashed border-coolgray-40 bg-[#f5f0e8] text-coolgray-60"
+      } ${dragOver && placement && !readOnly ? "ring-2 ring-primary-60 ring-offset-1" : ""}`}
     >
       {placement ? (
         <>
@@ -315,19 +335,21 @@ function ImageSlot({
               {placement.title || placement.image_file}
             </span>
           )}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            className="absolute top-1 right-1 z-10 size-6 rounded-full bg-white/90 border border-coolgray-30 text-coolgray-60 hover:text-alert text-sm leading-none shadow-sm"
-            aria-label="그림 제거"
-          >
-            ×
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              className="absolute top-1 right-1 z-10 size-6 rounded-full bg-white/90 border border-coolgray-30 text-coolgray-60 hover:text-alert text-sm leading-none shadow-sm"
+              aria-label="그림 제거"
+            >
+              ×
+            </button>
+          )}
         </>
-      ) : (
+      ) : readOnly ? null : (
         <span className="text-sm text-center px-2 pointer-events-none">
           그림 DB에서
           <br />

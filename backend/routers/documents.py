@@ -41,6 +41,7 @@ from backend.models.schemas import (
     SummarizeRequest,
     SummaryUpdate,
     TranslationUpdate,
+    TranslationSegment,
     UserProjectItem,
     AdminStorageOverview,
     AdminUserStorageBlock,
@@ -74,6 +75,31 @@ async def _backfill_user_source_if_missing(user_id: str, doc_id: str) -> None:
     path = _source_path(doc_id, doc.filename)
     if path.is_file():
         user_storage.save_source(user_id, doc_id, doc.filename, path.read_bytes())
+
+
+def _segments_to_storage(segments: list[TranslationSegment]) -> list[dict]:
+    return [segment.model_dump(mode="json") for segment in segments]
+
+
+async def _persist_user_translation(
+    user_id: str | None,
+    doc_id: str,
+    doc: DocumentResponse | None,
+) -> None:
+    if not user_id or not doc:
+        return
+    filename = doc.filename
+    if doc.translation_text:
+        user_storage.save_translation(user_id, doc_id, filename, doc.translation_text)
+        user_storage.save_easyread_text(user_id, doc_id, filename, doc.translation_text)
+    if doc.translation_segments:
+        user_storage.save_translation_segments(
+            user_id,
+            doc_id,
+            filename,
+            _segments_to_storage(doc.translation_segments),
+        )
+    await _backfill_user_source_if_missing(user_id, doc_id)
 
 
 async def _project_has_global_source(doc_id: str) -> bool:
@@ -396,6 +422,10 @@ async def list_user_projects(
                 data["has_summary"] = True
             if not data.get("has_translation") and doc.translation_text and doc.translation_text.strip():
                 data["has_translation"] = True
+            if not data.get("has_translation") and doc.translation_segments:
+                data["has_translation"] = True
+        if not data.get("has_translation") and user_storage.read_translation_segments(resolved, doc_id):
+            data["has_translation"] = True
         items.append(UserProjectItem(**data))
     return items
 
@@ -423,6 +453,49 @@ async def open_user_project_artifact(
     if text is None:
         raise HTTPException(404, "저장된 파일을 찾을 수 없습니다.")
     return ArtifactTextResponse(content=text)
+
+
+@router.get(
+    "/user-projects/{doc_id}/translation-segments",
+    response_model=list[TranslationSegment],
+)
+async def open_user_project_translation_segments(
+    doc_id: str,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_id: str | None = Query(default=None),
+) -> list[TranslationSegment]:
+    resolved = _require_user_id(x_user_id, user_id)
+    raw = user_storage.read_translation_segments(resolved, doc_id)
+    if raw:
+        return [TranslationSegment(**item) for item in raw]
+
+    doc = await get_document(doc_id)
+    if doc and doc.translation_segments:
+        segments = doc.translation_segments
+        await _persist_user_translation(resolved, doc_id, doc)
+        return segments
+
+    raise HTTPException(404, "저장된 번역 세그먼트를 찾을 수 없습니다.")
+
+
+@router.post("/user-projects/{doc_id}/source", status_code=204)
+async def upload_user_project_source(
+    doc_id: str,
+    file: UploadFile = File(...),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_id: str | None = Query(default=None),
+) -> Response:
+    """브라우저 IndexedDB 등에만 남은 원본을 회원 저장소로 다시 올릴 때 사용."""
+    resolved = _require_user_id(x_user_id, user_id)
+    if not file.filename:
+        raise HTTPException(400, "파일명이 없습니다.")
+    content = await file.read()
+    user_storage.save_source(resolved, doc_id, file.filename, content)
+
+    doc = await get_document(doc_id)
+    filename = doc.filename if doc else file.filename
+    _source_path(doc_id, filename).write_bytes(content)
+    return Response(status_code=204)
 
 
 @router.get("/user-projects/{doc_id}/source")
@@ -686,9 +759,8 @@ async def translate_document(
     )
     await update_translation(doc_id, segments, text, checklist=checklist_report)
     updated = await get_document(doc_id)
-    if updated and x_user_id and updated.translation_text:
-        user_storage.save_translation(x_user_id, doc_id, updated.filename, updated.translation_text)
-        user_storage.save_easyread_text(x_user_id, doc_id, updated.filename, updated.translation_text)
+    if updated:
+        await _persist_user_translation(x_user_id, doc_id, updated)
     return updated  # type: ignore[return-value]
 
 
@@ -737,9 +809,8 @@ async def patch_translation(
     checklist_report = translator.run_checklist(text)
     await update_translation(doc_id, body.segments, text, checklist=checklist_report)
     updated = await get_document(doc_id)
-    if updated and x_user_id and updated.translation_text:
-        user_storage.save_translation(x_user_id, doc_id, updated.filename, updated.translation_text)
-        user_storage.save_easyread_text(x_user_id, doc_id, updated.filename, updated.translation_text)
+    if updated:
+        await _persist_user_translation(x_user_id, doc_id, updated)
     return updated  # type: ignore[return-value]
 
 
@@ -765,9 +836,8 @@ async def refine_translation(
         raise HTTPException(400, str(exc)) from exc
     await update_translation(doc_id, segments, text, checklist=checklist_report)
     updated = await get_document(doc_id)
-    if updated and x_user_id and updated.translation_text:
-        user_storage.save_translation(x_user_id, doc_id, updated.filename, updated.translation_text)
-        user_storage.save_easyread_text(x_user_id, doc_id, updated.filename, updated.translation_text)
+    if updated:
+        await _persist_user_translation(x_user_id, doc_id, updated)
     return updated  # type: ignore[return-value]
 
 
@@ -827,6 +897,7 @@ async def _export_docx(
         if easyread_text:
             user_storage.save_easyread_text(x_user_id, doc_id, doc.filename, easyread_text)
         user_storage.save_easyread_docx(x_user_id, doc_id, doc.filename, content)
+        await _persist_user_translation(x_user_id, doc_id, doc)
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -884,6 +955,7 @@ async def _export_pdf(
         if easyread_text:
             user_storage.save_easyread_text(x_user_id, doc_id, doc.filename, easyread_text)
         user_storage.save_easyread_pdf(x_user_id, doc_id, doc.filename, content)
+        await _persist_user_translation(x_user_id, doc_id, doc)
 
     disposition = "inline" if inline else "attachment"
     return Response(
