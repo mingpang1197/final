@@ -437,18 +437,43 @@ async function fetchAuthenticatedBlob(path: string): Promise<Blob> {
   return res.blob();
 }
 
-function openBlobInNewTab(blob: Blob): void {
-  const url = URL.createObjectURL(blob);
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
-  if (!opened) {
-    URL.revokeObjectURL(url);
-    throw new Error("팝업이 차단되었습니다. 브라우저에서 팝업을 허용해 주세요.");
+/** 클릭 직후(동기) 호출해 두면 fetch 이후에도 팝업 차단을 피할 수 있다. */
+export function prepareDocumentPreviewWindow(title = "불러오는 중…"): Window | null {
+  const preview = window.open("about:blank", "_blank");
+  if (!preview) return null;
+  try {
+    preview.document.title = title;
+    preview.document.body.innerHTML =
+      '<p style="font-family:sans-serif;padding:24px;color:#525252">문서를 불러오는 중입니다…</p>';
+  } catch {
+    /* cross-origin or restricted — location only */
   }
+  return preview;
+}
+
+function openBlobInPreview(blob: Blob, previewWindow: Window | null): void {
+  const url = URL.createObjectURL(blob);
+  if (previewWindow && !previewWindow.closed) {
+    previewWindow.location.href = url;
+    window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
+    return;
+  }
+
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
 }
 
-export async function openUserProjectSourceInNewTab(docId: string): Promise<void> {
-  const openBlob = (blob: Blob) => openBlobInNewTab(blob);
+export async function openUserProjectSourceInNewTab(
+  docId: string,
+  previewWindow: Window | null = null,
+): Promise<void> {
+  const openBlob = (blob: Blob) => openBlobInPreview(blob, previewWindow);
 
   try {
     const blob = await fetchAuthenticatedBlob(`/documents/user-projects/${docId}/source`);
@@ -480,9 +505,12 @@ export async function openUserProjectSourceInNewTab(docId: string): Promise<void
   );
 }
 
-export async function openUserProjectEasyreadPdfInNewTab(docId: string): Promise<void> {
+export async function openUserProjectEasyreadPdfInNewTab(
+  docId: string,
+  previewWindow: Window | null = null,
+): Promise<void> {
   const blob = await fetchAuthenticatedBlob(`/documents/user-projects/${docId}/easyread.pdf`);
-  openBlobInNewTab(blob);
+  openBlobInPreview(blob, previewWindow);
 }
 
 export function getUserProjectSourceUrl(docId: string): string {

@@ -12,6 +12,7 @@ import {
   listUserProjects,
   openUserProjectEasyreadPdfInNewTab,
   openUserProjectSourceInNewTab,
+  prepareDocumentPreviewWindow,
   type UserProjectArtifactKind,
   type UserProjectItem,
 } from "../../api/client";
@@ -110,11 +111,18 @@ export function ExistingProjectsTable() {
   const modalPlacements = modalSegments[0]?.image_placements ?? [];
 
   async function openSource(docId: string) {
+    const preview = prepareDocumentPreviewWindow("원문 불러오는 중…");
+    if (!preview) {
+      setError("팝업이 차단되었습니다. 주소창 옆 팝업 허용 후 다시 시도해 주세요.");
+      return;
+    }
+
     setOpeningSourceId(docId);
     setError("");
     try {
-      await openUserProjectSourceInNewTab(docId);
+      await openUserProjectSourceInNewTab(docId, preview);
     } catch (err) {
+      if (!preview.closed) preview.close();
       setError(err instanceof Error ? err.message : "원문을 열지 못했습니다.");
     } finally {
       setOpeningSourceId(null);
@@ -122,11 +130,18 @@ export function ExistingProjectsTable() {
   }
 
   async function openFinalPdf(docId: string) {
+    const preview = prepareDocumentPreviewWindow("PDF 불러오는 중…");
+    if (!preview) {
+      setError("팝업이 차단되었습니다. 주소창 옆 팝업 허용 후 다시 시도해 주세요.");
+      return;
+    }
+
     setOpeningPdfId(docId);
     setError("");
     try {
-      await openUserProjectEasyreadPdfInNewTab(docId);
+      await openUserProjectEasyreadPdfInNewTab(docId, preview);
     } catch (err) {
+      if (!preview.closed) preview.close();
       setError(err instanceof Error ? err.message : "최종본 PDF를 열지 못했습니다.");
     } finally {
       setOpeningPdfId(null);
