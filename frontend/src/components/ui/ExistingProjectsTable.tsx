@@ -25,6 +25,7 @@ export function ExistingProjectsTable() {
   const [modalOpen, setModalOpen] = useState(false);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const [openingSourceId, setOpeningSourceId] = useState<string | null>(null);
+  const [openingArtifactKey, setOpeningArtifactKey] = useState<string | null>(null);
   const [openingPdfId, setOpeningPdfId] = useState<string | null>(null);
 
   const refreshProjects = useCallback(async () => {
@@ -58,6 +59,9 @@ export function ExistingProjectsTable() {
   }, [location.pathname, location.key, refreshProjects]);
 
   async function openArtifact(docId: string, kind: UserProjectArtifactKind) {
+    const key = `${docId}:${kind}`;
+    setOpeningArtifactKey(key);
+    setError("");
     try {
       const content = await getUserProjectArtifact(docId, kind);
       const titleMap: Record<UserProjectArtifactKind, string> = {
@@ -70,6 +74,8 @@ export function ExistingProjectsTable() {
       setModalOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "파일을 열지 못했습니다.");
+    } finally {
+      setOpeningArtifactKey(null);
     }
   }
 
@@ -99,6 +105,10 @@ export function ExistingProjectsTable() {
 
   function canTryOpenSource(row: UserProjectItem): boolean {
     return Boolean(row.has_source || row.has_summary || row.has_translation);
+  }
+
+  function canTryOpenSummary(row: UserProjectItem): boolean {
+    return Boolean(row.has_summary || row.has_translation || row.has_easyread);
   }
 
   function editProject(docId: string) {
@@ -219,14 +229,16 @@ export function ExistingProjectsTable() {
                     </td>
                     <td className="px-3 py-3">
                       <OpenButton
-                        disabled={!row.has_summary}
-                        onClick={() => openArtifact(row.doc_id, "summary")}
+                        disabled={!canTryOpenSummary(row)}
+                        loading={openingArtifactKey === `${row.doc_id}:summary`}
+                        onClick={() => void openArtifact(row.doc_id, "summary")}
                       />
                     </td>
                     <td className="px-3 py-3">
                       <OpenButton
-                        disabled={!row.has_translation}
-                        onClick={() => openArtifact(row.doc_id, "translation")}
+                        disabled={!row.has_translation && !row.has_easyread}
+                        loading={openingArtifactKey === `${row.doc_id}:translation`}
+                        onClick={() => void openArtifact(row.doc_id, "translation")}
                       />
                     </td>
                     <td className="px-3 py-3">
@@ -257,7 +269,7 @@ export function ExistingProjectsTable() {
       {error && <p className="mt-3 text-sm text-alert">{error}</p>}
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4">
           <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-coolgray-20 px-4 py-3">
               <h3 className="text-base font-bold text-coolgray-90">{modalTitle}</h3>

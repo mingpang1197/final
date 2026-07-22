@@ -20,6 +20,18 @@ _USER_STORAGE_DIR = DATA_DIR / "user_storage"
 
 ArtifactKind = Literal["summary", "translation", "easyread"]
 
+_ARTIFACT_META_KEY: dict[ArtifactKind, str] = {
+    "summary": "summary_file",
+    "translation": "translation_file",
+    "easyread": "easyread_file",
+}
+
+_ARTIFACT_DEFAULT_FILE: dict[ArtifactKind, str] = {
+    "summary": "summary.txt",
+    "translation": "translation.txt",
+    "easyread": "easyread.txt",
+}
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -36,6 +48,43 @@ def _user_dir(user_id: str) -> Path:
 
 def _project_dir(user_id: str, doc_id: str) -> Path:
     return _user_dir(user_id) / "projects" / _safe_segment(doc_id)
+
+
+def resolve_project_dir(user_id: str, doc_id: str) -> Path | None:
+    """doc_id(메타)와 폴더명이 어긋난 경우 프로젝트 디렉터리를 찾는다."""
+    direct = _project_dir(user_id, doc_id)
+    if direct.is_dir() and (direct / "metadata.json").is_file():
+        return direct
+
+    root = _user_dir(user_id) / "projects"
+    if not root.is_dir():
+        return None
+
+    target = doc_id.strip()
+    safe_target = _safe_segment(doc_id)
+    for project_dir in root.iterdir():
+        if not project_dir.is_dir():
+            continue
+        if project_dir.name == safe_target:
+            return project_dir
+        meta_path = project_dir / "metadata.json"
+        if not meta_path.is_file():
+            continue
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if str(meta.get("doc_id") or "") == target:
+            return project_dir
+    return None
+
+
+def _project_has_artifact(project_dir: Path, meta: dict, kind: ArtifactKind) -> bool:
+    meta_key = _ARTIFACT_META_KEY[kind]
+    named = meta.get(meta_key)
+    if isinstance(named, str) and named and (project_dir / named).is_file():
+        return True
+    return (project_dir / _ARTIFACT_DEFAULT_FILE[kind]).is_file()
 
 
 def _meta_path(user_id: str, doc_id: str) -> Path:
@@ -170,8 +219,8 @@ def list_user_projects(user_id: str) -> list[dict]:
                 "created_at": str(meta.get("created_at") or ""),
                 "updated_at": str(meta.get("updated_at") or ""),
                 "has_source": _project_has_source(project_dir, meta),
-                "has_summary": bool(meta.get("summary_file")),
-                "has_translation": bool(meta.get("translation_file")),
+                "has_summary": _project_has_artifact(project_dir, meta, "summary"),
+                "has_translation": _project_has_artifact(project_dir, meta, "translation"),
                 "has_easyread_pdf": bool(meta.get("easyread_pdf_file")),
                 "has_easyread": bool(
                     meta.get("easyread_file")
@@ -186,24 +235,36 @@ def list_user_projects(user_id: str) -> list[dict]:
 
 
 def read_artifact_text(user_id: str, doc_id: str, kind: ArtifactKind) -> str | None:
-    meta = _load_meta(user_id, doc_id)
-    file_key_map = {
-        "summary": "summary_file",
-        "translation": "translation_file",
-        "easyread": "easyread_file",
-    }
-    key = file_key_map[kind]
-    filename = meta.get(key)
-    if not isinstance(filename, str) or not filename:
+    project_dir = resolve_project_dir(user_id, doc_id)
+    if not project_dir:
         return None
 
-    path = _project_dir(user_id, doc_id) / filename
-    if not path.is_file():
-        return None
-    try:
-        return path.read_text(encoding="utf-8")
-    except OSError:
-        return None
+    meta_path = project_dir / "metadata.json"
+    meta: dict = {}
+    if meta_path.is_file():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            meta = {}
+
+    meta_key = _ARTIFACT_META_KEY[kind]
+    candidates: list[str] = []
+    named = meta.get(meta_key)
+    if isinstance(named, str) and named.strip():
+        candidates.append(named.strip())
+    default_name = _ARTIFACT_DEFAULT_FILE[kind]
+    if default_name not in candidates:
+        candidates.append(default_name)
+
+    for filename in candidates:
+        path = project_dir / filename
+        if not path.is_file():
+            continue
+        try:
+            return path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+    return None
 
 
 def get_source_file(user_id: str, doc_id: str) -> tuple[Path, str] | None:

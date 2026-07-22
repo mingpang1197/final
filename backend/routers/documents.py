@@ -384,11 +384,18 @@ async def list_user_projects(
     items: list[UserProjectItem] = []
     for raw in user_storage.list_user_projects(resolved):
         data = dict(raw)
+        doc_id = str(data["doc_id"])
         if not data.get("has_source"):
-            if user_storage.get_source_file(resolved, str(data["doc_id"])):
+            if user_storage.get_source_file(resolved, doc_id):
                 data["has_source"] = True
-            elif await _project_has_global_source(str(data["doc_id"])):
+            elif await _project_has_global_source(doc_id):
                 data["has_source"] = True
+        doc = await get_document(doc_id)
+        if doc:
+            if not data.get("has_summary") and doc.summary and doc.summary.strip():
+                data["has_summary"] = True
+            if not data.get("has_translation") and doc.translation_text and doc.translation_text.strip():
+                data["has_translation"] = True
         items.append(UserProjectItem(**data))
     return items
 
@@ -402,6 +409,17 @@ async def open_user_project_artifact(
 ) -> ArtifactTextResponse:
     resolved = _require_user_id(x_user_id, user_id)
     text = user_storage.read_artifact_text(resolved, doc_id, kind)
+    if text is None:
+        doc = await get_document(doc_id)
+        if doc:
+            if kind == "summary" and doc.summary and doc.summary.strip():
+                text = doc.summary.strip()
+            elif kind == "translation" and doc.translation_text and doc.translation_text.strip():
+                text = doc.translation_text.strip()
+            elif kind == "easyread":
+                fallback = (doc.translation_text or doc.summary or "").strip()
+                if fallback:
+                    text = fallback
     if text is None:
         raise HTTPException(404, "저장된 파일을 찾을 수 없습니다.")
     return ArtifactTextResponse(content=text)

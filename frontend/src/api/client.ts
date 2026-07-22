@@ -369,10 +369,29 @@ export async function getUserProjectArtifact(
   docId: string,
   kind: UserProjectArtifactKind,
 ): Promise<string> {
-  const data = await request<{ content: string }>(
-    `/documents/user-projects/${docId}/artifact/${kind}`,
-  );
-  return data.content;
+  try {
+    const data = await request<{ content: string }>(
+      `/documents/user-projects/${docId}/artifact/${kind}`,
+    );
+    return data.content;
+  } catch (firstErr) {
+    try {
+      const doc = await getDocument(docId);
+      if (kind === "summary" && doc.summary?.trim()) {
+        return doc.summary.trim();
+      }
+      if (kind === "translation" && doc.translation_text?.trim()) {
+        return doc.translation_text.trim();
+      }
+      if (kind === "easyread") {
+        const text = (doc.translation_text || doc.summary || "").trim();
+        if (text) return text;
+      }
+    } catch {
+      /* ignore secondary failure */
+    }
+    throw firstErr instanceof Error ? firstErr : new Error("저장된 파일을 찾을 수 없습니다.");
+  }
 }
 
 async function fetchAuthenticatedBlob(path: string): Promise<Blob> {
