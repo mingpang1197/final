@@ -878,6 +878,23 @@ async def export_docx_post(
     return await _export_docx(doc_id, body, x_user_id=x_user_id)
 
 
+def _resolve_upload_source_path(
+    doc_id: str,
+    filename: str,
+    user_id: str | None = None,
+) -> Path | None:
+    path = _source_path(doc_id, filename)
+    if path.is_file():
+        return path
+    if user_id:
+        resolved = user_storage.get_source_file(user_id, doc_id)
+        if resolved:
+            file_path, _ = resolved
+            if file_path.is_file() and file_path.suffix.lower() == ".pdf":
+                return file_path
+    return None
+
+
 async def _export_docx(
     doc_id: str,
     body: ExportRequest | None,
@@ -891,7 +908,10 @@ async def _export_docx(
     if not doc.translation_text and not doc.summary and not doc.translation_segments:
         raise HTTPException(400, "내보낼 내용이 없습니다.")
 
-    content = word_export.export_to_docx(doc)
+    content = word_export.export_to_docx(
+        doc,
+        source_file=_resolve_upload_source_path(doc_id, doc.filename, x_user_id),
+    )
     if x_user_id:
         easyread_text = doc.translation_text or doc.summary or ""
         if easyread_text:
@@ -943,7 +963,10 @@ async def _export_pdf(
     from backend.services.docx_to_pdf import DocxToPdfError
 
     try:
-        content = pdf_export.export_to_pdf(doc)
+        content = pdf_export.export_to_pdf(
+            doc,
+            source_file=_resolve_upload_source_path(doc_id, doc.filename, x_user_id),
+        )
     except DocxToPdfError as exc:
         raise HTTPException(
             503,

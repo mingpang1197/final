@@ -323,10 +323,10 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
     return f"<html><head></head><body>{content}</body></html>", css
 
 
-def export_to_pdf(doc: DocumentResponse) -> bytes:
+def export_to_pdf(doc: DocumentResponse, *, source_file: Path | None = None) -> bytes:
     """Word export → PDF 변환. Word/LibreOffice 없으면 DocxToPdfError."""
     from backend.services import word_export
     from backend.services.docx_to_pdf import convert_docx_bytes_to_pdf
 
-    docx_bytes = word_export.export_to_docx(doc)
+    docx_bytes = word_export.export_to_docx(doc, source_file=source_file)
     return convert_docx_bytes_to_pdf(docx_bytes)

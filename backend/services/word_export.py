@@ -545,7 +545,32 @@ def _collect_body_text(doc: DocumentResponse) -> str:
     return ""
 
 
-def export_to_docx(doc: DocumentResponse, *, include_meta: bool = False) -> bytes:
+def collect_body_text(doc: DocumentResponse) -> str:
+    return _collect_body_text(doc)
+
+
+def build_easy_read_insert_document(doc: DocumentResponse) -> Document:
+    """「이유」 직후 삽입용 — 고지문 + 그림 포함 이지리드 본문만."""
+    word = Document()
+    for section in word.sections:
+        _configure_section(section)
+
+    easy_body = _collect_body_text(doc)
+    if not easy_body:
+        return word
+
+    _export_easy_read_provision(word)
+    raw_placements = _collect_placements(doc) or []
+    _export_easy_read_body(word, easy_body, raw_placements)
+    return word
+
+
+def export_to_docx(
+    doc: DocumentResponse,
+    *,
+    include_meta: bool = False,
+    source_file: Path | None = None,
+) -> bytes:
     word = Document()
 
     for section in word.sections:
@@ -559,6 +584,18 @@ def export_to_docx(doc: DocumentResponse, *, include_meta: bool = False) -> byte
         meta.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
     easy_body = _collect_body_text(doc)
+    if not easy_body:
+        buffer = io.BytesIO()
+        word.save(buffer)
+        return buffer.getvalue()
+
+    if source_file is not None:
+        from backend.services.pdf_source_merge import merge_pdf_with_easy_read_insert
+
+        merged = merge_pdf_with_easy_read_insert(source_file, doc)
+        if merged:
+            return merged
+
     split = split_judgment_at_reason(doc.full_text or "") if (doc.full_text or "").strip() else None
 
     if split and easy_body:

@@ -147,8 +147,8 @@ export function ExportPage() {
         <div className="flex-1 flex flex-col items-center gap-4 min-h-0 overflow-hidden w-full max-w-[916px] mx-auto">
           <div className="w-full flex-1 min-h-0 border border-coolgray-30 overflow-hidden rounded-sm shadow-inner bg-[#e8e8e8]">
             <p className="shrink-0 border-b border-coolgray-20 bg-white px-3 py-2 text-xs text-coolgray-60">
-              원문에 「이유」가 있으면 주문~이유, Easy-Read 제공 고지, 그림 포함 번역본, 이어지는 원문
-              순으로 합쳐 미리보기합니다.
+            원문 PDF가 있으면 pdf2docx로 양식을 유지한 뒤 「이유」 다음에 Easy-Read 고지·번역(그림)을
+              삽입합니다. (PDF·「이유」 없으면 OCR 텍스트 병합)
             </p>
             {previewLoading ? (
               <div className="h-full flex items-center justify-center text-coolgray-60 text-base">
