@@ -58,6 +58,17 @@ def _save_meta(user_id: str, doc_id: str, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _project_has_source(project_dir: Path, meta: dict) -> bool:
+    source_file = meta.get("source_file")
+    if isinstance(source_file, str) and source_file:
+        if (project_dir / source_file).is_file():
+            return True
+    for candidate in project_dir.glob("source.*"):
+        if candidate.is_file():
+            return True
+    return False
+
+
 def _touch_meta(user_id: str, doc_id: str, *, filename: str | None = None) -> dict:
     meta = _load_meta(user_id, doc_id)
     now = _now_iso()
@@ -158,7 +169,7 @@ def list_user_projects(user_id: str) -> list[dict]:
                 "filename": str(meta.get("filename") or "(이름 없음)"),
                 "created_at": str(meta.get("created_at") or ""),
                 "updated_at": str(meta.get("updated_at") or ""),
-                "has_source": bool(meta.get("source_file")),
+                "has_source": _project_has_source(project_dir, meta),
                 "has_summary": bool(meta.get("summary_file")),
                 "has_translation": bool(meta.get("translation_file")),
                 "has_easyread_pdf": bool(meta.get("easyread_pdf_file")),
@@ -197,17 +208,22 @@ def read_artifact_text(user_id: str, doc_id: str, kind: ArtifactKind) -> str | N
 
 def get_source_file(user_id: str, doc_id: str) -> tuple[Path, str] | None:
     meta = _load_meta(user_id, doc_id)
-    source_file = meta.get("source_file")
     filename = meta.get("filename")
-    if not isinstance(source_file, str) or not source_file:
-        return None
+    project_dir = _project_dir(user_id, doc_id)
 
-    path = _project_dir(user_id, doc_id) / source_file
-    if not path.is_file():
-        return None
+    source_file = meta.get("source_file")
+    if isinstance(source_file, str) and source_file:
+        path = project_dir / source_file
+        if path.is_file():
+            download_name = str(filename) if isinstance(filename, str) and filename else path.name
+            return path, download_name
 
-    download_name = str(filename) if isinstance(filename, str) and filename else path.name
-    return path, download_name
+    for candidate in sorted(project_dir.glob("source.*")):
+        if candidate.is_file():
+            download_name = str(filename) if isinstance(filename, str) and filename else candidate.name
+            return candidate, download_name
+
+    return None
 
 
 def get_easyread_pdf_file(user_id: str, doc_id: str) -> tuple[Path, str] | None:

@@ -7,9 +7,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   deleteUserProject,
   getUserProjectArtifact,
-  getUserProjectEasyreadPdfUrl,
-  getUserProjectSourceUrl,
   listUserProjects,
+  openUserProjectEasyreadPdfInNewTab,
+  openUserProjectSourceInNewTab,
   type UserProjectArtifactKind,
   type UserProjectItem,
 } from "../../api/client";
@@ -24,6 +24,8 @@ export function ExistingProjectsTable() {
   const [modalText, setModalText] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [openingSourceId, setOpeningSourceId] = useState<string | null>(null);
+  const [openingPdfId, setOpeningPdfId] = useState<string | null>(null);
 
   const refreshProjects = useCallback(async () => {
     setLoading(true);
@@ -71,12 +73,32 @@ export function ExistingProjectsTable() {
     }
   }
 
-  function openSource(docId: string) {
-    window.open(getUserProjectSourceUrl(docId), "_blank", "noopener,noreferrer");
+  async function openSource(docId: string) {
+    setOpeningSourceId(docId);
+    setError("");
+    try {
+      await openUserProjectSourceInNewTab(docId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "원문을 열지 못했습니다.");
+    } finally {
+      setOpeningSourceId(null);
+    }
   }
 
-  function openFinalPdf(docId: string) {
-    window.open(getUserProjectEasyreadPdfUrl(docId), "_blank", "noopener,noreferrer");
+  async function openFinalPdf(docId: string) {
+    setOpeningPdfId(docId);
+    setError("");
+    try {
+      await openUserProjectEasyreadPdfInNewTab(docId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "최종본 PDF를 열지 못했습니다.");
+    } finally {
+      setOpeningPdfId(null);
+    }
+  }
+
+  function canTryOpenSource(row: UserProjectItem): boolean {
+    return Boolean(row.has_source || row.has_summary || row.has_translation);
   }
 
   function editProject(docId: string) {
@@ -106,19 +128,21 @@ export function ExistingProjectsTable() {
 
   function OpenButton({
     disabled,
+    loading,
     onClick,
   }: {
     disabled?: boolean;
+    loading?: boolean;
     onClick: () => void;
   }) {
     return (
       <button
         type="button"
-        disabled={disabled}
+        disabled={disabled || loading}
         onClick={onClick}
         className="rounded border border-coolgray-30 px-2 py-1 text-xs font-medium text-coolgray-90 hover:bg-coolgray-10 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        열기
+        {loading ? "…" : "열기"}
       </button>
     );
   }
@@ -188,8 +212,9 @@ export function ExistingProjectsTable() {
                     </td>
                     <td className="px-3 py-3">
                       <OpenButton
-                        disabled={!row.has_source}
-                        onClick={() => openSource(row.doc_id)}
+                        disabled={!canTryOpenSource(row)}
+                        loading={openingSourceId === row.doc_id}
+                        onClick={() => void openSource(row.doc_id)}
                       />
                     </td>
                     <td className="px-3 py-3">
@@ -207,7 +232,8 @@ export function ExistingProjectsTable() {
                     <td className="px-3 py-3">
                       <OpenButton
                         disabled={!row.has_easyread_pdf}
-                        onClick={() => openFinalPdf(row.doc_id)}
+                        loading={openingPdfId === row.doc_id}
+                        onClick={() => void openFinalPdf(row.doc_id)}
                       />
                     </td>
                     <td className="px-3 py-3 text-center">

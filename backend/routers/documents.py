@@ -64,6 +64,34 @@ def _source_path(doc_id: str, filename: str) -> Path:
     ext = Path(filename).suffix.lower() or ".bin"
     return UPLOAD_DIR / f"{doc_id}_source{ext}"
 
+
+async def _backfill_user_source_if_missing(user_id: str, doc_id: str) -> None:
+    if user_storage.get_source_file(user_id, doc_id):
+        return
+    doc = await get_document(doc_id)
+    if not doc:
+        return
+    path = _source_path(doc_id, doc.filename)
+    if path.is_file():
+        user_storage.save_source(user_id, doc_id, doc.filename, path.read_bytes())
+
+
+async def _project_has_global_source(doc_id: str) -> bool:
+    doc = await get_document(doc_id)
+    if not doc:
+        return False
+    return _source_path(doc_id, doc.filename).is_file()
+
+
+def _file_response_inline(path: Path, filename: str) -> FileResponse:
+    media_type, _ = mimetypes.guess_type(filename)
+    return FileResponse(
+        path=path,
+        media_type=media_type or "application/octet-stream",
+        filename=filename,
+        content_disposition_type="inline",
+    )
+
 # --- 요약 텍스트 정규화·교정 ---
 
 
@@ -353,7 +381,16 @@ async def list_user_projects(
     user_id: str | None = Query(default=None),
 ) -> list[UserProjectItem]:
     resolved = _require_user_id(x_user_id, user_id)
-    return [UserProjectItem(**item) for item in user_storage.list_user_projects(resolved)]
+    items: list[UserProjectItem] = []
+    for raw in user_storage.list_user_projects(resolved):
+        data = dict(raw)
+        if not data.get("has_source"):
+            if user_storage.get_source_file(resolved, str(data["doc_id"])):
+                data["has_source"] = True
+            elif await _project_has_global_source(str(data["doc_id"])):
+                data["has_source"] = True
+        items.append(UserProjectItem(**data))
+    return items
 
 
 @router.get("/user-projects/{doc_id}/artifact/{kind}", response_model=ArtifactTextResponse)
@@ -377,17 +414,19 @@ async def open_user_project_source(
     user_id: str | None = Query(default=None),
 ) -> FileResponse:
     resolved_user = _require_user_id(x_user_id, user_id)
+    await _backfill_user_source_if_missing(resolved_user, doc_id)
     resolved = user_storage.get_source_file(resolved_user, doc_id)
-    if not resolved:
-        raise HTTPException(404, "원본 파일을 찾을 수 없습니다.")
-    path, filename = resolved
-    media_type, _ = mimetypes.guess_type(filename)
-    return FileResponse(
-        path=path,
-        media_type=media_type or "application/octet-stream",
-        filename=filename,
-        content_disposition_type="inline",
-    )
+    if resolved:
+        path, filename = resolved
+        return _file_response_inline(path, filename)
+
+    doc = await get_document(doc_id)
+    if doc:
+        global_path = _source_path(doc_id, doc.filename)
+        if global_path.is_file():
+            return _file_response_inline(global_path, doc.filename)
+
+    raise HTTPException(404, "원본 파일을 찾을 수 없습니다.")
 
 
 @router.get("/user-projects/{doc_id}/easyread.pdf")
@@ -548,6 +587,7 @@ async def summarize_document(
     updated = await get_document(doc_id)
     if updated and x_user_id and updated.summary:
         user_storage.save_summary(x_user_id, doc_id, updated.filename, updated.summary)
+        await _backfill_user_source_if_missing(x_user_id, doc_id)
     return updated  # type: ignore[return-value]
 
 
@@ -574,6 +614,7 @@ async def patch_summary(
     updated = await get_document(doc_id)
     if updated and x_user_id and updated.summary:
         user_storage.save_summary(x_user_id, doc_id, updated.filename, updated.summary)
+        await _backfill_user_source_if_missing(x_user_id, doc_id)
     return updated  # type: ignore[return-value]
 
 
@@ -604,6 +645,7 @@ async def refine_summary(
     updated = await get_document(doc_id)
     if updated and x_user_id and updated.summary:
         user_storage.save_summary(x_user_id, doc_id, updated.filename, updated.summary)
+        await _backfill_user_source_if_missing(x_user_id, doc_id)
     return updated  # type: ignore[return-value]
 
 # --- 쉬운 글(번역) API ---

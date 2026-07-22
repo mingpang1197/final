@@ -101,7 +101,7 @@ export function StepIndicator({ current, docId }: StepIndicatorProps) {
             <Link
               key={step.id}
               to={to}
-              className={`${className} hover:opacity-90 transition-opacity cursor-pointer no-underline text-inherit`}
+              className={`${className} relative z-10 hover:opacity-90 transition-opacity cursor-pointer no-underline text-inherit`}
             >
               {content}
             </Link>

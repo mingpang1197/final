@@ -174,7 +174,7 @@ export function UploadPage() {
                   onClick={handleDone}
                   className="w-full py-2.5 text-base font-semibold text-white bg-primary-60 border border-white rounded-lg shadow-sm hover:bg-primary-90 disabled:opacity-50 transition-colors"
                 >
-                  {loading ? "업로드 중..." : "Done"}
+                  {loading ? "업로드 중..." : "업로드"}
                 </button>
               </div>
 

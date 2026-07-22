@@ -375,6 +375,48 @@ export async function getUserProjectArtifact(
   return data.content;
 }
 
+async function fetchAuthenticatedBlob(path: string): Promise<Blob> {
+  const headers = new Headers();
+  const authUser = getAuthUserId();
+  if (authUser) {
+    headers.set("X-User-Id", authUser);
+  }
+  const res = await fetch(`${API_BASE}${path}`, { headers });
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res));
+  }
+  return res.blob();
+}
+
+function openBlobInNewTab(blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) {
+    URL.revokeObjectURL(url);
+    throw new Error("팝업이 차단되었습니다. 브라우저에서 팝업을 허용해 주세요.");
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
+}
+
+export async function openUserProjectSourceInNewTab(docId: string): Promise<void> {
+  try {
+    const blob = await fetchAuthenticatedBlob(`/documents/user-projects/${docId}/source`);
+    openBlobInNewTab(blob);
+  } catch (firstErr) {
+    try {
+      const blob = await fetchAuthenticatedBlob(`/documents/${docId}/source`);
+      openBlobInNewTab(blob);
+    } catch {
+      throw firstErr instanceof Error ? firstErr : new Error("원문을 열지 못했습니다.");
+    }
+  }
+}
+
+export async function openUserProjectEasyreadPdfInNewTab(docId: string): Promise<void> {
+  const blob = await fetchAuthenticatedBlob(`/documents/user-projects/${docId}/easyread.pdf`);
+  openBlobInNewTab(blob);
+}
+
 export function getUserProjectSourceUrl(docId: string): string {
   const userId = getAuthUserId() ?? "";
   const q = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
