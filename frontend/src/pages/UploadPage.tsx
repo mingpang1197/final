@@ -10,14 +10,13 @@ import { IconUploadCloud } from "../components/ui/icons";
 import { StepIndicator } from "../components/ui/StepIndicator";
 import { UploadCaseTypeModal } from "../components/ui/UploadCaseTypeModal";
 import { cacheUpload, getCachedUpload, getLastDocId } from "../utils/docCache";
-import { guessDocTypeFromFilename } from "../utils/guessDocType";
 import { saveSourceFile } from "../utils/sourceStore";
 
 export function UploadPage() {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const lastDocId = getLastDocId();
-  const [docType, setDocType] = useState<Exclude<DocType, "unknown">>("civil");
+  const [docType, setDocType] = useState<Exclude<DocType, "unknown">>("criminal");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -80,7 +79,6 @@ export function UploadPage() {
 
   function handleDone() {
     if (pendingFile && !loading) {
-      setDocType(guessDocTypeFromFilename(pendingFile.name));
       setCaseTypeModalOpen(true);
     }
   }
