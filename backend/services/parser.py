@@ -13,14 +13,16 @@ from collections import Counter
 from backend.models.schemas import DocType
 
 CRIMINAL_MARKERS = ["피고인", "범죄사실", "주문", "징역", "벌금", "무죄"]
-CIVIL_MARKERS = ["원고", "피고", "청구", "소송", "손해배상"]
+CIVIL_MARKERS = ["원고", "피고", "청구", "손해배상"]  # '소송'은 행정/가사에도 흔해 제외 권장
 FAMILY_MARKERS = ["이혼", "친권", "양육", "부양", "가사"]
 ADMIN_MARKERS = ["처분", "행정", "취소", "무효", "행정청", "행정법원", "구합", "장애등록", "등급외"]
 
-CASE_NUM_PATTERN = re.compile(r"\d{2,4}\s*[가-힣]{1,4}\s*\d+")
+# 줄바꿈(\n)이 포함된 OCR 사건번호도 잡을 수 있도록 패턴 수정
+CASE_NUM_PATTERN = re.compile(r"\d{2,4}[\s\n]*[가-힣]{1,4}[\s\n]*\d+")
 
+# '상' 등 모호한 부호 제거
 CIVIL_SYMBOLS = frozenset({
-    "가", "가단", "가합", "가소", "나", "다", "재가단", "재가합", "재가소", "재나", "재다", "상",
+    "가", "가단", "가합", "가소", "나", "다", "재가단", "재가합", "재가소", "재나", "재다",
     "카", "카단", "카합", "카공", "카담", "카조", "카구", "카경", "카정", "카단조", "카합조",
     "타경", "타채", "타기", "타인", "타배", "타집",
     "머", "자", "차", "차전", "라", "마", "비", "비단", "비합", "과", "과단", "과합", "동", "인", "전", "지",
@@ -65,7 +67,7 @@ def classify_case_number(case_num: str) -> DocType | None:
 
 
 def extract_case_numbers(text: str) -> list[str]:
-    """본문에서 사건번호 후보를 추출한다 (공백·특수문자 허용)."""
+    """본문에서 사건번호 후보를 추출한다 (공백·특수문자·줄바꿈 허용)."""
     found: list[str] = []
     seen: set[str] = set()
     for m in CASE_NUM_PATTERN.finditer(text):
@@ -100,9 +102,11 @@ def _classify_by_keywords(text: str) -> DocType:
         scores["administrative"] += 3
     if "피고인" in text and "범죄사실" in text:
         scores["criminal"] += 2
+        
     best = max(scores, key=scores.get)
+    # 키워드가 하나도 매칭되지 않아 다 0점인 경우 기본값 지정 (필요 시 "civil" 등 기본값으로 변경)
     if scores[best] == 0:
-        return "unknown"
+        return "civil" 
     return best  # type: ignore[return-value]
 
 
