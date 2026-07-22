@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     backend_host: str = "0.0.0.0"
     backend_port: int = 8001
     convertapi_secret: str = ""
+    admin_emails: str = ""  # comma-separated login emails for storage admin
 
     upstage_ocr_url: str = "https://api.upstage.ai/v1/document-digitization"
     upstage_chat_url: str = "https://api.upstage.ai/v1/solar/chat/completions"

@@ -98,10 +98,20 @@ export interface UserProjectItem {
   filename: string;
   created_at: string;
   updated_at: string;
+  has_source: boolean;
   has_summary: boolean;
   has_translation: boolean;
   has_easyread_pdf: boolean;
   has_easyread: boolean;
+}
+
+export interface AdminUserStorageBlock {
+  user_id: string;
+  projects: UserProjectItem[];
+}
+
+export interface AdminStorageOverview {
+  users: AdminUserStorageBlock[];
 }
 
 export type UserProjectArtifactKind = "summary" | "translation" | "easyread";
@@ -375,6 +385,20 @@ export function getUserProjectEasyreadPdfUrl(docId: string): string {
   const userId = getAuthUserId() ?? "";
   const q = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
   return `${API_BASE}/documents/user-projects/${docId}/easyread.pdf${q}`;
+}
+
+export async function listAdminUserStorage(): Promise<AdminStorageOverview> {
+  return request<AdminStorageOverview>("/documents/admin/user-storage");
+}
+
+export async function adminDeleteUserProject(
+  storageUserId: string,
+  docId: string,
+): Promise<void> {
+  await request<void>(
+    `/documents/admin/user-storage/${encodeURIComponent(storageUserId)}/projects/${encodeURIComponent(docId)}`,
+    { method: "DELETE" },
+  );
 }
 
 export async function searchWebImages(query: string): Promise<ImageCatalogItem[]> {

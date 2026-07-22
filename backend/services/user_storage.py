@@ -142,28 +142,33 @@ def list_user_projects(user_id: str) -> list[dict]:
 
     items: list[dict] = []
     for project_dir in root.iterdir():
-      if not project_dir.is_dir():
-          continue
-      meta_path = project_dir / "metadata.json"
-      if not meta_path.is_file():
-          continue
-      try:
-          meta = json.loads(meta_path.read_text(encoding="utf-8"))
-      except (json.JSONDecodeError, OSError):
-          continue
+        if not project_dir.is_dir():
+            continue
+        meta_path = project_dir / "metadata.json"
+        if not meta_path.is_file():
+            continue
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
 
-      items.append(
-          {
-              "doc_id": str(meta.get("doc_id") or project_dir.name),
-              "filename": str(meta.get("filename") or "(이름 없음)"),
-              "created_at": str(meta.get("created_at") or ""),
-              "updated_at": str(meta.get("updated_at") or ""),
-              "has_summary": bool(meta.get("summary_file")),
-              "has_translation": bool(meta.get("translation_file")),
-              "has_easyread_pdf": bool(meta.get("easyread_pdf_file")),
-              "has_easyread": bool(meta.get("easyread_file") or meta.get("easyread_docx_file") or meta.get("easyread_pdf_file")),
-          }
-      )
+        items.append(
+            {
+                "doc_id": str(meta.get("doc_id") or project_dir.name),
+                "filename": str(meta.get("filename") or "(이름 없음)"),
+                "created_at": str(meta.get("created_at") or ""),
+                "updated_at": str(meta.get("updated_at") or ""),
+                "has_source": bool(meta.get("source_file")),
+                "has_summary": bool(meta.get("summary_file")),
+                "has_translation": bool(meta.get("translation_file")),
+                "has_easyread_pdf": bool(meta.get("easyread_pdf_file")),
+                "has_easyread": bool(
+                    meta.get("easyread_file")
+                    or meta.get("easyread_docx_file")
+                    or meta.get("easyread_pdf_file")
+                ),
+            }
+        )
 
     items.sort(key=lambda item: item.get("updated_at", ""), reverse=True)
     return items
@@ -227,3 +232,22 @@ def delete_user_project(user_id: str, doc_id: str) -> bool:
         return False
     shutil.rmtree(project_dir, ignore_errors=True)
     return True
+
+
+def list_all_users_storage() -> list[dict]:
+    """관리자용 — 계정(저장 폴더)별 프로젝트 목록."""
+    if not _USER_STORAGE_DIR.is_dir():
+        return []
+
+    blocks: list[dict] = []
+    for user_dir in sorted(_USER_STORAGE_DIR.iterdir(), key=lambda p: p.name.lower()):
+        if not user_dir.is_dir():
+            continue
+        user_id = user_dir.name
+        projects = list_user_projects(user_id)
+        if not projects:
+            continue
+        blocks.append({"user_id": user_id, "projects": projects})
+
+    blocks.sort(key=lambda block: block["user_id"].lower())
+    return blocks

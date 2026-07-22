@@ -138,10 +138,20 @@ class UserProjectItem(BaseModel):
     filename: str
     created_at: str = ""
     updated_at: str = ""
+    has_source: bool = False
     has_summary: bool = False
     has_translation: bool = False
     has_easyread_pdf: bool = False
     has_easyread: bool = False
+
+
+class AdminUserStorageBlock(BaseModel):
+    user_id: str
+    projects: list[UserProjectItem] = Field(default_factory=list)
+
+
+class AdminStorageOverview(BaseModel):
+    users: list[AdminUserStorageBlock] = Field(default_factory=list)
 
 
 class ArtifactTextResponse(BaseModel):

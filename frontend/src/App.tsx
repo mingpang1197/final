@@ -3,6 +3,7 @@
  */
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "./components/RequireAuth";
+import { AdminStoragePage } from "./pages/AdminStoragePage";
 import { ExportPage } from "./pages/ExportPage";
 import { ImagesPage } from "./pages/ImagesPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -54,6 +55,14 @@ export default function App() {
           element={
             <RequireAuth>
               <ExportPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/storage"
+          element={
+            <RequireAuth>
+              <AdminStoragePage />
             </RequireAuth>
           }
         />

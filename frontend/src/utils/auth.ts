@@ -131,3 +131,14 @@ export function registerUser(input: {
   writeUsers(users);
   return { ok: true };
 }
+
+const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS ?? "")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+/** .env VITE_ADMIN_EMAILS(쉼표 구분)에 등록된 로그인 아이디 */
+export function isAdminUser(): boolean {
+  const id = getAuthUserId()?.toLowerCase();
+  return Boolean(id && ADMIN_EMAILS.includes(id));
+}

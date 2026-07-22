@@ -28,7 +28,7 @@ POST   /api/documents/upload
 GET    /api/documents/user-projects
 - 로그인 사용자의 저장 프로젝트 목록
 - Header: X-User-Id (또는 Query: user_id)
-- Response: UserProjectItem[] ({ doc_id, filename, created_at, updated_at, has_summary, has_translation, has_easyread_pdf, has_easyread })
+- Response: UserProjectItem[] ({ doc_id, filename, created_at, updated_at, has_source, has_summary, has_translation, has_easyread_pdf, has_easyread })
 
 GET    /api/documents/user-projects/{doc_id}/artifact/{kind}
 - 저장된 요약/번역/이지리드 텍스트 조회 (kind: summary|translation|easyread)
@@ -46,6 +46,16 @@ GET    /api/documents/user-projects/{doc_id}/easyread.pdf
 DELETE /api/documents/user-projects/{doc_id}
 - 회원 저장소에서 프로젝트 삭제
 - Header: X-User-Id (또는 Query: user_id)
+- Response: 204
+
+GET    /api/documents/admin/user-storage
+- 관리자: 전체 회원 저장 프로젝트 목록
+- Header: X-User-Id (ADMIN_EMAILS에 등록된 계정)
+- Response: { users: [{ user_id, projects: UserProjectItem[] }] }
+
+DELETE /api/documents/admin/user-storage/{storage_user_id}/projects/{doc_id}
+- 관리자: 특정 회원 저장 프로젝트 삭제
+- Header: X-User-Id (ADMIN_EMAILS)
 - Response: 204
 
 GET    /api/documents/{doc_id}

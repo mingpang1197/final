@@ -2,7 +2,7 @@
  * 문서 업로드 페이지 (워크플로 1단계) — Figma 업로드 80% ERAI UI.
  */
 import { useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { type DocType, uploadDocument, updateDocType } from "../api/client";
 import { ExistingProjectsTable } from "../components/ui/ExistingProjectsTable";
 import { ChatbotWidget } from "../components/ui/ChatbotWidget";
@@ -12,6 +12,7 @@ import { UploadCaseTypeModal } from "../components/ui/UploadCaseTypeModal";
 import { cacheUpload, getCachedUpload, getLastDocId } from "../utils/docCache";
 import { guessDocTypeFromFilename } from "../utils/guessDocType";
 import { saveSourceFile } from "../utils/sourceStore";
+import { isAdminUser } from "../utils/auth";
 
 export function UploadPage() {
   const navigate = useNavigate();
@@ -102,9 +103,19 @@ export function UploadPage() {
           <h1 className="text-[32px] font-bold leading-tight text-coolgray-90 tracking-tight">
             ER<span className="text-primary-60">AI</span>
           </h1>
-          <span className="text-primary-60 font-medium text-base tracking-wide shrink-0 pt-1 truncate max-w-[40vw]">
-            {filenameLabel}
-          </span>
+          <div className="flex flex-col items-end gap-1 shrink-0 pt-1">
+            <span className="text-primary-60 font-medium text-base tracking-wide truncate max-w-[40vw]">
+              {filenameLabel}
+            </span>
+            {isAdminUser() && (
+              <Link
+                to="/admin/storage"
+                className="text-sm font-medium text-coolgray-60 hover:text-primary-60"
+              >
+                저장소 관리
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 

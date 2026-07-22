@@ -42,6 +42,8 @@ from backend.models.schemas import (
     SummaryUpdate,
     TranslationUpdate,
     UserProjectItem,
+    AdminStorageOverview,
+    AdminUserStorageBlock,
     UploadResponse,
 )
 from backend.services.image_matcher import (
@@ -276,6 +278,22 @@ def _require_user_id(x_user_id: str | None, user_id_query: str | None = None) ->
         raise HTTPException(401, "로그인 사용자가 필요합니다.")
     return user_id
 
+
+def _admin_email_set() -> set[str]:
+    raw = settings.admin_emails or ""
+    return {part.strip().lower() for part in raw.split(",") if part.strip()}
+
+
+def _require_admin(x_user_id: str | None) -> str:
+    user_id = _require_user_id(x_user_id, None)
+    allowed = _admin_email_set()
+    if not allowed:
+        raise HTTPException(503, "관리자 기능이 설정되지 않았습니다.")
+    if user_id.lower() not in allowed:
+        raise HTTPException(403, "관리자만 접근할 수 있습니다.")
+    return user_id
+
+
 # --- 업로드·조회 ---
 
 
@@ -399,6 +417,34 @@ async def delete_user_project(
 ) -> Response:
     resolved_user = _require_user_id(x_user_id, user_id)
     deleted = user_storage.delete_user_project(resolved_user, doc_id)
+    if not deleted:
+        raise HTTPException(404, "삭제할 프로젝트를 찾을 수 없습니다.")
+    return Response(status_code=204)
+
+
+@router.get("/admin/user-storage", response_model=AdminStorageOverview)
+async def admin_list_user_storage(
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> AdminStorageOverview:
+    _require_admin(x_user_id)
+    blocks = [
+        AdminUserStorageBlock(
+            user_id=block["user_id"],
+            projects=[UserProjectItem(**item) for item in block["projects"]],
+        )
+        for block in user_storage.list_all_users_storage()
+    ]
+    return AdminStorageOverview(users=blocks)
+
+
+@router.delete("/admin/user-storage/{storage_user_id}/projects/{doc_id}", status_code=204)
+async def admin_delete_user_project(
+    storage_user_id: str,
+    doc_id: str,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> Response:
+    _require_admin(x_user_id)
+    deleted = user_storage.delete_user_project(storage_user_id.strip(), doc_id)
     if not deleted:
         raise HTTPException(404, "삭제할 프로젝트를 찾을 수 없습니다.")
     return Response(status_code=204)

@@ -1,5 +1,6 @@
 /**
  * 기존 프로젝트 대시보드 (로그인 사용자별 저장 항목).
+ * 원문·요약문·번역문·최종본은 서버 user_storage에 보관(삭제 전까지 유지).
  */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -49,9 +50,9 @@ export function ExistingProjectsTable() {
     try {
       const content = await getUserProjectArtifact(docId, kind);
       const titleMap: Record<UserProjectArtifactKind, string> = {
-        summary: "요약",
-        translation: "번역",
-        easyread: "이지리드",
+        summary: "요약문",
+        translation: "번역문",
+        easyread: "최종본(텍스트)",
       };
       setModalTitle(titleMap[kind]);
       setModalText(content);
@@ -65,7 +66,7 @@ export function ExistingProjectsTable() {
     window.open(getUserProjectSourceUrl(docId), "_blank", "noopener,noreferrer");
   }
 
-  function openEasyreadPdf(docId: string) {
+  function openFinalPdf(docId: string) {
     window.open(getUserProjectEasyreadPdfUrl(docId), "_blank", "noopener,noreferrer");
   }
 
@@ -73,13 +74,13 @@ export function ExistingProjectsTable() {
     try {
       sessionStorage.setItem("easyread:last-doc-id", docId);
     } catch {
-      /* ignore session storage write errors */
+      /* ignore */
     }
     navigate(`/documents/${docId}/summary`);
   }
 
   async function deleteProject(docId: string, filename: string) {
-    const ok = window.confirm(`'${filename}' 프로젝트를 삭제할까요?`);
+    const ok = window.confirm(`'${filename}' 프로젝트를 삭제할까요?\n(원문·요약문·번역문·최종본이 모두 삭제됩니다.)`);
     if (!ok) return;
 
     setDeletingDocId(docId);
@@ -94,29 +95,54 @@ export function ExistingProjectsTable() {
     }
   }
 
+  function OpenButton({
+    disabled,
+    onClick,
+  }: {
+    disabled?: boolean;
+    onClick: () => void;
+  }) {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onClick}
+        className="rounded border border-coolgray-30 px-2 py-1 text-xs font-medium text-coolgray-90 hover:bg-coolgray-10 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        열기
+      </button>
+    );
+  }
+
   return (
     <section className="mx-5 mb-6 mt-6">
-      <h2 className="text-lg font-bold text-coolgray-90 mb-4">기존 프로젝트</h2>
+      <h2 className="text-lg font-bold text-coolgray-90 mb-1">기존 프로젝트</h2>
+      <p className="text-xs text-coolgray-60 mb-4">
+        로그인 계정에 원문·요약문·번역문·최종본(PDF)이 저장됩니다. 직접 삭제하기 전까지 보관됩니다.
+      </p>
 
       <div className="border border-coolgray-20 bg-white overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-[880px] text-sm">
             <thead>
               <tr className="bg-coolgray-10 border-t border-coolgray-20">
                 <th className="px-3 py-4 text-left font-medium text-coolgray-90 border-t border-coolgray-20">
                   파일명
                 </th>
-                <th className="px-3 py-4 text-left font-medium text-coolgray-90 border-t border-coolgray-20 w-36">
+                <th className="px-3 py-4 text-left font-medium text-coolgray-90 border-t border-coolgray-20 w-32">
                   수정하기
                 </th>
-                <th className="px-3 py-4 text-left font-medium text-coolgray-90 border-t border-coolgray-20 w-36">
-                  요약
+                <th className="px-3 py-4 text-left font-medium text-coolgray-90 border-t border-coolgray-20 w-28">
+                  원문
                 </th>
-                <th className="px-3 py-4 text-left font-medium text-coolgray-90 border-t border-coolgray-20 w-36">
-                  번역
+                <th className="px-3 py-4 text-left font-medium text-coolgray-90 border-t border-coolgray-20 w-28">
+                  요약문
                 </th>
-                <th className="px-3 py-4 text-left font-medium text-coolgray-90 border-t border-coolgray-20 w-36">
-                  이지리드
+                <th className="px-3 py-4 text-left font-medium text-coolgray-90 border-t border-coolgray-20 w-28">
+                  번역문
+                </th>
+                <th className="px-3 py-4 text-left font-medium text-coolgray-90 border-t border-coolgray-20 w-28">
+                  최종본
                 </th>
                 <th className="px-3 py-4 text-center font-medium text-coolgray-90 border-t border-coolgray-20 w-16" />
               </tr>
@@ -124,7 +150,7 @@ export function ExistingProjectsTable() {
             <tbody>
               {loading && (
                 <tr className="border-t border-coolgray-20">
-                  <td colSpan={6} className="px-3 py-8 text-center text-coolgray-60">
+                  <td colSpan={7} className="px-3 py-8 text-center text-coolgray-60">
                     불러오는 중...
                   </td>
                 </tr>
@@ -132,7 +158,7 @@ export function ExistingProjectsTable() {
 
               {!loading && rows.length === 0 && (
                 <tr className="border-t border-coolgray-20">
-                  <td colSpan={6} className="px-3 py-8 text-center text-coolgray-60">
+                  <td colSpan={7} className="px-3 py-8 text-center text-coolgray-60">
                     저장된 프로젝트가 없습니다.
                   </td>
                 </tr>
@@ -141,16 +167,8 @@ export function ExistingProjectsTable() {
               {!loading &&
                 rows.map((row) => (
                   <tr key={row.doc_id} className="border-t border-coolgray-20">
+                    <td className="px-3 py-3 font-medium text-coolgray-90">{row.filename}</td>
                     <td className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => openSource(row.doc_id)}
-                        className="text-left font-medium text-primary-60 underline-offset-2 hover:underline"
-                      >
-                        {row.filename}
-                      </button>
-                    </td>
-                    <td className="px-3 py-3 text-coolgray-90">
                       <button
                         type="button"
                         onClick={() => editProject(row.doc_id)}
@@ -159,35 +177,29 @@ export function ExistingProjectsTable() {
                         수정하기
                       </button>
                     </td>
-                    <td className="px-3 py-3 text-coolgray-90">
-                      <button
-                        type="button"
+                    <td className="px-3 py-3">
+                      <OpenButton
+                        disabled={!row.has_source}
+                        onClick={() => openSource(row.doc_id)}
+                      />
+                    </td>
+                    <td className="px-3 py-3">
+                      <OpenButton
                         disabled={!row.has_summary}
                         onClick={() => openArtifact(row.doc_id, "summary")}
-                        className="rounded border border-coolgray-30 px-2 py-1 text-xs font-medium text-coolgray-90 hover:bg-coolgray-10 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        열기
-                      </button>
+                      />
                     </td>
-                    <td className="px-3 py-3 text-coolgray-90">
-                      <button
-                        type="button"
+                    <td className="px-3 py-3">
+                      <OpenButton
                         disabled={!row.has_translation}
                         onClick={() => openArtifact(row.doc_id, "translation")}
-                        className="rounded border border-coolgray-30 px-2 py-1 text-xs font-medium text-coolgray-90 hover:bg-coolgray-10 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        열기
-                      </button>
+                      />
                     </td>
-                    <td className="px-3 py-3 text-coolgray-90">
-                      <button
-                        type="button"
+                    <td className="px-3 py-3">
+                      <OpenButton
                         disabled={!row.has_easyread_pdf}
-                        onClick={() => openEasyreadPdf(row.doc_id)}
-                        className="rounded border border-coolgray-30 px-2 py-1 text-xs font-medium text-coolgray-90 hover:bg-coolgray-10 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        열기
-                      </button>
+                        onClick={() => openFinalPdf(row.doc_id)}
+                      />
                     </td>
                     <td className="px-3 py-3 text-center">
                       <button
