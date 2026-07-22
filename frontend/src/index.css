@@ -26,11 +26,6 @@ body,
   min-height: 100%;
 }
 
-/* 사이트 기본 화면 배율 80% (Figma·로그인 화면 기준) */
-html {
-  zoom: 0.8;
-}
-
 #root {
   display: flex;
   flex-direction: column;
@@ -43,10 +38,6 @@ body {
 
 /* 추출 탭 — 브라우저 인쇄(Microsoft Print to PDF)용 */
 @media print {
-  html {
-    zoom: 1;
-  }
-
   body * {
     visibility: hidden;
   }
