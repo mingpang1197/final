@@ -7,16 +7,20 @@ import { useLocation, useNavigate } from "react-router-dom";
 import type { TranslationSegment } from "../../api/client";
 import {
   deleteUserProject,
+  fetchUserProjectEasyreadPdfBlob,
+  fetchUserProjectSourceBlob,
   getUserProjectArtifact,
   getUserProjectTranslationSegments,
   listUserProjects,
-  openUserProjectEasyreadPdfInNewTab,
-  openUserProjectSourceInNewTab,
-  prepareDocumentPreviewWindow,
   type UserProjectArtifactKind,
   type UserProjectItem,
 } from "../../api/client";
 import { EasyReadDocumentView } from "../EasyReadDocumentView";
+import {
+  FilePreviewModal,
+  type FilePreviewState,
+} from "./FilePreviewModal";
+import { inlinePreviewMode } from "../../utils/sourcePreview";
 
 export function ExistingProjectsTable() {
   const navigate = useNavigate();
@@ -33,6 +37,38 @@ export function ExistingProjectsTable() {
   const [openingSourceId, setOpeningSourceId] = useState<string | null>(null);
   const [openingArtifactKey, setOpeningArtifactKey] = useState<string | null>(null);
   const [openingPdfId, setOpeningPdfId] = useState<string | null>(null);
+  const [filePreview, setFilePreview] = useState<FilePreviewState | null>(null);
+
+  const closeFilePreview = useCallback(() => {
+    setFilePreview((prev) => {
+      if (prev?.url.startsWith("blob:")) {
+        URL.revokeObjectURL(prev.url);
+      }
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (filePreview?.url.startsWith("blob:")) {
+        URL.revokeObjectURL(filePreview.url);
+      }
+    };
+  }, [filePreview?.url]);
+
+  async function buildFilePreview(
+    blob: Blob,
+    filename: string,
+    title: string,
+  ): Promise<FilePreviewState> {
+    const mode = inlinePreviewMode(filename, blob.type);
+    const url = URL.createObjectURL(blob);
+    let textContent: string | undefined;
+    if (mode === "text") {
+      textContent = await blob.text();
+    }
+    return { url, title, filename, mode, textContent };
+  }
 
   const refreshProjects = useCallback(async () => {
     setLoading(true);
@@ -110,38 +146,31 @@ export function ExistingProjectsTable() {
   );
   const modalPlacements = modalSegments[0]?.image_placements ?? [];
 
-  async function openSource(docId: string) {
-    const preview = prepareDocumentPreviewWindow("원문 불러오는 중…");
-    if (!preview) {
-      setError("팝업이 차단되었습니다. 주소창 옆 팝업 허용 후 다시 시도해 주세요.");
-      return;
-    }
-
+  async function openSource(docId: string, filename: string) {
     setOpeningSourceId(docId);
     setError("");
+    closeFilePreview();
     try {
-      await openUserProjectSourceInNewTab(docId, preview);
+      const { blob, filename: resolvedName } = await fetchUserProjectSourceBlob(docId, filename);
+      const preview = await buildFilePreview(blob, resolvedName, "원문");
+      setFilePreview(preview);
     } catch (err) {
-      if (!preview.closed) preview.close();
       setError(err instanceof Error ? err.message : "원문을 열지 못했습니다.");
     } finally {
       setOpeningSourceId(null);
     }
   }
 
-  async function openFinalPdf(docId: string) {
-    const preview = prepareDocumentPreviewWindow("PDF 불러오는 중…");
-    if (!preview) {
-      setError("팝업이 차단되었습니다. 주소창 옆 팝업 허용 후 다시 시도해 주세요.");
-      return;
-    }
-
+  async function openFinalPdf(docId: string, filename: string) {
     setOpeningPdfId(docId);
     setError("");
+    closeFilePreview();
     try {
-      await openUserProjectEasyreadPdfInNewTab(docId, preview);
+      const blob = await fetchUserProjectEasyreadPdfBlob(docId);
+      const pdfName = filename.replace(/\.[^.]+$/, "") + "_easyread.pdf";
+      const preview = await buildFilePreview(blob, pdfName, "최종본 (PDF)");
+      setFilePreview({ ...preview, mode: "iframe" });
     } catch (err) {
-      if (!preview.closed) preview.close();
       setError(err instanceof Error ? err.message : "최종본 PDF를 열지 못했습니다.");
     } finally {
       setOpeningPdfId(null);
@@ -269,7 +298,7 @@ export function ExistingProjectsTable() {
                       <OpenButton
                         disabled={!canTryOpenSource(row)}
                         loading={openingSourceId === row.doc_id}
-                        onClick={() => void openSource(row.doc_id)}
+                        onClick={() => void openSource(row.doc_id, row.filename)}
                       />
                     </td>
                     <td className="px-3 py-3">
@@ -290,7 +319,7 @@ export function ExistingProjectsTable() {
                       <OpenButton
                         disabled={!row.has_easyread_pdf}
                         loading={openingPdfId === row.doc_id}
-                        onClick={() => void openFinalPdf(row.doc_id)}
+                        onClick={() => void openFinalPdf(row.doc_id, row.filename)}
                       />
                     </td>
                     <td className="px-3 py-3 text-center">
@@ -348,6 +377,8 @@ export function ExistingProjectsTable() {
           </div>
         </div>
       )}
+
+      <FilePreviewModal preview={filePreview} onClose={closeFilePreview} />
     </section>
   );
 }

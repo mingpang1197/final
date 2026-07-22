@@ -437,7 +437,44 @@ async function fetchAuthenticatedBlob(path: string): Promise<Blob> {
   return res.blob();
 }
 
-/** 클릭 직후(동기) 호출해 두면 fetch 이후에도 팝업 차단을 피할 수 있다. */
+export async function fetchUserProjectEasyreadPdfBlob(docId: string): Promise<Blob> {
+  return fetchAuthenticatedBlob(`/documents/user-projects/${docId}/easyread.pdf`);
+}
+
+export async function fetchUserProjectSourceBlob(
+  docId: string,
+  hintFilename?: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const fallbackName = hintFilename?.trim() || "source.pdf";
+
+  try {
+    const blob = await fetchAuthenticatedBlob(`/documents/user-projects/${docId}/source`);
+    return { blob, filename: fallbackName };
+  } catch {
+    /* fall through */
+  }
+
+  try {
+    const blob = await fetchAuthenticatedBlob(`/documents/${docId}/source`);
+    return { blob, filename: fallbackName };
+  } catch {
+    /* fall through */
+  }
+
+  const stored = await getSourceFile(docId);
+  if (stored) {
+    void uploadUserProjectSource(docId, stored.blob, stored.name).catch(() => {
+      /* ignore sync failure */
+    });
+    return { blob: stored.blob, filename: stored.name || fallbackName };
+  }
+
+  throw new Error(
+    "원본 파일을 찾을 수 없습니다. 이 기기에서 업로드한 적이 없거나 서버 저장소가 초기화되었을 수 있습니다.",
+  );
+}
+
+/** @deprecated 인앱 미리보기(fetchUserProjectSourceBlob) 사용 권장 */
 export function prepareDocumentPreviewWindow(title = "불러오는 중…"): Window | null {
   const preview = window.open("about:blank", "_blank");
   if (!preview) return null;
