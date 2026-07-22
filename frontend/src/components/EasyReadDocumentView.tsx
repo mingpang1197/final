@@ -136,14 +136,16 @@ export function EasyReadDocumentView({
 
   if (mode === "translate") {
     return (
-      <RichTextEditor
-        value={text}
-        onChange={(v) => onTextChange?.(v)}
-        disabled={disabled}
-        layout="export-preview"
-        fill={fill}
-        minHeight={fill ? "100%" : "360px"}
-      />
+      <div className={fill ? "flex min-h-0 min-w-0 flex-1 flex-col" : "min-w-0"}>
+        <RichTextEditor
+          value={text}
+          onChange={(v) => onTextChange?.(v)}
+          disabled={disabled}
+          layout="export-preview"
+          fill={fill}
+          minHeight={fill ? "100%" : "360px"}
+        />
+      </div>
     );
   }
 
