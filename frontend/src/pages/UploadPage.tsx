@@ -10,6 +10,7 @@ import { IconUploadCloud } from "../components/ui/icons";
 import { StepIndicator } from "../components/ui/StepIndicator";
 import { UploadCaseTypeModal } from "../components/ui/UploadCaseTypeModal";
 import { cacheUpload, getCachedUpload, getLastDocId } from "../utils/docCache";
+import { guessDocTypeFromFilename } from "../utils/guessDocType";
 import { saveSourceFile } from "../utils/sourceStore";
 
 export function UploadPage() {
@@ -79,6 +80,7 @@ export function UploadPage() {
 
   function handleDone() {
     if (pendingFile && !loading) {
+      setDocType(guessDocTypeFromFilename(pendingFile.name));
       setCaseTypeModalOpen(true);
     }
   }
