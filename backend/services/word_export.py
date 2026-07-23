@@ -63,6 +63,9 @@ _META_SECTION_START = re.compile(r"^###\s*수정\s*사항")
 
 DEFAULT_ASCII_FONT = "Malgun Gothic"
 DEFAULT_EAST_ASIA_FONT = "맑은 고딕"
+_GOTHIC_FONTS = frozenset(
+    {"malgun gothic", "맑은 고딕", "nanumgothic", "나눔고딕", "dotum", "돋움", "gulim", "굴림"}
+)
 
 
 @dataclass(frozen=True)
@@ -99,6 +102,179 @@ def _iter_all_paragraphs(doc: Document):
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
                     yield paragraph
+
+
+def _normalized_reason(text: str) -> str:
+    return re.sub(r"\s+", "", (text or "").strip())
+
+
+def is_reason_heading_paragraph(paragraph) -> bool:
+    """문단 첫 줄만 「이유」인지 (pdf2docx·OCR 공통)."""
+    raw = (paragraph.text or "").replace("\r", "")
+    combined = "".join(run.text for run in paragraph.runs)
+    for candidate in (raw, combined):
+        if not candidate.strip():
+            continue
+        first_line = candidate.split("\n", 1)[0].strip()
+        if _normalized_reason(first_line) == "이유":
+            return True
+    return _normalized_reason(raw.split("\n", 1)[0].strip()) == "이유"
+
+
+def _paragraphs_in_table_element(tbl_el, doc: Document):
+    from docx.text.paragraph import Paragraph
+
+    for row in tbl_el.findall(qn("w:tr")):
+        for cell in row.findall(qn("w:tc")):
+            for el in cell:
+                if el.tag == qn("w:p"):
+                    yield Paragraph(el, doc)
+                elif el.tag == qn("w:tbl"):
+                    yield from _paragraphs_in_table_element(el, doc)
+
+
+def iter_body_paragraphs_in_order(doc: Document):
+    """본문 XML 순서대로 단락 (표 안 포함)."""
+    from docx.text.paragraph import Paragraph
+
+    for child in doc.element.body:
+        if child.tag == qn("w:p"):
+            yield Paragraph(child, doc)
+        elif child.tag == qn("w:tbl"):
+            yield from _paragraphs_in_table_element(child, doc)
+
+
+def find_reason_anchor_paragraph(doc: Document):
+    """문서 흐름상 첫 「이유」 제목 단락."""
+    for paragraph in iter_body_paragraphs_in_order(doc):
+        if is_reason_heading_paragraph(paragraph):
+            return paragraph
+    return None
+
+
+def _split_reason_heading_paragraph(paragraph):
+    """「이유」와 본문이 한 단락에 붙어 있으면 제목만 남기고 나머지는 다음 단락으로."""
+    from docx.text.paragraph import Paragraph
+
+    raw = (paragraph.text or "").replace("\r", "")
+    lines = raw.split("\n")
+    if len(lines) <= 1:
+        return paragraph
+    if _normalized_reason(lines[0].strip()) != "이유":
+        return paragraph
+
+    p_el = paragraph._element
+    for child in list(p_el):
+        if child.tag != qn("w:pPr"):
+            p_el.remove(child)
+    paragraph.add_run(lines[0].strip())
+
+    rest = "\n".join(lines[1:]).strip()
+    if not rest:
+        return paragraph
+
+    new_p = OxmlElement("w:p")
+    p_el.addnext(new_p)
+    from docx.text.paragraph import Paragraph
+
+    new_para = Paragraph(new_p, paragraph._parent)
+    new_para.add_run(rest)
+    return paragraph
+
+
+def prepare_reason_insert_anchor(doc: Document):
+    """삽입 직전 「이유」 단락 — 분리·문서 순서 기준."""
+    anchor = find_reason_anchor_paragraph(doc)
+    if anchor is None:
+        return None
+    return _split_reason_heading_paragraph(anchor)
+
+
+def _font_name_key(name: str) -> str:
+    return (name or "").strip().lower()
+
+
+def _pick_dominant_font(counter: Counter[str]) -> str | None:
+    if not counter:
+        return None
+    ranked = counter.most_common()
+    best_name, _ = ranked[0]
+    for name, weight in ranked:
+        key = _font_name_key(name)
+        if key in _GOTHIC_FONTS:
+            continue
+        if any(hint in key for hint in ("batang", "myung", "명조", "바탕", "gungsuh", "궁서", "hy")):
+            return name
+    for name, _ in ranked:
+        if _font_name_key(name) not in _GOTHIC_FONTS:
+            return name
+    return best_name
+
+
+def _collect_run_fonts(run, weight: int, east_asia: Counter[str], ascii_fonts: Counter[str], sizes: Counter[float]) -> None:
+    r_pr = run._element.find(qn("w:rPr"))
+    east_name: str | None = None
+    ascii_name: str | None = None
+    if r_pr is not None:
+        r_fonts = r_pr.find(qn("w:rFonts"))
+        if r_fonts is not None:
+            east_name = r_fonts.get(qn("w:eastAsia"))
+            ascii_name = r_fonts.get(qn("w:ascii")) or r_fonts.get(qn("w:hAnsi"))
+        sz = r_pr.find(qn("w:sz"))
+        if sz is not None and sz.get(qn("w:val")):
+            try:
+                sizes[int(sz.get(qn("w:val"))) / 2] += weight
+            except (TypeError, ValueError):
+                pass
+    if not east_name and run.font.name:
+        east_name = run.font.name
+    if east_name:
+        east_asia[east_name] += weight
+    if ascii_name:
+        ascii_fonts[ascii_name] += weight
+    elif east_name:
+        ascii_fonts[east_name] += weight
+
+
+def infer_font_profile_from_reason_vicinity(doc: Document, anchor_paragraph) -> ExportFontProfile:
+    """「이유」 바로 다음 본문 구간 글꼴을 이지리드에 맞춘다."""
+    east_asia: Counter[str] = Counter()
+    ascii_fonts: Counter[str] = Counter()
+    sizes: Counter[float] = Counter()
+    passed_anchor = False
+    collected = 0
+
+    for paragraph in iter_body_paragraphs_in_order(doc):
+        if paragraph._element is anchor_paragraph._element:
+            passed_anchor = True
+            continue
+        if not passed_anchor:
+            continue
+        if is_reason_heading_paragraph(paragraph):
+            break
+        text = paragraph.text or ""
+        if not text.strip():
+            continue
+        for run in paragraph.runs:
+            chunk = run.text or ""
+            if not chunk.strip():
+                continue
+            _collect_run_fonts(run, len(chunk), east_asia, ascii_fonts, sizes)
+        collected += len(text)
+        if collected >= 4000:
+            break
+
+    east = _pick_dominant_font(east_asia)
+    ascii_dom = _pick_dominant_font(ascii_fonts) or east
+    if east:
+        body_pt = sizes.most_common(1)[0][0] if sizes else BODY_PT
+        return ExportFontProfile(
+            ascii=ascii_dom or east,
+            h_ansi=ascii_dom or east,
+            east_asia=east,
+            body_pt=body_pt,
+        )
+    return infer_font_profile_from_document(doc)
 
 
 def infer_font_profile_from_document(doc: Document) -> ExportFontProfile:

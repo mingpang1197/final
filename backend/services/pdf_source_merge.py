@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import logging
-import re
 import tempfile
 from copy import deepcopy
 from pathlib import Path
@@ -17,50 +16,6 @@ from backend.models.schemas import DocumentResponse
 from backend.services import word_export
 
 logger = logging.getLogger(__name__)
-
-_REASON_NORMALIZED = re.compile(r"^이유$")
-
-
-def _normalized_reason(text: str) -> str:
-    return re.sub(r"\s+", "", (text or "").strip())
-
-
-def _is_reason_heading(text: str) -> bool:
-    return bool(_REASON_NORMALIZED.match(_normalized_reason(text)))
-
-
-def _find_reason_paragraph_fuzzy(doc: Document):
-    """pdf2docx가 「이」「유」를 나누거나 주변 텍스트와 붙인 경우."""
-    for paragraph in _iter_all_paragraphs(doc):
-        raw = paragraph.text or ""
-        combined = "".join(run.text for run in paragraph.runs)
-        for candidate in (raw, combined):
-            normalized = _normalized_reason(candidate)
-            if normalized == "이유":
-                return paragraph
-            if "이유" in normalized and len(normalized) <= 12:
-                return paragraph
-    return None
-
-
-def _iter_all_paragraphs(doc: Document):
-    for paragraph in doc.paragraphs:
-        yield paragraph
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for paragraph in cell.paragraphs:
-                    yield paragraph
-
-
-def _find_reason_paragraph(doc: Document):
-    for paragraph in _iter_all_paragraphs(doc):
-        if _is_reason_heading(paragraph.text):
-            return paragraph
-        combined = "".join(run.text for run in paragraph.runs)
-        if _is_reason_heading(combined):
-            return paragraph
-    return None
 
 
 def _insert_document_after(anchor_paragraph, insert_doc: Document) -> None:
@@ -92,14 +47,12 @@ def merge_pdf_with_easy_read_insert(pdf_path: Path, doc: DocumentResponse) -> by
                 converter.close()
 
             base = Document(str(converted))
-            anchor = _find_reason_paragraph(base)
-            if anchor is None:
-                anchor = _find_reason_paragraph_fuzzy(base)
+            anchor = word_export.prepare_reason_insert_anchor(base)
             if anchor is None:
                 logger.info("pdf merge: 「이유」 문단을 찾지 못함 — OCR 병합으로 폴백")
                 return None
 
-            font_profile = word_export.infer_font_profile_from_document(base)
+            font_profile = word_export.infer_font_profile_from_reason_vicinity(base, anchor)
             insert_doc = word_export.build_easy_read_insert_document(
                 doc,
                 font_profile=font_profile,
