@@ -99,26 +99,22 @@ def append_easy_read_then_suffix(
     *,
     gap_pt: float = 10,
 ) -> None:
-    """이지리드 PDF 삽입 후 원문 suffix — 원문 페이지·줄바꿈 그대로(위쪽만 가림)."""
+    """이지리드 PDF 삽입 후 원문 suffix — 첫 장은 클립만(위 공백 제거), 이후 페이지는 원문 그대로."""
+    from backend.services.pdf_page_numbers import clip_excluding_footer
+
     if easy.page_count:
         out.insert_pdf(easy)
 
     src_page = src[reason_page]
-    split_y = suffix_clip.y0
-    if suffix_clip.is_empty or suffix_clip.height < 8:
+    page_w = src_page.rect.width
+    clip = clip_excluding_footer(src_page, suffix_clip & src_page.rect)
+
+    if clip.is_empty or clip.height < 8:
         if reason_page + 1 < src.page_count:
             out.insert_pdf(src, from_page=reason_page + 1, to_page=src.page_count - 1)
         return
 
-    start = out.page_count
-    out.insert_pdf(src, from_page=reason_page, to_page=src.page_count - 1)
-    if out.page_count <= start:
-        return
+    _append_clipped(out, src, reason_page, clip, page_w)
 
-    first = out[start]
-    if split_y > src_page.rect.y0 + 2:
-        mask = fitz.Rect(src_page.rect.x0, src_page.rect.y0, src_page.rect.x1, split_y)
-        mask = mask & first.rect
-        if not mask.is_empty:
-            first.add_redact_annot(mask, fill=(1, 1, 1))
-            first.apply_redactions()
+    if reason_page + 1 < src.page_count:
+        out.insert_pdf(src, from_page=reason_page + 1, to_page=src.page_count - 1)
