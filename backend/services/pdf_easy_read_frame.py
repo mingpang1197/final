@@ -12,7 +12,7 @@ _FRAME_WIDTH = 1.4
 
 
 def decorate_easy_read_pdf(doc: fitz.Document) -> fitz.Document:
-    """각 이지리드 페이지 본문 주변에 글상자 테두리(베이지 톤)를 그린다."""
+    """각 이지리드 페이지 본문 주변에 글상자 테두리만 그린다(배경은 원문과 동일한 흰색)."""
     if doc.page_count == 0:
         return doc
 
@@ -26,14 +26,6 @@ def decorate_easy_read_pdf(doc: fitz.Document) -> fitz.Document:
         frame.y0 = max(page.rect.y0, frame.y0 - _FRAME_PAD)
         frame.x1 = min(page.rect.x1, frame.x1 + _FRAME_PAD)
         frame.y1 = min(page.rect.y1, frame.y1 + _FRAME_PAD)
-        fill = (0.96, 0.94, 0.91)
-        page.draw_rect(
-            frame,
-            color=fill,
-            fill=fill,
-            width=0,
-            overlay=False,
-        )
         page.draw_rect(
             frame,
             color=_FRAME_COLOR,

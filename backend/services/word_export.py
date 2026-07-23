@@ -433,15 +433,50 @@ def _set_row_cant_split(row) -> None:
 
 
 def _open_keep_together_cell(doc: Document):
-    """소제목·항목 묶음용 1×1 표(테두리 없음, cantSplit)."""
+    """레거시 — bordered table 행 방식으로 대체됨."""
     table = doc.add_table(rows=1, cols=1)
     table.autofit = False
     _remove_table_borders(table)
     _set_row_cant_split(table.rows[0])
     cell = table.rows[0].cells[0]
     _set_cell_borders_transparent(cell)
+    _clear_cell_shading(cell)
     _reset_cell_paragraphs(cell)
     return cell
+
+
+def _export_easy_read_layout_in_table(
+    table,
+    text: str,
+    placements: list[ImagePlacement],
+) -> None:
+    """소제목마다 cantSplit 행 — 페이지 하단에 블록 전체가 안 들어가면 다음 페이지부터."""
+    from backend.services.word_textbox import append_easy_read_section_row
+
+    body, closing = split_standard_closing(text)
+    by_item = align_placements_one_per_section(body, placements)
+
+    for section in parse_export_sections(body):
+        cell = append_easy_read_section_row(table)
+        _reset_cell_paragraphs(cell)
+        if section.heading:
+            _add_heading_paragraph(cell, section.heading)
+        for item in parse_section_items(section):
+            placement = by_item.get(item.start_line_index)
+            if placement is not None and not isinstance(placement, ImagePlacement):
+                placement = ImagePlacement(**placement)  # type: ignore[arg-type]
+            if placement:
+                blocks = split_item_lines_into_blocks(item.lines)
+                _add_item_text_boxes(cell, placement, blocks[0])
+                for block_lines in blocks[1:]:
+                    _add_item_text_boxes(cell, None, block_lines)
+            else:
+                _add_item_text_boxes(cell, None, item.lines)
+
+    if closing:
+        cell = append_easy_read_section_row(table)
+        _reset_cell_paragraphs(cell)
+        _add_closing_paragraph(cell, closing)
 
 
 def _set_cell_borders_transparent(cell) -> None:
@@ -489,6 +524,14 @@ def _set_cell_shading(cell, fill_hex: str) -> None:
     shading.set(qn("w:val"), "clear")
     tc_pr = cell._tc.get_or_add_tcPr()
     tc_pr.append(shading)
+
+
+def _clear_cell_shading(cell) -> None:
+    """항목 내부 2단 표 — 배경·글상자 느낌 제거."""
+    tc_pr = cell._tc.get_or_add_tcPr()
+    for child in list(tc_pr):
+        if child.tag == qn("w:shd"):
+            tc_pr.remove(child)
 
 
 def _set_column_widths(table, widths: list[Inches]) -> None:
@@ -649,19 +692,16 @@ def _add_item_text_boxes(
 
     for cell in (image_cell, body_cell):
         _set_cell_borders_transparent(cell)
+        _clear_cell_shading(cell)
         _set_cell_vertical_align(cell, top=True)
         _reset_cell_paragraphs(cell)
 
     if placement:
-        _set_cell_shading(image_cell, "FFFFFF")
         _add_picture_to_cell(image_cell, placement)
     else:
-        _set_cell_shading(image_cell, "FFFFFF")
         p = image_cell.paragraphs[0]
         run = p.add_run("\u00a0")
         _set_run_font(run, _body_pt())
-
-    _set_cell_shading(body_cell, "FFFFFF")
     _set_cell_margins(image_cell, top=CELL_PAD_V, bottom=CELL_PAD_V, left=0, right=CELL_PAD_GAP)
     _set_cell_margins(body_cell, top=CELL_PAD_V, bottom=CELL_PAD_V, left=CELL_PAD_GAP, right=0)
 
@@ -676,11 +716,11 @@ def _add_item_text_boxes(
     spacer.paragraph_format.keep_with_next = True
 
 
-def _add_closing_paragraph(doc: Document, line: str) -> None:
+def _add_closing_paragraph(doc_or_cell, line: str) -> None:
     stripped = line.strip()
     if not stripped:
         return
-    p = doc.add_paragraph()
+    p = doc_or_cell.add_paragraph()
     p.paragraph_format.space_before = Pt(12)
     _apply_body_format(p)
     _add_runs_to_paragraph(p, stripped, size_pt=_body_pt())
@@ -691,7 +731,7 @@ def _export_easy_read_layout(
     text: str,
     placements: list[ImagePlacement],
 ) -> None:
-    """작성양식 PDF: <소제목> + 항목별 (삽화 | 글). 마무리 문장은 2단 밖 전체 너비."""
+    """비표 레이아웃(레거시). 내보내기는 _export_easy_read_layout_in_table 사용."""
     body, closing = split_standard_closing(text)
     by_item = align_placements_one_per_section(body, placements)
 
@@ -715,7 +755,7 @@ def _export_easy_read_layout(
         _add_closing_paragraph(doc, closing)
 
 
-def _add_rich_paragraph(doc: Document, line: str) -> None:
+def _add_rich_paragraph(doc_or_cell, line: str) -> None:
     stripped = line.strip()
     if not stripped or _SKIP_LINE.match(stripped):
         return
@@ -725,10 +765,10 @@ def _add_rich_paragraph(doc: Document, line: str) -> None:
         return
 
     if _is_heading(stripped):
-        _add_heading_paragraph(doc, stripped)
+        _add_heading_paragraph(doc_or_cell, stripped)
         return
 
-    p = doc.add_paragraph()
+    p = doc_or_cell.add_paragraph()
     _apply_body_format(p)
     _add_runs_to_paragraph(p, stripped, size_pt=_body_pt())
 
@@ -741,6 +781,42 @@ def _add_picture(doc: Document, image_file: str, image_url: str | None = None) -
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     run = p.add_run()
     run.add_picture(str(img_path), width=IMAGE_DISPLAY_WIDTH)
+
+
+def _export_text_to_cell(cell, text: str, *, skip_meta: bool = True) -> None:
+    in_meta_section = False
+    inserted_images: set[str] = set()
+
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if skip_meta and stripped.startswith("원본 파일:"):
+            continue
+        if skip_meta and stripped == "## 수정된 이지리드 번역본":
+            continue
+        if skip_meta and _META_SECTION_START.match(stripped):
+            in_meta_section = True
+            continue
+        if in_meta_section:
+            continue
+
+        _add_rich_paragraph(cell, line)
+
+        if len(inserted_images) >= MAX_IMAGES_PER_TEXT:
+            continue
+        for match in find_images_for_line(
+            stripped,
+            exclude=inserted_images,
+            max_total=MAX_IMAGES_PER_TEXT,
+        ):
+            img_path = resolve_placement_image(image_file=match.image_file)
+            if img_path:
+                p = cell.add_paragraph()
+                p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                run = p.add_run()
+                run.add_picture(str(img_path), width=IMAGE_DISPLAY_WIDTH)
+            inserted_images.add(match.image_file)
 
 
 def _export_text(doc: Document, text: str, *, skip_meta: bool = True) -> None:
@@ -786,7 +862,7 @@ def _export_judgment_plain(doc: Document, text: str) -> None:
         _set_run_font(run, _body_pt())
 
 
-def _export_easy_read_provision(doc: Document) -> None:
+def _export_easy_read_provision(doc_or_cell) -> None:
     """이유 직후 — Easy-Read 제공 고지(가·나)."""
     for block in EASY_READ_PROVISION_PARAGRAPHS:
         lines = block.split("\n")
@@ -795,19 +871,19 @@ def _export_easy_read_provision(doc: Document) -> None:
             if not stripped:
                 continue
             if stripped.startswith("※"):
-                p = doc.add_paragraph()
+                p = doc_or_cell.add_paragraph()
                 _apply_body_format(p)
                 run = p.add_run(stripped)
                 _set_run_font(run, _body_pt(), bold=True)
             elif stripped.startswith(("가.", "나.")):
-                p = doc.add_paragraph()
+                p = doc_or_cell.add_paragraph()
                 _apply_body_format(p)
                 run = p.add_run(stripped)
                 _set_run_font(run, _body_pt(), bold=True)
             else:
-                _add_rich_paragraph(doc, line)
+                _add_rich_paragraph(doc_or_cell, line)
         if len(lines) > 1:
-            spacer = doc.add_paragraph()
+            spacer = doc_or_cell.add_paragraph()
             spacer.paragraph_format.space_after = Pt(4)
 
 
@@ -851,21 +927,43 @@ def collect_body_text(doc: DocumentResponse) -> str:
     return _collect_body_text(doc)
 
 
-def _append_easy_read_in_textbox(host: Document, doc: DocumentResponse) -> None:
+def _write_easy_read_bordered(
+    host: Document,
+    doc: DocumentResponse,
+    *,
+    font_profile: ExportFontProfile | None = None,
+) -> None:
     easy_body = _collect_body_text(doc)
     if not easy_body:
         return
-    inner = Document()
-    _push_font_profile(EASY_READ_FONT_PROFILE)
+
+    from backend.services.word_textbox import (
+        append_easy_read_section_row,
+        begin_easy_read_outer_table,
+        finish_easy_read_outer_table,
+    )
+
+    _push_font_profile(font_profile if font_profile is not None else EASY_READ_FONT_PROFILE)
     try:
-        _export_easy_read_provision(inner)
+        table, cell = begin_easy_read_outer_table(host)
+        _reset_cell_paragraphs(cell)
+        _export_easy_read_provision(cell)
         raw_placements = _collect_placements(doc) or []
-        _export_easy_read_body(inner, easy_body, raw_placements)
+        placements = prepare_placements_for_export(easy_body, raw_placements)
+        sections = parse_export_sections(easy_body)
+        if any(section.heading for section in sections):
+            _export_easy_read_layout_in_table(table, easy_body, placements)
+        else:
+            body_cell = append_easy_read_section_row(table)
+            _reset_cell_paragraphs(body_cell)
+            _export_text_to_cell(body_cell, easy_body, skip_meta=True)
     finally:
         _pop_font_profile()
-    from backend.services.word_textbox import wrap_document_in_textbox
+    finish_easy_read_outer_table(host)
 
-    wrap_document_in_textbox(host, inner)
+
+def _append_easy_read_in_textbox(host: Document, doc: DocumentResponse) -> None:
+    _write_easy_read_bordered(host, doc)
 
 
 def build_easy_read_insert_document(
@@ -873,19 +971,10 @@ def build_easy_read_insert_document(
     *,
     font_profile: ExportFontProfile | None = None,
 ) -> Document:
-    """「이유」 직후 삽입용 — 고지·이지리드 본문을 Word 글상자 1개에 담는다."""
-    inner = Document()
+    """「이유」 직후 삽입용 — 고지·이지리드 본문을 테두리 표(행별 cantSplit)에 담는다."""
     easy_body = _collect_body_text(doc)
     if not easy_body:
-        return inner
-
-    _push_font_profile(font_profile if font_profile is not None else EASY_READ_FONT_PROFILE)
-    try:
-        _export_easy_read_provision(inner)
-        raw_placements = _collect_placements(doc) or []
-        _export_easy_read_body(inner, easy_body, raw_placements)
-    finally:
-        _pop_font_profile()
+        return Document()
 
     host = Document()
     for section in host.sections:
@@ -896,9 +985,8 @@ def build_easy_read_insert_document(
         section.footer.is_linked_to_previous = False
         if section.footer.paragraphs:
             section.footer.paragraphs[0].clear()
-    from backend.services.word_textbox import wrap_document_in_textbox
 
-    wrap_document_in_textbox(host, inner)
+    _write_easy_read_bordered(host, doc, font_profile=font_profile)
     page_break = host.add_paragraph()
     page_break.paragraph_format.space_before = Pt(0)
     page_break.paragraph_format.space_after = Pt(0)

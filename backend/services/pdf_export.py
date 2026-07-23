@@ -118,7 +118,6 @@ def _font_css(
     }}
     td.image-col {{
       width: 32%;
-      background: #ffffff;
       padding: 8px 8px 8px 0;
       box-sizing: border-box;
     }}
@@ -153,10 +152,14 @@ def _font_css(
     }}
     div.easy-read-frame {{
       border: 1.5pt solid #b8b0a4;
-      background: #f5f0e8;
+      background: #ffffff;
       padding: 14pt 16pt;
       box-sizing: border-box;
       margin: 0 0 12pt 0;
+    }}
+    div.easy-read-section {{
+      page-break-inside: avoid;
+      break-inside: avoid-page;
     }}
     """
     return css, archive
@@ -263,7 +266,7 @@ def _section_block_html(
             if row:
                 blocks.append(row)
 
-    return "".join(blocks)
+    return f'<div class="easy-read-section">{"".join(blocks)}</div>'
 
 
 def _build_html(
