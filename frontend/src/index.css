@@ -36,6 +36,10 @@ body {
   @apply bg-coolgray-10 text-coolgray-90 min-h-full font-sans;
 }
 
+.easy-read-court-font {
+  font-family: "CourtBT", "바탕", "Batang", "Times New Roman", serif;
+}
+
 /* 추출 탭 — 브라우저 인쇄(Microsoft Print to PDF)용 */
 @media print {
   body * {

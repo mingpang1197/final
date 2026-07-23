@@ -10,6 +10,7 @@ import {
   markersToHtml,
   type FontSizePt,
 } from "../utils/richText";
+import { EASY_READ_COURT_FONT_CLASS } from "../utils/exportTypography";
 import { mergeWithStandardClosing, splitStandardClosing, STANDARD_CLOSING } from "../utils/translationSections";
 
 export type RichTextEditorLayout = "full" | "export-preview";
@@ -474,7 +475,7 @@ export function RichTextEditor({
     <div
       className={`rounded-lg border border-coolgray-30 overflow-hidden bg-white flex flex-col ${
         fill ? "h-full min-h-0" : ""
-      }`}
+      } ${layout === "export-preview" ? EASY_READ_COURT_FONT_CLASS : ""}`}
     >
       {!readOnly && (
         <EditorToolbar

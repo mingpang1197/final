@@ -11,6 +11,7 @@ import { IconArrowRight } from "../components/ui/icons";
 import { WorkflowLayout } from "../components/ui/WorkflowLayout";
 import { getCachedUpload } from "../utils/docCache";
 import { enrichSegmentsForExport } from "../utils/exportImages";
+import { EASY_READ_COURT_FONT_CLASS } from "../utils/exportTypography";
 import { loadDocumentWithRecovery } from "../utils/documentLoader";
 import {
   getWorkflowSnapshot,
@@ -183,7 +184,7 @@ export function ExportPage() {
                 <ExportPdfPreviewPanel blob={previewBlob} onReady={() => setPreviewReady(true)} />
               </div>
             ) : previewBlob && previewMode === "docx" ? (
-              <div className="flex-1 min-h-0">
+              <div className={`flex-1 min-h-0 ${EASY_READ_COURT_FONT_CLASS}`}>
                 <DocxPreviewPanel
                   blob={previewBlob}
                   onReady={() => setPreviewReady(true)}

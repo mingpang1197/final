@@ -154,11 +154,12 @@ def iter_body_paragraphs_in_order(doc: Document):
 
 
 def find_reason_anchor_paragraph(doc: Document):
-    """문서 흐름상 첫 「이유」 제목 단락."""
+    """문서 흐름상 「이유」 제목 단락 — pdf2docx 순서 오류 대비 마지막 매칭."""
+    found = None
     for paragraph in iter_body_paragraphs_in_order(doc):
         if is_reason_heading_paragraph(paragraph):
-            return paragraph
-    return None
+            found = paragraph
+    return found
 
 
 def _split_reason_heading_paragraph(paragraph):
@@ -858,6 +859,7 @@ def export_to_docx(
     *,
     include_meta: bool = False,
     source_file: Path | None = None,
+    merge_source_pdf: bool = True,
 ) -> bytes:
     word = Document()
 
@@ -877,7 +879,7 @@ def export_to_docx(
         word.save(buffer)
         return buffer.getvalue()
 
-    if source_file is not None:
+    if source_file is not None and merge_source_pdf:
         from backend.services.pdf_source_merge import merge_pdf_with_easy_read_insert
 
         merged = merge_pdf_with_easy_read_insert(source_file, doc)

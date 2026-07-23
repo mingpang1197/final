@@ -57,21 +57,65 @@ def find_reason_page_index(pdf: fitz.Document, full_text: str | None) -> int | N
     return None
 
 
-def find_reason_heading_position(doc: fitz.Document) -> tuple[int, fitz.Rect] | None:
+def _line_plain_text(line: dict) -> str:
+    spans = line.get("spans") or []
+    return "".join(str(s.get("text") or "") for s in spans).strip()
+
+
+def _split_y_after_reason_heading(page: fitz.Page, reason_rect: fitz.Rect) -> float:
+    """「이유」 제목줄 바로 아래(다음 줄 시작)에서 잘라 이지리드를 끼워 넣는다."""
+    next_line_y: float | None = None
+    data = page.get_text("dict") or {}
+    for block in data.get("blocks") or []:
+        if block.get("type") != 0:
+            continue
+        for line in block.get("lines") or []:
+            bbox = line.get("bbox")
+            if not bbox or len(bbox) < 4:
+                continue
+            if _REASON_LINE.match(_line_plain_text(line)):
+                continue
+            y0 = float(bbox[1])
+            if y0 > reason_rect.y1 + 0.5:
+                if next_line_y is None or y0 < next_line_y:
+                    next_line_y = y0
+    if next_line_y is not None:
+        return max(reason_rect.y1 + 2, next_line_y - 1)
+    return min(reason_rect.y1 + 8, page.rect.y1)
+
+
+def find_reason_heading_position(
+    doc: fitz.Document,
+    full_text: str | None = None,
+) -> tuple[int, fitz.Rect] | None:
+    candidates: list[tuple[int, fitz.Rect]] = []
     for index in range(doc.page_count):
         rect = _reason_heading_rect(doc.load_page(index))
         if rect is not None:
-            return index, rect
-    return None
+            candidates.append((index, rect))
+    if not candidates:
+        return None
+    if full_text:
+        split = split_judgment_at_reason(full_text)
+        if split:
+            suffix = split[1].strip()
+            needle = re.sub(r"\s+", "", suffix[:48])
+            if len(needle) >= 6:
+                for page_index, rect in reversed(candidates):
+                    page_text = re.sub(r"\s+", "", doc.load_page(page_index).get_text("text") or "")
+                    if needle[: min(24, len(needle))] in page_text:
+                        return page_index, rect
+    return candidates[-1]
 
 
 def _append_clipped_page(out: fitz.Document, src: fitz.Document, page_number: int, clip: fitz.Rect) -> None:
     src_page = src[page_number]
     clip = clip & src_page.rect
+    page_w = src_page.rect.width
     if clip.is_empty or clip.height < 8:
         return
-    new_page = out.new_page(width=clip.width, height=clip.height)
-    target = fitz.Rect(0, 0, clip.width, clip.height)
+    new_page = out.new_page(width=page_w, height=clip.height)
+    target = fitz.Rect(0, 0, page_w, clip.height)
     new_page.show_pdf_page(target, src, page_number, clip=clip)
 
 
@@ -98,7 +142,7 @@ def merge_pdf_three_part_with_easy_read(pdf_path: Path, doc: DocumentResponse) -
 
     src = fitz.open(pdf_path)
     try:
-        found = find_reason_heading_position(src)
+        found = find_reason_heading_position(src, doc.full_text)
         if found is None:
             logger.info("pdf 3-part merge: 「이유」 좌표 없음")
             return None
@@ -112,7 +156,8 @@ def merge_pdf_three_part_with_easy_read(pdf_path: Path, doc: DocumentResponse) -
         out = fitz.open()
         try:
             page = src[reason_page]
-            split_y = min(reason_rect.y1 + 6, page.rect.y1)
+            split_y = _split_y_after_reason_heading(page, reason_rect)
+            split_y = min(max(split_y, reason_rect.y1 + 2), page.rect.y1)
 
             if reason_page > 0:
                 out.insert_pdf(src, from_page=0, to_page=reason_page - 1)

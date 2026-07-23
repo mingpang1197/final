@@ -15,6 +15,7 @@ import {
   type TranslationSection,
 } from "../utils/translationSections";
 import { addClearedImageSlot } from "../utils/imageSlotPrefs";
+import { EASY_READ_COURT_FONT_CLASS } from "../utils/exportTypography";
 
 export const IMAGE_DRAG_MIME = "application/x-easyread-image";
 
@@ -139,7 +140,7 @@ export function EasyReadDocumentView({
 
   if (mode === "translate") {
     return (
-      <div className={fill ? "flex min-h-0 min-w-0 flex-1 flex-col" : "min-w-0"}>
+      <div className={`${EASY_READ_COURT_FONT_CLASS} ${fill ? "flex min-h-0 min-w-0 flex-1 flex-col" : "min-w-0"}`}>
         <RichTextEditor
           value={text}
           onChange={(v) => onTextChange?.(v)}
@@ -153,7 +154,7 @@ export function EasyReadDocumentView({
   }
 
   return (
-    <div className={`space-y-8 ${fill ? "min-h-0 flex-1" : ""}`}>
+    <div className={`${EASY_READ_COURT_FONT_CLASS} space-y-8 ${fill ? "min-h-0 flex-1" : ""}`}>
       {sections.map((section, sectionIndex) => (
         <SectionBlock
           key={`${section.startLineIndex}-${sectionIndex}`}

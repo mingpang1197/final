@@ -82,7 +82,7 @@ def _font_css() -> tuple[str, fitz.Archive]:
       src: url("nanumgothic-regular.ttf");
     }}
     body {{
-      font-family: "Nanum Gothic", sans-serif;
+      font-family: "CourtBT", "Batang", "Nanum Gothic", serif;
       font-size: 12px;
       line-height: 2;
       color: #21272a;
@@ -394,7 +394,8 @@ def export_to_pdf(doc: DocumentResponse, *, source_file: Path | None = None) -> 
             logger.info("export pdf: native 3-part PDF merge")
             return merged
 
-    docx_bytes = word_export.export_to_docx(doc, source_file=source_file)
+    # pdf2docx 삽입 위치가 어긋날 수 있어 PDF 추출은 OCR 분할 docx만 사용(원문 PDF는 3단 병합).
+    docx_bytes = word_export.export_to_docx(doc, source_file=None, merge_source_pdf=False)
     try:
         return convert_docx_bytes_to_pdf(docx_bytes)
     except DocxToPdfError as exc:
