@@ -110,7 +110,7 @@ def find_reason_heading_position(
 
 
 def _append_clipped_page(out: fitz.Document, src: fitz.Document, page_number: int, clip: fitz.Rect) -> None:
-    from backend.services.pdf_page_numbers import clip_excluding_footer
+    from backend.services.pdf_page_numbers import clip_excluding_footer, page_height_with_number_footer
 
     src_page = src[page_number]
     clip = clip_excluding_footer(src_page, clip)
@@ -118,7 +118,8 @@ def _append_clipped_page(out: fitz.Document, src: fitz.Document, page_number: in
     page_w = src_page.rect.width
     if clip.is_empty or clip.height < 8:
         return
-    new_page = out.new_page(width=page_w, height=clip.height)
+    total_h = page_height_with_number_footer(clip.height)
+    new_page = out.new_page(width=page_w, height=total_h)
     target = fitz.Rect(0, 0, page_w, clip.height)
     new_page.show_pdf_page(target, src, page_number, clip=clip)
 

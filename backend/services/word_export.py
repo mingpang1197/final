@@ -422,6 +422,28 @@ def _remove_table_borders(table) -> None:
     tbl_pr.append(borders)
 
 
+def _set_row_cant_split(row) -> None:
+    """행이 페이지 경계에서 쪼개지지 않도록 — 소제목+본문 블록을 다음 페이지로."""
+    tr = row._tr
+    tr_pr = tr.get_or_add_trPr()
+    for child in list(tr_pr):
+        if child.tag == qn("w:cantSplit"):
+            tr_pr.remove(child)
+    tr_pr.append(OxmlElement("w:cantSplit"))
+
+
+def _open_keep_together_cell(doc: Document):
+    """소제목·항목 묶음용 1×1 표(테두리 없음, cantSplit)."""
+    table = doc.add_table(rows=1, cols=1)
+    table.autofit = False
+    _remove_table_borders(table)
+    _set_row_cant_split(table.rows[0])
+    cell = table.rows[0].cells[0]
+    _set_cell_borders_transparent(cell)
+    _reset_cell_paragraphs(cell)
+    return cell
+
+
 def _set_cell_borders_transparent(cell) -> None:
     """글상자처럼 셀 테두리를 투명(nil) 처리."""
     tc_pr = cell._tc.get_or_add_tcPr()
@@ -553,16 +575,18 @@ def _add_runs_to_paragraph(paragraph, line: str, *, size_pt: float, bold_default
         _set_run_font(run, run_pt, bold=is_bold or bold_default)
 
 
-def _add_heading_paragraph(doc: Document, line: str) -> None:
+def _add_heading_paragraph(doc_or_cell, line: str) -> None:
     stripped = line.strip()
     if not stripped:
         return
-    p = doc.add_paragraph()
+    p = doc_or_cell.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p.paragraph_format.space_before = Pt(16)
     p.paragraph_format.space_after = Pt(8)
     p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
     p.paragraph_format.line_spacing = LINE_SPACING
+    p.paragraph_format.keep_with_next = True
+    p.paragraph_format.keep_together = True
     raw = _clean_heading(stripped) if _is_heading(stripped) else stripped
     if has_style_markers(stripped):
         _add_runs_to_paragraph(p, stripped, size_pt=HEADING_PT)
@@ -602,12 +626,12 @@ def _add_picture_to_cell(cell, placement: ImagePlacement) -> None:
 
 
 def _add_item_text_boxes(
-    doc: Document,
+    doc_or_cell,
     placement: ImagePlacement | None,
     body_lines: list[str],
 ) -> None:
     """항목 1개 = (그림 | 본문) 2단. 그림 없으면 왼쪽 빈칸 유지(그림 탭과 동일)."""
-    table = doc.add_table(rows=1, cols=2)
+    table = doc_or_cell.add_table(rows=1, cols=2)
     table.autofit = False
     table.allow_autofit = False
     _remove_table_borders(table)
@@ -616,6 +640,7 @@ def _add_item_text_boxes(
     _set_column_widths(table, col_widths)
 
     row = table.rows[0]
+    _set_row_cant_split(row)
     row.height_rule = WD_ROW_HEIGHT_RULE.AUTO
     image_cell = row.cells[0]
     body_cell = row.cells[1]
@@ -645,9 +670,10 @@ def _add_item_text_boxes(
         _add_body_paragraph_to_cell(body_cell, line, first=first)
         first = False
 
-    spacer = doc.add_paragraph()
+    spacer = doc_or_cell.add_paragraph()
     spacer.paragraph_format.space_before = Pt(0)
     spacer.paragraph_format.space_after = Pt(12)
+    spacer.paragraph_format.keep_with_next = True
 
 
 def _add_closing_paragraph(doc: Document, line: str) -> None:
@@ -670,19 +696,20 @@ def _export_easy_read_layout(
     by_item = align_placements_one_per_section(body, placements)
 
     for section in parse_export_sections(body):
+        block = _open_keep_together_cell(doc)
         if section.heading:
-            _add_heading_paragraph(doc, section.heading)
+            _add_heading_paragraph(block, section.heading)
         for item in parse_section_items(section):
             placement = by_item.get(item.start_line_index)
             if placement is not None and not isinstance(placement, ImagePlacement):
                 placement = ImagePlacement(**placement)  # type: ignore[arg-type]
             if placement:
                 blocks = split_item_lines_into_blocks(item.lines)
-                _add_item_text_boxes(doc, placement, blocks[0])
-                for block in blocks[1:]:
-                    _add_item_text_boxes(doc, None, block)
+                _add_item_text_boxes(block, placement, blocks[0])
+                for block_lines in blocks[1:]:
+                    _add_item_text_boxes(block, None, block_lines)
             else:
-                _add_item_text_boxes(doc, None, item.lines)
+                _add_item_text_boxes(block, None, item.lines)
 
     if closing:
         _add_closing_paragraph(doc, closing)

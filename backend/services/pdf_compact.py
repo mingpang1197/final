@@ -47,6 +47,8 @@ def _page_is_blank(page: fitz.Page) -> bool:
 
 def compact_pdf_for_insert(doc: fitz.Document) -> fitz.Document:
     """빈 꼬리 페이지 제거 + 각 페이지를 보이는 영역 높이로 잘라 연속 흐름에 맞춤."""
+    from backend.services.pdf_page_numbers import page_height_with_number_footer
+
     if doc.page_count == 0:
         return doc
 
@@ -63,7 +65,8 @@ def compact_pdf_for_insert(doc: fitz.Document) -> fitz.Document:
         if clip.is_empty or clip.height < 8:
             continue
         w = page.rect.width
-        new_page = out.new_page(width=w, height=clip.height)
+        total_h = page_height_with_number_footer(clip.height)
+        new_page = out.new_page(width=w, height=total_h)
         new_page.show_pdf_page(fitz.Rect(0, 0, w, clip.height), doc, index, clip=clip)
     if out.page_count == 0:
         return doc
@@ -77,10 +80,13 @@ def _append_clipped(
     clip: fitz.Rect,
     page_w: float,
 ) -> None:
+    from backend.services.pdf_page_numbers import page_height_with_number_footer
+
     clip = clip & doc[page_number].rect
     if clip.is_empty or clip.height < 8:
         return
-    new_page = out.new_page(width=page_w, height=clip.height)
+    total_h = page_height_with_number_footer(clip.height)
+    new_page = out.new_page(width=page_w, height=total_h)
     new_page.show_pdf_page(fitz.Rect(0, 0, page_w, clip.height), doc, page_number, clip=clip)
 
 
@@ -94,9 +100,9 @@ def append_easy_read_then_suffix(
     gap_pt: float = 10,
 ) -> None:
     """이지리드 직후 원문 suffix — 마지막 이지리드 페이지에 공간 있으면 같은 페이지에 이어 붙임."""
-    src_page = src[reason_page]
-    from backend.services.pdf_page_numbers import clip_excluding_footer
+    from backend.services.pdf_page_numbers import clip_excluding_footer, page_height_with_number_footer
 
+    src_page = src[reason_page]
     suffix_clip = clip_excluding_footer(src_page, suffix_clip & src_page.rect)
     page_w = src_page.rect.width
     page_h = src_page.rect.height
@@ -120,9 +126,10 @@ def append_easy_read_then_suffix(
     easy_h = easy_clip.height
     suffix_h = suffix_clip.height
     combined = easy_h + gap_pt + suffix_h
+    combined_with_footer = page_height_with_number_footer(combined)
 
-    if combined <= page_h + 1:
-        new_page = out.new_page(width=page_w, height=combined)
+    if combined_with_footer <= page_h + 1:
+        new_page = out.new_page(width=page_w, height=combined_with_footer)
         y = 0.0
         dest = fitz.Rect(0, y, page_w, y + easy_h)
         new_page.show_pdf_page(dest, easy, last_idx, clip=easy_clip)

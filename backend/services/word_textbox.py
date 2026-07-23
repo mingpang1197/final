@@ -9,8 +9,12 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt
 
+EASY_READ_BOX_FILL = "F5F0E8"
+EASY_READ_BOX_BORDER = "B8B0A4"
+EASY_READ_BOX_PAD_TWIPS = 180  # ~0.125"
 
-def _set_cell_borders_visible(cell, *, color: str = "595959", size: str = "4") -> None:
+
+def _set_cell_borders_visible(cell, *, color: str = EASY_READ_BOX_BORDER, size: str = "6") -> None:
     tc_pr = cell._tc.get_or_add_tcPr()
     borders = OxmlElement("w:tcBorders")
     for edge in ("top", "left", "bottom", "right"):
@@ -20,6 +24,25 @@ def _set_cell_borders_visible(cell, *, color: str = "595959", size: str = "4") -
         element.set(qn("w:color"), color)
         borders.append(element)
     tc_pr.append(borders)
+
+
+def _set_cell_shading(cell, fill_hex: str) -> None:
+    shading = OxmlElement("w:shd")
+    shading.set(qn("w:fill"), fill_hex)
+    shading.set(qn("w:val"), "clear")
+    tc_pr = cell._tc.get_or_add_tcPr()
+    tc_pr.append(shading)
+
+
+def _set_cell_margins(cell, *, top: int = 0, bottom: int = 0, left: int = 0, right: int = 0) -> None:
+    tc_pr = cell._tc.get_or_add_tcPr()
+    tc_mar = OxmlElement("w:tcMar")
+    for edge, value in (("top", top), ("left", left), ("bottom", bottom), ("right", right)):
+        node = OxmlElement(f"w:{edge}")
+        node.set(qn("w:w"), str(value))
+        node.set(qn("w:type"), "dxa")
+        tc_mar.append(node)
+    tc_pr.append(tc_mar)
 
 
 def _clear_cell_content(cell) -> None:
@@ -35,6 +58,9 @@ def wrap_document_in_textbox(host: Document, content: Document) -> None:
     table.autofit = False
     cell = table.rows[0].cells[0]
     _set_cell_borders_visible(cell)
+    _set_cell_shading(cell, EASY_READ_BOX_FILL)
+    pad = EASY_READ_BOX_PAD_TWIPS
+    _set_cell_margins(cell, top=pad, bottom=pad, left=pad, right=pad)
     _clear_cell_content(cell)
 
     tc = cell._tc
@@ -44,4 +70,4 @@ def wrap_document_in_textbox(host: Document, content: Document) -> None:
         tc.append(deepcopy(block))
 
     spacer = host.add_paragraph()
-    spacer.paragraph_format.space_after = Pt(6)
+    spacer.paragraph_format.space_after = Pt(10)

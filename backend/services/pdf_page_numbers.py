@@ -9,6 +9,9 @@ import fitz
 
 logger = logging.getLogger(__name__)
 
+# 클립·압축 페이지 하단에 순번을 넣을 여백(본문과 겹침 방지).
+PAGE_NUMBER_FOOTER_RESERVE_PT = 42
+
 _PAGE_DASH = re.compile(r"^\s*-\s*\d+\s*-\s*$")
 _PAGE_SLASH = re.compile(r"^\s*\(?\s*\d+\s*[/／]\s*\d+\s*\)?\s*쪽?\s*$")
 _PAGE_KOR = re.compile(r"^\s*\(\s*\d+\s*[/／]\s*\d+\s*쪽\s*\)\s*$")
@@ -93,6 +96,11 @@ def _number_fontfile() -> str | None:
     return None
 
 
+def page_height_with_number_footer(content_height: float) -> float:
+    """클립 본문 높이 + 쪽번호용 하단 여백."""
+    return max(content_height, 8) + PAGE_NUMBER_FOOTER_RESERVE_PT
+
+
 def apply_sequential_page_numbers(doc: fitz.Document, *, start: int = 1) -> None:
     """전 페이지 하단에 - 1 - 형식 순번."""
     fontfile = _number_fontfile()
@@ -101,7 +109,9 @@ def apply_sequential_page_numbers(doc: fitz.Document, *, start: int = 1) -> None
         redact_page_number_marks(page)
         label = f"- {start + index} -"
         r = page.rect
-        box = fitz.Rect(r.x0 + 40, r.y1 - 34, r.x1 - 40, r.y1 - 12)
+        if r.height < 28:
+            continue
+        box = fitz.Rect(r.x0 + 40, r.y1 - 30, r.x1 - 40, r.y1 - 10)
         kwargs: dict = {
             "fontsize": 11,
             "color": (0, 0, 0),
