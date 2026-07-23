@@ -44,6 +44,12 @@ from backend.services.word_export import (
     EASY_READ_FONT_PROFILE,
     ExportFontProfile,
 )
+from backend.services.court_fonts import (
+    FONT_DIR as BUNDLED_FONT_DIR,
+    bundled_court_font_profile,
+    css_font_family_stack,
+    story_font_face_css,
+)
 
 FONT_URL = (
     "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Regular.ttf"
@@ -60,10 +66,8 @@ _BOLD = re.compile(r"\*\*(.+?)\*\*")
 
 
 def _font_dir() -> Path:
-    bundled_dir = Path(__file__).resolve().parent.parent / "assets" / "fonts"
-    bundled = bundled_dir / "NanumGothic-Regular.ttf"
-    if bundled.exists():
-        return bundled_dir
+    if BUNDLED_FONT_DIR.is_dir() and any(BUNDLED_FONT_DIR.glob("*.ttf")):
+        return BUNDLED_FONT_DIR
     cache_dir = Path(os.environ.get("TMPDIR", os.environ.get("TEMP", "/tmp")))
     cached = cache_dir / "nanumgothic-regular.ttf"
     if not cached.exists():
@@ -81,14 +85,11 @@ def _font_css(
 ) -> tuple[str, fitz.Archive]:
     font_dir = _font_dir()
     archive = fitz.Archive(str(font_dir))
-    stack = (family or EASY_READ_FONT_PROFILE.east_asia).replace('"', "")
+    stack = css_font_family_stack() if family is None else f'"{family.replace(chr(34), "")}", "Nanum Myeongjo", serif'
     css = f"""
-    @font-face {{
-      font-family: "Nanum Gothic";
-      src: url("nanumgothic-regular.ttf");
-    }}
+    {story_font_face_css()}
     body {{
-      font-family: "{stack}", "Batang", "Nanum Gothic", serif;
+      font-family: {stack};
       font-size: {body_pt}px;
       line-height: 2;
       color: #21272a;

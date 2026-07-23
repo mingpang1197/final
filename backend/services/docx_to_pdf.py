@@ -27,6 +27,9 @@ class DocxToPdfError(RuntimeError):
 
 
 def convert_docx_bytes_to_pdf(docx_bytes: bytes) -> bytes:
+    from backend.services.court_fonts import register_bundled_fonts_for_process
+
+    register_bundled_fonts_for_process()
     errors: list[str] = []
     for name, converter in _available_backends():
         try:
@@ -44,6 +47,8 @@ def _available_backends():
     backends: list[tuple[str, object]] = []
     if settings.convertapi_secret.strip():
         backends.append(("convertapi", _convert_via_convertapi))
+    if sys.platform == "win32":
+        backends.append(("word-com", _convert_via_word_com))
     if sys.platform in ("win32", "darwin"):
         backends.append(("docx2pdf", _convert_via_docx2pdf))
     if _find_libreoffice():
@@ -77,6 +82,38 @@ def _read_pdf_output(docx_path: Path, directory: Path) -> bytes:
     if not pdf_path.is_file():
         raise FileNotFoundError(f"PDF not created: {pdf_path.name}")
     return pdf_path.read_bytes()
+
+
+def _convert_via_word_com(docx_bytes: bytes) -> bytes:
+    import pythoncom
+    import win32com.client
+
+    co_initialized = False
+    try:
+        pythoncom.CoInitialize()
+        co_initialized = True
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_dir = Path(tmp)
+            docx_path = _write_temp_docx(docx_bytes, tmp_dir)
+            pdf_path = tmp_dir / f"{docx_path.stem}.pdf"
+            word = win32com.client.Dispatch("Word.Application")
+            word.Visible = False
+            try:
+                word.Options.SaveEmbedTrueTypeFonts = True
+                word.Options.SaveEmbedSystemFonts = False
+                doc = word.Documents.Open(str(docx_path.resolve()))
+                try:
+                    doc.SaveAs(str(pdf_path.resolve()), FileFormat=17)
+                finally:
+                    doc.Close(False)
+            finally:
+                word.Quit()
+            if not pdf_path.is_file():
+                raise FileNotFoundError("Word COM did not create a PDF")
+            return pdf_path.read_bytes()
+    finally:
+        if co_initialized:
+            pythoncom.CoUninitialize()
 
 
 def _convert_via_docx2pdf(docx_bytes: bytes) -> bytes:

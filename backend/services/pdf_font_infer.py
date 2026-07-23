@@ -8,8 +8,13 @@ from collections import Counter
 
 import fitz
 
+from backend.services.court_fonts import (
+    ExportFontProfile,
+    bundled_court_font_profile,
+    is_known_export_font_name,
+)
 from backend.services.pdf_native_merge import _split_y_after_reason_heading
-from backend.services.word_export import BODY_PT, EASY_READ_FONT_PROFILE, ExportFontProfile, _pick_dominant_font
+from backend.services.word_export import BODY_PT, _pick_dominant_font
 
 logger = logging.getLogger(__name__)
 
@@ -178,8 +183,9 @@ def font_profile_for_easy_read_export(
     reason_page: int | None,
     reason_rect: fitz.Rect | None,
 ) -> ExportFontProfile:
+    bundled = bundled_court_font_profile()
     if pdf is not None and reason_page is not None and reason_rect is not None:
         inferred = infer_font_profile_from_reason_vicinity_pdf(pdf, reason_page, reason_rect)
-        if inferred:
+        if inferred and is_known_export_font_name(inferred.east_asia):
             return inferred
-    return EASY_READ_FONT_PROFILE
+    return bundled

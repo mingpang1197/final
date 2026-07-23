@@ -12,7 +12,6 @@ import io
 import re
 import tempfile
 from collections import Counter
-from dataclasses import dataclass
 from pathlib import Path
 
 from docx import Document
@@ -39,6 +38,11 @@ from backend.services.judgment_merge import (
 from backend.services.image_assets import resolve_placement_image
 from backend.services.image_matcher import MAX_IMAGES_PER_TEXT, find_images_for_line
 from backend.services.rich_text import has_style_markers, iter_styled_runs
+from backend.services.court_fonts import (
+    ExportFontProfile,
+    bundled_court_font_profile,
+    enable_word_font_embedding,
+)
 
 BODY_PT = 12
 BOLD_BODY_PT = 12
@@ -68,22 +72,7 @@ _GOTHIC_FONTS = frozenset(
     {"malgun gothic", "맑은 고딕", "nanumgothic", "나눔고딕", "dotum", "돋움", "gulim", "굴림"}
 )
 
-
-@dataclass(frozen=True)
-class ExportFontProfile:
-    ascii: str = DEFAULT_ASCII_FONT
-    h_ansi: str = DEFAULT_ASCII_FONT
-    east_asia: str = DEFAULT_EAST_ASIA_FONT
-    body_pt: float = BODY_PT
-
-
-EASY_READ_FONT_PROFILE = ExportFontProfile(
-    ascii=EASY_READ_COURT_FONT,
-    h_ansi=EASY_READ_COURT_FONT,
-    east_asia=EASY_READ_COURT_FONT,
-    body_pt=BODY_PT,
-)
-
+EASY_READ_FONT_PROFILE = bundled_court_font_profile()
 
 _FONT_PROFILE_STACK: list[ExportFontProfile] = []
 
@@ -320,7 +309,12 @@ def infer_font_profile_from_document(doc: Document) -> ExportFontProfile:
                 font_weights[run.font.name] += weight
 
     if not font_weights:
-        return ExportFontProfile()
+        return ExportFontProfile(
+            ascii=DEFAULT_ASCII_FONT,
+            h_ansi=DEFAULT_ASCII_FONT,
+            east_asia=DEFAULT_EAST_ASIA_FONT,
+            body_pt=BODY_PT,
+        )
 
     dominant = font_weights.most_common(1)[0][0]
     body_pt = size_weights.most_common(1)[0][0] if size_weights else BODY_PT
@@ -853,6 +847,7 @@ def build_easy_read_insert_document(
     from backend.services.word_textbox import wrap_document_in_textbox
 
     wrap_document_in_textbox(host, inner)
+    enable_word_font_embedding(host)
     return host
 
 
@@ -902,6 +897,7 @@ def export_to_docx(
         raw_placements = _collect_placements(doc) or []
         _export_easy_read_body(word, easy_body, raw_placements)
 
+    enable_word_font_embedding(word)
     buffer = io.BytesIO()
     word.save(buffer)
     return buffer.getvalue()
