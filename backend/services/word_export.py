@@ -52,10 +52,10 @@ LINE_SPACING = 2.0  # 200% (이지리드 가이드)
 PAGE_MARGIN_IN = 0.6
 PAGE_MARGIN = Inches(PAGE_MARGIN_IN)
 # Word A4 본문 높이(여백 제외) — 소제목 페이지 중단 이후면 다음 페이지 추정용
-EASY_READ_USABLE_PAGE_PT = 680.0
-EASY_READ_PROVISION_EST_PT = 200.0
-EASY_READ_HEADING_EST_PT = 56.0
-EASY_READ_ITEM_BASE_EST_PT = 118.0
+EASY_READ_USABLE_PAGE_PT = 620.0
+EASY_READ_PROVISION_EST_PT = 240.0
+EASY_READ_HEADING_EST_PT = 64.0
+EASY_READ_ITEM_BASE_EST_PT = 128.0
 EASY_READ_LINE_EST_PT = 26.0
 IMAGE_COL_IN = 2.05
 GAP_COL_IN = 0.1
@@ -459,11 +459,49 @@ def _estimate_easy_read_section_height(section, by_item: dict) -> float:
     return height
 
 
+def _min_section_start_height(section, by_item: dict) -> float:
+    """소제목 + 첫 항목(그림·본문)이 같은 페이지에 들어갈 최소 높이."""
+    height = (EASY_READ_HEADING_EST_PT + 14) if section.heading else 0.0
+    items = list(parse_section_items(section))
+    if not items:
+        return height
+    first = items[0]
+    line_count = len([ln for ln in first.lines if ln.strip()])
+    placement = by_item.get(first.start_line_index)
+    image_extra = 52.0 if placement else 0.0
+    height += EASY_READ_ITEM_BASE_EST_PT + line_count * EASY_READ_LINE_EST_PT + image_extra
+    return height
+
+
+def _should_start_section_on_new_page(
+    pos_on_page: float,
+    section_est: float,
+    min_start: float,
+) -> bool:
+    """남은 공간에 소제목+첫 내용이 안 들어가면 다음 페이지에서 소제목으로 시작."""
+    if pos_on_page <= 1:
+        return False
+    remaining = EASY_READ_USABLE_PAGE_PT - pos_on_page
+    cushion = 32.0
+    if remaining < min_start + cushion:
+        return True
+    if section_est > remaining and min_start > remaining * 0.55:
+        return True
+    return False
+
+
+def _fill_at_next_page_top(fill: float) -> float:
+    import math
+
+    page_index = math.ceil(fill / EASY_READ_USABLE_PAGE_PT)
+    return max(page_index, 1) * EASY_READ_USABLE_PAGE_PT
+
+
 def _add_page_break_before_cell_content(cell) -> None:
-    p = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
-    p.paragraph_format.page_break_before = True
+    p = cell.add_paragraph()
     p.paragraph_format.space_before = Pt(0)
     p.paragraph_format.space_after = Pt(0)
+    p.add_run().add_break(WD_BREAK.PAGE)
 
 
 def _export_easy_read_layout_in_table(
@@ -482,17 +520,18 @@ def _export_easy_read_layout_in_table(
 
     for section_index, section in enumerate(parse_export_sections(body)):
         section_est = _estimate_easy_read_section_height(section, by_item)
+        min_start = _min_section_start_height(section, by_item)
         pos_on_page = fill % EASY_READ_USABLE_PAGE_PT
-        need_break = section_index > 0 and pos_on_page >= EASY_READ_USABLE_PAGE_PT / 2
+        need_break = _should_start_section_on_new_page(pos_on_page, section_est, min_start)
 
         cell = append_easy_read_section_row(table)
         _reset_cell_paragraphs(cell)
         if need_break:
             _add_page_break_before_cell_content(cell)
-            fill = (fill // EASY_READ_USABLE_PAGE_PT + 1) * EASY_READ_USABLE_PAGE_PT
+            fill = _fill_at_next_page_top(fill)
 
         if section.heading:
-            _add_heading_paragraph(cell, section.heading)
+            _add_heading_paragraph(cell, section.heading, page_break_before=False)
         for item in parse_section_items(section):
             placement = by_item.get(item.start_line_index)
             if placement is not None and not isinstance(placement, ImagePlacement):
@@ -656,7 +695,12 @@ def _add_runs_to_paragraph(paragraph, line: str, *, size_pt: float, bold_default
         _set_run_font(run, run_pt, bold=is_bold or bold_default)
 
 
-def _add_heading_paragraph(doc_or_cell, line: str) -> None:
+def _add_heading_paragraph(
+    doc_or_cell,
+    line: str,
+    *,
+    page_break_before: bool = False,
+) -> None:
     stripped = line.strip()
     if not stripped:
         return
@@ -668,6 +712,8 @@ def _add_heading_paragraph(doc_or_cell, line: str) -> None:
     p.paragraph_format.line_spacing = LINE_SPACING
     p.paragraph_format.keep_with_next = True
     p.paragraph_format.keep_together = True
+    if page_break_before:
+        p.paragraph_format.page_break_before = True
     raw = _clean_heading(stripped) if _is_heading(stripped) else stripped
     if has_style_markers(stripped):
         _add_runs_to_paragraph(p, stripped, size_pt=HEADING_PT)
@@ -752,6 +798,7 @@ def _add_item_text_boxes(
     spacer.paragraph_format.space_before = Pt(0)
     spacer.paragraph_format.space_after = Pt(12)
     spacer.paragraph_format.keep_with_next = True
+    spacer.paragraph_format.keep_together = True
 
 
 def _add_closing_paragraph(doc_or_cell, line: str) -> None:
