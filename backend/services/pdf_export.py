@@ -45,8 +45,6 @@ from backend.services.word_export import (
     ExportFontProfile,
 )
 from backend.services.court_fonts import (
-    FONT_DIR as BUNDLED_FONT_DIR,
-    bundled_court_font_profile,
     css_font_family_stack,
     story_font_face_css,
 )
@@ -66,8 +64,11 @@ _BOLD = re.compile(r"\*\*(.+?)\*\*")
 
 
 def _font_dir() -> Path:
-    if BUNDLED_FONT_DIR.is_dir() and any(BUNDLED_FONT_DIR.glob("*.ttf")):
-        return BUNDLED_FONT_DIR
+    from backend.services.court_fonts import FONT_DIR, register_bundled_fonts_for_process
+
+    register_bundled_fonts_for_process()
+    if FONT_DIR.is_dir() and any(FONT_DIR.glob("*.ttf")):
+        return FONT_DIR
     cache_dir = Path(os.environ.get("TMPDIR", os.environ.get("TEMP", "/tmp")))
     cached = cache_dir / "nanumgothic-regular.ttf"
     if not cached.exists():

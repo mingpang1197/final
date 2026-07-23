@@ -12,6 +12,7 @@ import fitz
 from backend.models.schemas import DocumentResponse
 from backend.services import word_export
 from backend.services.judgment_merge import split_judgment_at_reason
+from backend.services.pdf_compact import append_easy_read_then_suffix
 
 logger = logging.getLogger(__name__)
 
@@ -179,10 +180,13 @@ def merge_pdf_three_part_with_easy_read(pdf_path: Path, doc: DocumentResponse) -
             prefix_clip = fitz.Rect(page.rect.x0, page.rect.y0, page.rect.x1, split_y)
             _append_clipped_page(out, src, reason_page, prefix_clip)
 
-            out.insert_pdf(easy)
-
-            suffix_clip = fitz.Rect(page.rect.x0, split_y, page.rect.x1, page.rect.y1)
-            _append_clipped_page(out, src, reason_page, suffix_clip)
+            append_easy_read_then_suffix(
+                out,
+                easy,
+                src,
+                reason_page,
+                fitz.Rect(page.rect.x0, split_y, page.rect.x1, page.rect.y1),
+            )
 
             if reason_page + 1 < src.page_count:
                 out.insert_pdf(src, from_page=reason_page + 1, to_page=src.page_count - 1)

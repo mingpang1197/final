@@ -183,9 +183,4 @@ def font_profile_for_easy_read_export(
     reason_page: int | None,
     reason_rect: fitz.Rect | None,
 ) -> ExportFontProfile:
-    bundled = bundled_court_font_profile()
-    if pdf is not None and reason_page is not None and reason_rect is not None:
-        inferred = infer_font_profile_from_reason_vicinity_pdf(pdf, reason_page, reason_rect)
-        if inferred and is_known_export_font_name(inferred.east_asia):
-            return inferred
-    return bundled
+    return bundled_court_font_profile()

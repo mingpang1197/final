@@ -2,4 +2,4 @@
 export const EASY_READ_COURT_FONT_CLASS = "easy-read-court-font";
 
 export const EASY_READ_COURT_FONT_STACK =
-  '"Nanum Myeongjo", "KoPubWorld Batang", "Batang", "Times New Roman", serif';
+  '"휴먼명조", "Human Myeongjo", "Nanum Myeongjo", "Batang", serif';
