@@ -377,9 +377,22 @@ def render_easy_read_insert_html_pdf(doc: DocumentResponse) -> bytes | None:
 
 
 def export_to_pdf(doc: DocumentResponse, *, source_file: Path | None = None) -> bytes:
-    """pdf2docx 병합 DOCX → PDF 우선. 변환기 없으면 원본 PDF+이지리드 PyMuPDF 병합."""
+    """원본 PDF 3단 병합 우선 → pdf2docx 병합 DOCX → PDF."""
     from backend.services import word_export
     from backend.services.docx_to_pdf import DocxToPdfError, convert_docx_bytes_to_pdf
+
+    if (
+        source_file
+        and source_file.suffix.lower() == ".pdf"
+        and source_file.is_file()
+        and word_export.collect_body_text(doc)
+    ):
+        from backend.services.pdf_native_merge import merge_pdf_three_part_with_easy_read
+
+        merged = merge_pdf_three_part_with_easy_read(source_file, doc)
+        if merged:
+            logger.info("export pdf: native 3-part PDF merge")
+            return merged
 
     docx_bytes = word_export.export_to_docx(doc, source_file=source_file)
     try:
