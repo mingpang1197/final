@@ -51,6 +51,12 @@ FOOTER_PT = 11
 LINE_SPACING = 2.0  # 200% (이지리드 가이드)
 PAGE_MARGIN_IN = 0.6
 PAGE_MARGIN = Inches(PAGE_MARGIN_IN)
+# Word A4 본문 높이(여백 제외) — 소제목 페이지 중단 이후면 다음 페이지 추정용
+EASY_READ_USABLE_PAGE_PT = 680.0
+EASY_READ_PROVISION_EST_PT = 200.0
+EASY_READ_HEADING_EST_PT = 56.0
+EASY_READ_ITEM_BASE_EST_PT = 118.0
+EASY_READ_LINE_EST_PT = 26.0
 IMAGE_COL_IN = 2.05
 GAP_COL_IN = 0.1
 BODY_COL_IN = 8.5 - PAGE_MARGIN_IN * 2 - IMAGE_COL_IN - GAP_COL_IN
@@ -445,20 +451,46 @@ def _open_keep_together_cell(doc: Document):
     return cell
 
 
+def _estimate_easy_read_section_height(section, by_item: dict) -> float:
+    height = EASY_READ_HEADING_EST_PT if section.heading else 0.0
+    for item in parse_section_items(section):
+        line_count = len([ln for ln in item.lines if ln.strip()])
+        height += EASY_READ_ITEM_BASE_EST_PT + line_count * EASY_READ_LINE_EST_PT
+    return height
+
+
+def _add_page_break_before_cell_content(cell) -> None:
+    p = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
+    p.paragraph_format.page_break_before = True
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(0)
+
+
 def _export_easy_read_layout_in_table(
     table,
     text: str,
     placements: list[ImagePlacement],
+    *,
+    page_fill_pt: float = 0.0,
 ) -> None:
-    """소제목마다 cantSplit 행 — 페이지 하단에 블록 전체가 안 들어가면 다음 페이지부터."""
+    """소제목마다 cantSplit 행 + (추정) 페이지 절반 이후면 소제목을 다음 페이지부터."""
     from backend.services.word_textbox import append_easy_read_section_row
 
     body, closing = split_standard_closing(text)
     by_item = align_placements_one_per_section(body, placements)
+    fill = page_fill_pt
 
-    for section in parse_export_sections(body):
+    for section_index, section in enumerate(parse_export_sections(body)):
+        section_est = _estimate_easy_read_section_height(section, by_item)
+        pos_on_page = fill % EASY_READ_USABLE_PAGE_PT
+        need_break = section_index > 0 and pos_on_page >= EASY_READ_USABLE_PAGE_PT / 2
+
         cell = append_easy_read_section_row(table)
         _reset_cell_paragraphs(cell)
+        if need_break:
+            _add_page_break_before_cell_content(cell)
+            fill = (fill // EASY_READ_USABLE_PAGE_PT + 1) * EASY_READ_USABLE_PAGE_PT
+
         if section.heading:
             _add_heading_paragraph(cell, section.heading)
         for item in parse_section_items(section):
@@ -472,10 +504,16 @@ def _export_easy_read_layout_in_table(
                     _add_item_text_boxes(cell, None, block_lines)
             else:
                 _add_item_text_boxes(cell, None, item.lines)
+        fill += section_est
 
     if closing:
-        cell = append_easy_read_section_row(table)
-        _reset_cell_paragraphs(cell)
+        if fill % EASY_READ_USABLE_PAGE_PT >= EASY_READ_USABLE_PAGE_PT / 2:
+            cell = append_easy_read_section_row(table)
+            _reset_cell_paragraphs(cell)
+            _add_page_break_before_cell_content(cell)
+        else:
+            cell = append_easy_read_section_row(table)
+            _reset_cell_paragraphs(cell)
         _add_closing_paragraph(cell, closing)
 
 
@@ -952,7 +990,12 @@ def _write_easy_read_bordered(
         placements = prepare_placements_for_export(easy_body, raw_placements)
         sections = parse_export_sections(easy_body)
         if any(section.heading for section in sections):
-            _export_easy_read_layout_in_table(table, easy_body, placements)
+            _export_easy_read_layout_in_table(
+                table,
+                easy_body,
+                placements,
+                page_fill_pt=EASY_READ_PROVISION_EST_PT,
+            )
         else:
             body_cell = append_easy_read_section_row(table)
             _reset_cell_paragraphs(body_cell)
