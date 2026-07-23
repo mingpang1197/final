@@ -24,24 +24,75 @@ DOC_TYPE_FILES: dict[DocType, str] = {
     "unknown": "criminal.yaml",
 }
 
-TRANSLATION_OUTPUT_RULES = """
+_TRANSLATION_OUTPUT_RULES_COMMON = """
 ## 번역 출력 규칙 (반드시 준수)
 
 1. **문서 제목·표지 줄 금지** — 아래 형태는 **절대 출력하지 마세요**.
    - `<민사판결 이지리드 — …>`, `<형사판결 이지리드 — …>` 등
    - `# <…판결…이지리드…>` 형태의 표지·케이스명 한 줄
    - `<…판결 이지리드 — 작성 요점>`
-2. **첫 줄부터 바로 본문 소제목**으로 시작 (예: `<이 판결의 결론>`).
-3. **섹션 순서** — 청구·요구 내용보다 **판결 결론(주문)을 항상 먼저** 작성.
-   - 1순위: `<이 판결의 결론>` (또는 청구·결론이 합쳐진 `<…원하는 것과 이 판결의 결론>`)
-   - 2순위: `<이 소송에서 {원고}가 요구하는 것>` / `<{원고}가 원하는 것>` (결론과 **별도**일 때만)
-   - 그 다음: `<이런 결론을 내린 이유>` 등 이유·쟁점
-4. `주문`, `청구취지` 같은 원문 용어는 쓰지 말고 규칙의 쉬운 소제목만 사용.
-5. 중요한 날짜·금액·판결 결론 등을 강조할 때 `**강조할 글**` 형식(마크다운 굵게)으로 표시하세요.
-6. 본문 **맨 마지막 줄**은 반드시 아래 문장 **한 줄만** 출력 (다른 마무리 문구 금지):
+2. **첫 줄부터 바로 본문 소제목**으로 시작합니다. 아래 **판결 유형별 맨 앞 순서**를 따르세요.
+3. `주문`, `청구취지` 같은 원문 용어는 쓰지 말고 규칙의 쉬운 소제목만 사용.
+4. 중요한 날짜·금액·판결 결론 등을 강조할 때 `**강조할 글**` 형식(마크다운 굵게)으로 표시하세요.
+5. 본문 **맨 마지막 줄**은 반드시 아래 문장 **한 줄만** 출력 (다른 마무리 문구 금지):
    {standard_closing}
-7. `※` 면책 문구, `---` 구분선, `이하 빈칸`, `이 요약은 판결문…` 등 **별도 마무리·안내 문구 출력 금지**.
+6. `※` 면책 문구, `---` 구분선, `이하 빈칸`, `이 요약은 판결문…` 등 **별도 마무리·안내 문구 출력 금지**.
 """.strip().replace("{standard_closing}", STANDARD_CLOSING)
+
+_TRANSLATION_OUTPUT_RULES_CRIMINAL_FAMILY = """
+## 판결 유형별 맨 앞 소제목 순서 (형사·가사)
+
+1. **`<이 판결의 결론>`** — 주문·선고 내용 (가장 먼저, **유일한 첫 소제목**)
+2. **`<이런 결론을 내린 이유>`** — 그다음 이유 전체의 제목
+3. 그 아래는 형사·가사 작성 규칙의 하위 소제목(범죄사실·증거·법령·주장·양형, 이혼·양육 등)을 **규칙 순서대로**
+
+**절대 사용 금지 (형사·가사)**:
+- `<이 소송에서 …>`, `<{원고}가 요구하는 것>`, `<{원고}가 원하는 것>` 등 **민사·행정 청구 블록**
+- 피고인·당사자 **주장**을 맨 위 청구란처럼 쓰지 말 것 — 형사는 `<피고인 또는 변호인의 주장·쟁점에 대한 판단>` **이유 안**에만
+""".strip()
+
+_TRANSLATION_OUTPUT_RULES_CIVIL_ADMIN = """
+## 판결 유형별 맨 앞 소제목 순서 (민사·행정)
+
+1. **`<이 소송에서 {원고}가 요구하는 것>`** 또는 **`<{원고}가 원하는 것>`**
+   - 행정: `{원고}`는 청구인(국민) 이름, **행정청에 무엇을 요구하는지** 쉬운 말로
+2. **`<이 판결의 결론>`** — 주문·선고 (청구 블록 **다음**)
+3. **`<이런 결론을 내린 이유>`** — 그다음 이유·쟁점·항변 등 **유형별 규칙 순서**
+
+청구와 결론을 **한 소제목에 합칠 때만** `<{원고}가 원하는 것과 이 판결의 결론>` 사용 (규칙 예시 참고).
+**형사 전용** 소제목(`<범죄사실>` 등)은 민사·행정에서 사용하지 마세요.
+""".strip()
+
+_CRIMINAL_FAMILY_TYPES = frozenset({"criminal", "family", "unknown"})
+
+
+def translation_output_rules(doc_type: DocType) -> str:
+    common = _TRANSLATION_OUTPUT_RULES_COMMON
+    if doc_type in _CRIMINAL_FAMILY_TYPES:
+        return f"{common}\n\n{_TRANSLATION_OUTPUT_RULES_CRIMINAL_FAMILY}"
+    if doc_type in ("civil", "administrative"):
+        return f"{common}\n\n{_TRANSLATION_OUTPUT_RULES_CIVIL_ADMIN}"
+    return f"{common}\n\n{_TRANSLATION_OUTPUT_RULES_CRIMINAL_FAMILY}"
+
+
+def translation_user_structure_hint(doc_type: DocType) -> str:
+    """Solar user 프롬프트용 — 유형별 맨 앞 소제목 한 줄 요약."""
+    if doc_type in _CRIMINAL_FAMILY_TYPES:
+        return (
+            "맨 앞 소제목은 **반드시 `<이 판결의 결론>`만**으로 시작하세요. "
+            "그다음 `<이런 결론을 내린 이유>` 및 유형별 하위 소제목을 작성하세요. "
+            "`<이 소송에서 …>`, `<…가 요구하는 것>`(민사 청구 틀)은 **사용하지 마세요**."
+        )
+    if doc_type in ("civil", "administrative"):
+        return (
+            "맨 앞 소제목 순서: **① `<이 소송에서 {원고}가 요구하는 것>`(또는 `<{원고}가 원하는 것>`) "
+            "→ ② `<이 판결의 결론>` → ③ `<이런 결론을 내린 이유>`** 및 이후 유형별 소제목."
+        )
+    return translation_user_structure_hint("criminal")
+
+
+# 하위 호환 (import TRANSLATION_OUTPUT_RULES)
+TRANSLATION_OUTPUT_RULES = translation_output_rules("criminal")
 
 SUMMARY_COMMON_RULES = """
 ## 요약 공통 규칙 (반드시 준수)
@@ -140,7 +191,7 @@ def build_translation_system_prompt(doc_type: DocType) -> str:
         "입력으로 **발췌 요약**과 **판결문 원문 발췌**가 주어집니다. 요약·원문에 없는 내용을 invent하지 마세요.",
         "아래 **공통 작성 규칙**, **판결 유형별 규칙**, **예시**를 반드시 따르세요.",
         "",
-        TRANSLATION_OUTPUT_RULES,
+        translation_output_rules(doc_type),
         "",
         _format_easy_read_style(style),
         "",
