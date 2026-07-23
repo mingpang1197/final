@@ -128,13 +128,9 @@ def _easy_read_insert_pdf_bytes(
 ) -> bytes | None:
     from backend.services.docx_to_pdf import DocxToPdfError, convert_docx_bytes_to_pdf
     from backend.services.pdf_export import render_easy_read_insert_html_pdf
-    from backend.services.pdf_font_infer import infer_font_profile_from_reason_vicinity_pdf
+    from backend.services.pdf_font_infer import font_profile_for_easy_read_export
 
-    font_profile = None
-    if source_pdf is not None and reason_page is not None and reason_rect is not None:
-        font_profile = infer_font_profile_from_reason_vicinity_pdf(
-            source_pdf, reason_page, reason_rect
-        )
+    font_profile = font_profile_for_easy_read_export(source_pdf, reason_page, reason_rect)
 
     insert_doc = word_export.build_easy_read_insert_document(doc, font_profile=font_profile)
     buffer = io.BytesIO()
@@ -143,7 +139,7 @@ def _easy_read_insert_pdf_bytes(
         return convert_docx_bytes_to_pdf(buffer.getvalue())
     except DocxToPdfError:
         logger.info("easy-read insert: docx2pdf unavailable, using PyMuPDF HTML")
-        return render_easy_read_insert_html_pdf(doc)
+        return render_easy_read_insert_html_pdf(doc, font_profile=font_profile)
 
 
 def merge_pdf_three_part_with_easy_read(pdf_path: Path, doc: DocumentResponse) -> bytes | None:

@@ -1,20 +1,19 @@
 from __future__ import annotations
 
-"""원본 PDF 텍스트 레이어에서 글꼴 이름·크기 추정 (PyMuPDF).
-
-`page.get_fonts()`는 페이지에 등장하는 글꼴 목록만 준다.
-이지리드에 맞출 때는 「이유」 아래 본문 span(`get_text("dict")`) 가중치가 더 정확하다.
-"""
+"""원본 PDF 텍스트 레이어에서 글꼴 이름·크기 추정 (PyMuPDF)."""
 
 import logging
+import re
 from collections import Counter
 
 import fitz
 
 from backend.services.pdf_native_merge import _split_y_after_reason_heading
-from backend.services.word_export import BODY_PT, ExportFontProfile, _pick_dominant_font
+from backend.services.word_export import BODY_PT, EASY_READ_FONT_PROFILE, ExportFontProfile, _pick_dominant_font
 
 logger = logging.getLogger(__name__)
+
+_INTERNAL_FONT = re.compile(r"^[fg]_\d+(_f\d+)?$", re.I)
 
 
 def normalize_pdf_font_name(raw: str) -> str:
@@ -27,7 +26,9 @@ def normalize_pdf_font_name(raw: str) -> str:
     return name.strip()
 
 
-def _add_fonts_from_get_fonts(page: fitz.Page, weights: Counter[str]) -> None:
+def _page_font_map(page: fitz.Page) -> dict[str, str]:
+    """span['font'] / get_fonts 이름 → 정규화된 basefont."""
+    mapping: dict[str, str] = {}
     try:
         entries = page.get_fonts(full=True)
     except TypeError:
@@ -36,29 +37,49 @@ def _add_fonts_from_get_fonts(page: fitz.Page, weights: Counter[str]) -> None:
         if len(entry) < 4:
             continue
         basefont = normalize_pdf_font_name(str(entry[3] or ""))
-        if basefont:
-            weights[basefont] += 1
+        if not basefont:
+            continue
+        mapping[str(entry[3] or "")] = basefont
+        if len(entry) > 4:
+            mapping[str(entry[4] or "")] = basefont
+        if len(entry) > 0:
+            mapping[str(entry[0])] = basefont
+    return mapping
 
 
-def infer_font_profile_from_reason_vicinity_pdf(
-    pdf: fitz.Document,
-    reason_page: int,
-    reason_rect: fitz.Rect,
+def resolve_span_font_name(span: dict, font_map: dict[str, str]) -> str:
+    raw = str(span.get("font") or "").strip()
+    if not raw:
+        return ""
+    if raw in font_map:
+        return font_map[raw]
+    normalized = normalize_pdf_font_name(raw)
+    if normalized and not _INTERNAL_FONT.match(normalized):
+        return normalized
+    for key, base in font_map.items():
+        if key and key in raw:
+            return base
+    return ""
+
+
+def _collect_span_weights(
+    page: fitz.Page,
+    font_weights: Counter[str],
+    size_weights: Counter[float],
     *,
-    max_chars: int = 4000,
-) -> ExportFontProfile | None:
-    """「이유」 직후 원문 본문 span + get_fonts()로 ExportFontProfile 추정."""
-    if reason_page < 0 or reason_page >= pdf.page_count:
-        return None
+    min_y: float = 0,
+    max_y: float | None = None,
+    max_chars: int = 12000,
+    collected: list[int] | None = None,
+) -> None:
+    if collected is None:
+        collected = [0]
+    if collected[0] >= max_chars:
+        return
 
-    page = pdf.load_page(reason_page)
-    split_y = _split_y_after_reason_heading(page, reason_rect)
-
-    font_weights: Counter[str] = Counter()
-    size_weights: Counter[float] = Counter()
-    collected = 0
-
+    font_map = _page_font_map(page)
     data = page.get_text("dict") or {}
+
     for block in data.get("blocks") or []:
         if block.get("type") != 0:
             continue
@@ -67,14 +88,17 @@ def infer_font_profile_from_reason_vicinity_pdf(
                 bbox = span.get("bbox")
                 if not bbox or len(bbox) < 4:
                     continue
-                if float(bbox[1]) < split_y - 1:
+                y0 = float(bbox[1])
+                if y0 < min_y - 0.5:
+                    continue
+                if max_y is not None and y0 >= max_y:
                     continue
                 text = str(span.get("text") or "")
                 if not text.strip():
                     continue
                 weight = len(text)
-                collected += weight
-                font = normalize_pdf_font_name(str(span.get("font") or ""))
+                collected[0] += weight
+                font = resolve_span_font_name(span, font_map)
                 if font:
                     font_weights[font] += weight
                 size = span.get("size")
@@ -83,15 +107,51 @@ def infer_font_profile_from_reason_vicinity_pdf(
                         size_weights[float(size)] += weight
                     except (TypeError, ValueError):
                         pass
-                if collected >= max_chars:
-                    break
-            if collected >= max_chars:
-                break
-        if collected >= max_chars:
+                if collected[0] >= max_chars:
+                    return
+
+
+def infer_font_profile_from_reason_vicinity_pdf(
+    pdf: fitz.Document,
+    reason_page: int,
+    reason_rect: fitz.Rect,
+    *,
+    max_chars: int = 12000,
+) -> ExportFontProfile | None:
+    """원문 PDF(이유 페이지까지)에서 지배적 글꼴·크기 추정 → 이지리드 export에 적용."""
+    if reason_page < 0 or reason_page >= pdf.page_count:
+        return None
+
+    font_weights: Counter[str] = Counter()
+    size_weights: Counter[float] = Counter()
+    collected = [0]
+
+    for page_idx in range(0, reason_page + 1):
+        page = pdf.load_page(page_idx)
+        max_y: float | None = None
+        if page_idx == reason_page:
+            max_y = _split_y_after_reason_heading(page, reason_rect)
+        _collect_span_weights(
+            page,
+            font_weights,
+            size_weights,
+            min_y=0,
+            max_y=max_y,
+            max_chars=max_chars,
+            collected=collected,
+        )
+        if collected[0] >= max_chars:
             break
 
     if not font_weights:
-        _add_fonts_from_get_fonts(page, font_weights)
+        for page_idx in range(0, reason_page + 1):
+            page = pdf.load_page(page_idx)
+            for entry in page.get_fonts() or []:
+                if len(entry) < 4:
+                    continue
+                base = normalize_pdf_font_name(str(entry[3] or ""))
+                if base:
+                    font_weights[base] += 1
 
     if not font_weights:
         return None
@@ -99,11 +159,11 @@ def infer_font_profile_from_reason_vicinity_pdf(
     dominant = _pick_dominant_font(font_weights) or font_weights.most_common(1)[0][0]
     body_pt = size_weights.most_common(1)[0][0] if size_weights else BODY_PT
     logger.info(
-        "pdf font infer: page=%d font=%s pt=%.1f samples=%s",
+        "pdf font infer: through_page=%d font=%s pt=%.1f top=%s",
         reason_page,
         dominant,
         body_pt,
-        dict(font_weights.most_common(3)),
+        dict(font_weights.most_common(4)),
     )
     return ExportFontProfile(
         ascii=dominant,
@@ -111,3 +171,15 @@ def infer_font_profile_from_reason_vicinity_pdf(
         east_asia=dominant,
         body_pt=body_pt,
     )
+
+
+def font_profile_for_easy_read_export(
+    pdf: fitz.Document | None,
+    reason_page: int | None,
+    reason_rect: fitz.Rect | None,
+) -> ExportFontProfile:
+    if pdf is not None and reason_page is not None and reason_rect is not None:
+        inferred = infer_font_profile_from_reason_vicinity_pdf(pdf, reason_page, reason_rect)
+        if inferred:
+            return inferred
+    return EASY_READ_FONT_PROFILE

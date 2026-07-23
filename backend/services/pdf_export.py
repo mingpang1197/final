@@ -41,6 +41,8 @@ from backend.services.word_export import (
     _collect_body_text,
     _collect_placements,
     _is_heading,
+    EASY_READ_FONT_PROFILE,
+    ExportFontProfile,
 )
 
 FONT_URL = (
@@ -73,17 +75,21 @@ def _font_dir() -> Path:
     return cache_dir
 
 
-def _font_css() -> tuple[str, fitz.Archive]:
+def _font_css(
+    family: str | None = None,
+    body_pt: float = 12,
+) -> tuple[str, fitz.Archive]:
     font_dir = _font_dir()
     archive = fitz.Archive(str(font_dir))
+    stack = (family or EASY_READ_FONT_PROFILE.east_asia).replace('"', "")
     css = f"""
     @font-face {{
       font-family: "Nanum Gothic";
       src: url("nanumgothic-regular.ttf");
     }}
     body {{
-      font-family: "CourtBT", "Batang", "Nanum Gothic", serif;
-      font-size: 12px;
+      font-family: "{stack}", "Batang", "Nanum Gothic", serif;
+      font-size: {body_pt}px;
       line-height: 2;
       color: #21272a;
     }}
@@ -100,14 +106,16 @@ def _font_css() -> tuple[str, fitz.Archive]:
       font-size: 17px;
       font-weight: bold;
     }}
-    div.section-row {{
+    table.item-row {{
       width: 100%;
-      overflow: hidden;
+      border-collapse: collapse;
       margin: 0 0 20px 0;
     }}
-    div.image-col {{
-      float: left;
-      width: {IMAGE_COL_PT}pt;
+    table.item-row td {{
+      vertical-align: top;
+    }}
+    td.image-col {{
+      width: 32%;
       background: #ffffff;
       padding: 8px 8px 8px 0;
       box-sizing: border-box;
@@ -119,10 +127,10 @@ def _font_css() -> tuple[str, fitz.Archive]:
       display: block;
     }}
     div.image-empty {{
-      min-height: {IMAGE_MAX_HEIGHT_PT}pt;
+      min-height: 40pt;
     }}
-    div.body-col {{
-      margin-left: {IMAGE_COL_PT}pt;
+    td.body-col {{
+      width: 68%;
       padding: 8px 0 8px 4px;
     }}
     p.image-block {{
@@ -210,10 +218,10 @@ def _item_row_html(
 
     image_cell = img_tag if img_tag else '<div class="image-empty">&nbsp;</div>'
     return (
-        '<div class="section-row">'
-        f'<div class="image-col">{image_cell}</div>'
-        f'<div class="body-col">{body_html}</div>'
-        "</div>"
+        '<table class="item-row"><tr>'
+        f'<td class="image-col">{image_cell}</td>'
+        f'<td class="body-col">{body_html}</td>'
+        "</tr></table>"
     )
 
 
@@ -249,10 +257,15 @@ def _section_block_html(
     return "".join(blocks)
 
 
-def _build_html(doc: DocumentResponse) -> tuple[str, str]:
+def _build_html(
+    doc: DocumentResponse,
+    *,
+    font_profile: ExportFontProfile | None = None,
+) -> tuple[str, str]:
     body = _collect_body_text(doc)
+    profile = font_profile or EASY_READ_FONT_PROFILE
     if not body:
-        css, _ = _font_css()
+        css, _ = _font_css(profile.east_asia, profile.body_pt)
         return "<body></body>", css
 
     export_body, closing = split_standard_closing(body)
@@ -315,7 +328,7 @@ def _build_html(doc: DocumentResponse) -> tuple[str, str]:
                     blocks.append(f'<p class="image-block">{tag}</p>')
                     inserted_images.add(match.image_file)
 
-    css, _ = _font_css()
+    css, _ = _font_css(profile.east_asia, profile.body_pt)
     if closing:
         closing_html = _line_to_html(closing)
         if closing_html:
@@ -367,8 +380,13 @@ def _html_story_to_pdf(html_doc: str, css: str) -> bytes:
             pass
 
 
-def render_easy_read_insert_html_pdf(doc: DocumentResponse) -> bytes | None:
-    body_html, css = _build_html(doc)
+def render_easy_read_insert_html_pdf(
+    doc: DocumentResponse,
+    *,
+    font_profile: ExportFontProfile | None = None,
+) -> bytes | None:
+    profile = font_profile or EASY_READ_FONT_PROFILE
+    body_html, css = _build_html(doc, font_profile=profile)
     if not body_html.strip():
         return None
     provision = "".join(_provision_blocks_html())

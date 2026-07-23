@@ -600,7 +600,9 @@ def _add_picture_to_cell(cell, placement: ImagePlacement) -> None:
         return
     _reset_cell_paragraphs(cell)
     p = cell.paragraphs[0]
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(0)
     run = p.add_run()
     run.add_picture(str(img_path), width=IMAGE_DISPLAY_WIDTH)
 
