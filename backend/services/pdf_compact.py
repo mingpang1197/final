@@ -99,20 +99,10 @@ def append_easy_read_then_suffix(
     *,
     gap_pt: float = 10,
 ) -> None:
-    """이지리드 PDF 전체 삽입 후, 원문 suffix(이유 본문)는 항상 새 페이지부터."""
-    from backend.services.pdf_page_numbers import clip_excluding_footer
-
-    src_page = src[reason_page]
-    suffix_clip = clip_excluding_footer(src_page, suffix_clip & src_page.rect)
-    page_w = src_page.rect.width
-    page_h = src_page.rect.height
-
+    """이지리드 PDF 전체 삽입 후, 원문 suffix(이유 본문)."""
     if easy.page_count:
         out.insert_pdf(easy)
 
-    if suffix_clip.is_empty or suffix_clip.height < 8:
-        return
+    from backend.services.pdf_suffix_merge import append_judgment_suffix_after_easy_read
 
-    new_page = out.new_page(width=page_w, height=page_h)
-    dest = fitz.Rect(0, 0, page_w, suffix_clip.height)
-    new_page.show_pdf_page(dest, src, reason_page, clip=suffix_clip)
+    append_judgment_suffix_after_easy_read(out, src, reason_page, suffix_clip)
