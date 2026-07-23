@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """쉬운 글(이지리드) 번역 오케스트레이션.
 
-역할: 요약 → LEGAL_DB 매칭 + Solar 번역 + 체크리스트 검사·자동 수정을 조율한다.
+역할: 요약 → LEGAL_DB 매칭 + terms_list(Solar 입력) + Solar 번역 + 체크리스트 검사·자동 수정을 조율한다.
 주요 기능: translate_summary, refine_translation, run_checklist.
 관계: matcher, prompts, upstage, checklist, image_matcher, routers/documents.
 """
@@ -13,6 +13,7 @@ from backend.models.schemas import ChecklistReport, DocType, TranslationSegment
 from backend.services import checklist, matcher, prompts, upstage
 from backend.services.easy_read_sanitize import extract_refined_translation, sanitize_translation_text
 from backend.services.image_matcher import detect_image_placements
+from backend.services.terms import apply_terms_for_translation
 
 
 def _build_checklist_report(text: str) -> ChecklistReport:
@@ -75,6 +76,8 @@ async def translate_summary(
     if needs_solar:
         system = prompts.build_translation_system_prompt(doc_type)
         source_excerpt = prompts.excerpt_full_text_for_translation(full_text)
+        summary_for_solar = apply_terms_for_translation(summary.strip())
+        excerpt_for_solar = apply_terms_for_translation(source_excerpt)
         user = (
             "아래 **발췌 요약**을 바탕으로 **판결문 원문 발췌**를 참고하여 이지리드(Easy-Read) 전체를 작성하세요.\n"
             "요약·원문에 없는 사건·형량·인물을 invent하지 마세요.\n"
@@ -83,9 +86,9 @@ async def translate_summary(
             "첫 소제목은 **반드시 `<이 판결의 결론>`**(또는 청구·결론 합친 제목)으로 시작하고, "
             "청구(`<…가 요구하는 것>`)는 결론 **다음**에 작성하세요.\n\n"
             "## 발췌 요약 (번역용 메모 — 이지리드 아님)\n"
-            f"{summary.strip()}\n\n"
+            f"{summary_for_solar}\n\n"
             "## 판결문 원문 발췌\n"
-            f"{source_excerpt}"
+            f"{excerpt_for_solar}"
         )
         easy_text = await upstage.chat_completion(system, user)
         easy_text = sanitize_translation_text(easy_text)
