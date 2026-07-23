@@ -844,6 +844,14 @@ def build_easy_read_insert_document(
         _pop_font_profile()
 
     host = Document()
+    for section in host.sections:
+        section.top_margin = PAGE_MARGIN
+        section.bottom_margin = PAGE_MARGIN
+        section.left_margin = PAGE_MARGIN
+        section.right_margin = PAGE_MARGIN
+        section.footer.is_linked_to_previous = False
+        if section.footer.paragraphs:
+            section.footer.paragraphs[0].clear()
     from backend.services.word_textbox import wrap_document_in_textbox
 
     wrap_document_in_textbox(host, inner)

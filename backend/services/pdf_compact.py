@@ -95,7 +95,9 @@ def append_easy_read_then_suffix(
 ) -> None:
     """이지리드 직후 원문 suffix — 마지막 이지리드 페이지에 공간 있으면 같은 페이지에 이어 붙임."""
     src_page = src[reason_page]
-    suffix_clip = suffix_clip & src_page.rect
+    from backend.services.pdf_page_numbers import clip_excluding_footer
+
+    suffix_clip = clip_excluding_footer(src_page, suffix_clip & src_page.rect)
     page_w = src_page.rect.width
     page_h = src_page.rect.height
 

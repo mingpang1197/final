@@ -110,7 +110,10 @@ def find_reason_heading_position(
 
 
 def _append_clipped_page(out: fitz.Document, src: fitz.Document, page_number: int, clip: fitz.Rect) -> None:
+    from backend.services.pdf_page_numbers import clip_excluding_footer
+
     src_page = src[page_number]
+    clip = clip_excluding_footer(src_page, clip)
     clip = clip & src_page.rect
     page_w = src_page.rect.width
     if clip.is_empty or clip.height < 8:
@@ -190,6 +193,10 @@ def merge_pdf_three_part_with_easy_read(pdf_path: Path, doc: DocumentResponse) -
 
             if reason_page + 1 < src.page_count:
                 out.insert_pdf(src, from_page=reason_page + 1, to_page=src.page_count - 1)
+
+            from backend.services.pdf_page_numbers import renumber_merged_document
+
+            renumber_merged_document(out)
 
             logger.info(
                 "pdf 3-part merge: page=%d split_y=%.1f pages_out=%d",
