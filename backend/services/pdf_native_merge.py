@@ -119,11 +119,24 @@ def _append_clipped_page(out: fitz.Document, src: fitz.Document, page_number: in
     new_page.show_pdf_page(target, src, page_number, clip=clip)
 
 
-def _easy_read_insert_pdf_bytes(doc: DocumentResponse) -> bytes | None:
+def _easy_read_insert_pdf_bytes(
+    doc: DocumentResponse,
+    *,
+    source_pdf: fitz.Document | None = None,
+    reason_page: int | None = None,
+    reason_rect: fitz.Rect | None = None,
+) -> bytes | None:
     from backend.services.docx_to_pdf import DocxToPdfError, convert_docx_bytes_to_pdf
     from backend.services.pdf_export import render_easy_read_insert_html_pdf
+    from backend.services.pdf_font_infer import infer_font_profile_from_reason_vicinity_pdf
 
-    insert_doc = word_export.build_easy_read_insert_document(doc)
+    font_profile = None
+    if source_pdf is not None and reason_page is not None and reason_rect is not None:
+        font_profile = infer_font_profile_from_reason_vicinity_pdf(
+            source_pdf, reason_page, reason_rect
+        )
+
+    insert_doc = word_export.build_easy_read_insert_document(doc, font_profile=font_profile)
     buffer = io.BytesIO()
     insert_doc.save(buffer)
     try:
@@ -148,7 +161,12 @@ def merge_pdf_three_part_with_easy_read(pdf_path: Path, doc: DocumentResponse) -
             return None
 
         reason_page, reason_rect = found
-        easy_bytes = _easy_read_insert_pdf_bytes(doc)
+        easy_bytes = _easy_read_insert_pdf_bytes(
+            doc,
+            source_pdf=src,
+            reason_page=reason_page,
+            reason_rect=reason_rect,
+        )
         if not easy_bytes:
             return None
 
