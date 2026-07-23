@@ -234,8 +234,8 @@ def _mock_chat(system: str, user: str) -> str:
         if "웹 검색 결과" in user:
             return (
                 "웹 검색을 참고한 답변입니다. (mock)\n\n"
-                "이지리드(Easy Read)는 어려운 판결문을 쉬운 말과 그림으로 바꿔 주는 형식입니다. "
-                "ERAI 서비스에서는 업로드 → 요약 → 번역 → 그림 → 추출 순서로 진행합니다."
+                "이지리드(Easy Read)는 어려운 판결문을 쉬운 말과 시각자료로 바꿔 주는 형식입니다. "
+                "ERAI 서비스에서는 업로드 → 요약 → 번역 → 시각자료 → 추출 순서로 진행합니다."
             )
         if "DB 자료" in user and "(DB에서 관련" not in user.split("## DB 자료")[1][:80]:
             return (

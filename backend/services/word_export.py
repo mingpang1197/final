@@ -23,7 +23,7 @@ from docx.shared import Inches, Pt
 
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.export_layout import (
-    align_placements_one_per_section,
+    align_placements_to_items,
     is_image_placeholder,
     parse_export_sections,
     parse_section_items,
@@ -515,7 +515,7 @@ def _export_easy_read_layout_in_table(
     from backend.services.word_textbox import append_easy_read_section_row
 
     body, closing = split_standard_closing(text)
-    by_item = align_placements_one_per_section(body, placements)
+    by_item = align_placements_to_items(body, placements)
     fill = page_fill_pt
 
     for section_index, section in enumerate(parse_export_sections(body)):
@@ -818,7 +818,7 @@ def _export_easy_read_layout(
 ) -> None:
     """비표 레이아웃(레거시). 내보내기는 _export_easy_read_layout_in_table 사용."""
     body, closing = split_standard_closing(text)
-    by_item = align_placements_one_per_section(body, placements)
+    by_item = align_placements_to_items(body, placements)
 
     for section in parse_export_sections(body):
         block = _open_keep_together_cell(doc)

@@ -13,10 +13,10 @@ GET    /api/health
 - 서버 상태 확인
 
 GET    /api/documents/catalog/images
-- 이미지 카탈로그 조회 (로컬 그림 DB)
+- 이미지 카탈로그 조회 (로컬 시각자료 DB)
 
 GET    /api/documents/catalog/images/web?q={query}
-- AI 프롬프트 웹 이미지 검색 (그림 탭)
+- AI 프롬프트 웹 이미지 검색 (시각자료 탭)
 - Response: ImageCatalogItem[] ({ image_file, title, url, source_url? })
 
 POST   /api/documents/upload
@@ -36,7 +36,7 @@ GET    /api/documents/user-projects/{doc_id}/artifact/{kind}
 - Response: { content: string }
 
 GET    /api/documents/user-projects/{doc_id}/translation-segments
-- 저장된 번역 세그먼트(그림 배치 image_placements 포함) 조회
+- 저장된 번역 세그먼트(시각자료 배치 image_placements 포함) 조회
 - Header: X-User-Id (또는 Query: user_id)
 - Response: TranslationSegment[]
 
@@ -114,13 +114,13 @@ PATCH  /api/documents/{doc_id}/translation
 POST   /api/documents/{doc_id}/translation/refine
 - AI로 쉬운 글 수정
 - Header (optional): X-User-Id — 번역/이지리드 텍스트 저장
-- Request: { prompt, segments? } — segments: 화면의 현재 번역 세그먼트 (미저장 편집·그림 배치 반영)
+- Request: { prompt, segments? } — segments: 화면의 현재 번역 세그먼트 (미저장 편집·시각자료 배치 반영)
 
 POST   /api/documents/{doc_id}/translation/checklist
 - 쉬운 글 체크리스트 검사
 
 POST   /api/documents/{doc_id}/translation/detect-placements
-- 이미지 배치 추천 (소제목별 첫 항목 슬롯 1개 자동 채움, Upstage Solar로 후보 중 대표 그림 선정)
+- 시각자료 배치 추천 (번호 항목마다 슬롯 자동 채움, Upstage Solar로 후보 중 대표 시각자료 선정)
 - Request (optional): DetectPlacementsRequest { full_text, doc_type, filename, pages, summary?, existing_placements?, translation_text? }
 
 GET    /api/documents/{doc_id}/export.docx

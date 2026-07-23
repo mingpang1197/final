@@ -12,7 +12,7 @@ import uuid
 from backend.models.schemas import ChecklistReport, DocType, TranslationSegment
 from backend.services import checklist, matcher, prompts, upstage
 from backend.services.easy_read_sanitize import extract_refined_translation, sanitize_translation_text
-from backend.services.image_matcher import detect_image_placements
+from backend.services.image_matcher import build_image_placements_async
 from backend.services.terms import apply_terms_for_translation
 
 
@@ -42,10 +42,16 @@ async def _revise_for_checklist(
     return sanitize_translation_text(revised)
 
 
-def _attach_placements(segments: list[TranslationSegment], text: str) -> list[TranslationSegment]:
+async def _attach_placements(
+    segments: list[TranslationSegment],
+    text: str,
+    db_hits: list[TranslationSegment] | None = None,
+) -> list[TranslationSegment]:
     if not segments:
         return segments
-    segments[0].image_placements = detect_image_placements(text)
+    segments[0].image_placements = await build_image_placements_async(
+        text, db_segments=db_hits
+    )
     return segments
 
 
@@ -108,7 +114,7 @@ async def translate_summary(
             segments[0].easy_text = text
             segments[0].source = "solar"
 
-    segments = _attach_placements(segments, text)
+    segments = await _attach_placements(segments, text, db_hits)
     return segments, text, report
 
 
@@ -144,13 +150,15 @@ async def refine_translation(
         )
         revised = extract_refined_translation(revised, fallback=current)
 
+    manual_placements = [p for p in preserved_placements if not p.auto_filled]
+    placements = await build_image_placements_async(revised, existing=manual_placements)
     new_segments = [
         TranslationSegment(
             id=base_id,
             original=base_original,
             easy_text=revised,
             source="solar",
-            image_placements=preserved_placements,
+            image_placements=placements,
         )
     ]
     report = _build_checklist_report(revised)

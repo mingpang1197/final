@@ -192,6 +192,9 @@ export function findSectionForLineIndex(
   });
 }
 
+/** nearest-neighbor 스냅 허용 최대 줄 차이 (초과 시 잘못된 소제목 배치 방지). */
+const MAX_PLACEMENT_SNAP_DISTANCE = 2;
+
 /** 그림 탭·추출 — 항목 startLineIndex 기준 (저장 line_index 불일치 시 정렬). */
 export function alignPlacementsToItems(
   text: string,
@@ -249,7 +252,13 @@ export function alignPlacementsToItems(
         ? ref
         : best,
     );
-    if (!byItem.has(nearest.item.startLineIndex)) {
+    const snapDistance = Math.abs(
+      nearest.item.startLineIndex - placement.line_index,
+    );
+    if (
+      snapDistance <= MAX_PLACEMENT_SNAP_DISTANCE &&
+      !byItem.has(nearest.item.startLineIndex)
+    ) {
       byItem.set(nearest.item.startLineIndex, {
         ...placement,
         line_index: nearest.item.startLineIndex,
@@ -330,7 +339,7 @@ export function filterPlacementsForExport(
 ): ImagePlacement[] {
   if (!placements.length) return [];
   const { body } = splitStandardClosing(text);
-  const aligned = alignPlacementsOnePerSection(body, placements);
+  const aligned = alignPlacementsToItems(body, placements);
   return Array.from(aligned.values()).sort((a, b) => a.line_index - b.line_index);
 }
 

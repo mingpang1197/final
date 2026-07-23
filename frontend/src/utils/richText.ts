@@ -99,7 +99,7 @@ function markersLineToHtmlDiv(line: string): string {
 }
 
 const EXPORT_PREVIEW_IMAGE_SLOT =
-  '<div contenteditable="false" class="er-export-img-slot"><span>그림 영역<br>(그림·추출과 동일)</span></div>';
+  '<div contenteditable="false" class="er-export-img-slot"><span>시각자료 영역<br>(시각자료·추출과 동일)</span></div>';
 
 /** 번역 탭 export-preview — 소제목 전체 너비, 항목마다 왼쪽 그림 영역 */
 export function exportPreviewBodyToHtml(body: string): string {

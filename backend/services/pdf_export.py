@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 from backend.models.schemas import DocumentResponse, ImagePlacement
 from backend.services.export_layout import (
-    align_placements_one_per_section,
+    align_placements_to_items,
     is_image_placeholder,
     parse_export_sections,
     parse_section_items,
@@ -288,7 +288,7 @@ def _build_html(
     has_section_layout = any(section.heading for section in sections)
 
     if has_section_layout:
-        by_item_raw = align_placements_one_per_section(export_body, placements)
+        by_item_raw = align_placements_to_items(export_body, placements)
         by_item = {
             k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
             for k, v in by_item_raw.items()
@@ -298,7 +298,7 @@ def _build_html(
             if section_html:
                 blocks.append(section_html)
     elif placements:
-        by_item_raw = align_placements_one_per_section(export_body, placements)
+        by_item_raw = align_placements_to_items(export_body, placements)
         by_item = {
             k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
             for k, v in by_item_raw.items()

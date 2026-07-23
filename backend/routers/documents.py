@@ -49,8 +49,7 @@ from backend.models.schemas import (
     UploadResponse,
 )
 from backend.services.image_matcher import (
-    detect_image_placements,
-    fill_missing_item_placements_async,
+    build_image_placements_async,
     list_image_catalog,
 )
 from backend.services.image_web_search import search_web_images
@@ -797,7 +796,7 @@ async def detect_translation_placements(
     if not text.strip():
         raise HTTPException(400, "번역본이 없습니다.")
     existing = body.existing_placements if body else []
-    return await fill_missing_item_placements_async(text, existing)
+    return await build_image_placements_async(text, existing=existing)
 
 
 @router.patch("/{doc_id}/translation", response_model=DocumentResponse)

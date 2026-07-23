@@ -1,5 +1,5 @@
 /**
- * 사용자가 그림 탭에서 제거한 슬롯(섹션 첫 항목 line_index) — AI 자동 배치 재적용 방지.
+ * 사용자가 시각자료 탭에서 제거한 슬롯(항목 line_index) — AI 자동 배치 재적용 방지.
  */
 import type { ImagePlacement } from "../api/client";
 

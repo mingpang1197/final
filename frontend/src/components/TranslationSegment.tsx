@@ -83,7 +83,7 @@ function ImagePicker({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg max-h-[80vh] flex flex-col rounded-xl bg-white shadow-xl border border-coolgray-20">
         <div className="flex items-center justify-between border-b border-coolgray-20 px-4 py-3">
-          <h3 className="font-semibold text-coolgray-90">그림 선택</h3>
+          <h3 className="font-semibold text-coolgray-90">시각자료 선택</h3>
           <button type="button" onClick={onClose} className="text-coolgray-60 hover:text-coolgray-90">
             닫기
           </button>
@@ -177,7 +177,7 @@ function PlacementBlock({
             onClick={onChangeImage}
             className="rounded border border-slate-300 bg-white px-2 py-0.5 text-xs"
           >
-            그림 변경
+            시각자료 변경
           </button>
           <button
             type="button"
@@ -307,7 +307,7 @@ export function TranslationSegmentView({
                   onClick={() => setPickerTarget({ mode: "add", lineIndex: idx })}
                   className="mt-1 text-xs text-primary-60 hover:underline"
                 >
-                  + 이 줄에 그림 추가
+                  + 이 줄에 시각자료 추가
                 </button>
               </div>
             ))}

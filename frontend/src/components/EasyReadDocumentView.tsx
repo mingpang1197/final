@@ -1,12 +1,12 @@
 /**
- * 이지리드 2단 레이아웃 — 양식: <소제목> + 항목마다 왼쪽 그림 / 오른쪽 본문.
+ * 이지리드 2단 레이아웃 — 양식: <소제목> + 항목마다 왼쪽 시각자료 / 오른쪽 본문.
  */
 import { useMemo, useState, type DragEvent, type ReactNode } from "react";
 import type { ImageCatalogItem, ImagePlacement } from "../api/client";
 import { StyledLine } from "./BoldText";
 import { RichTextEditor } from "./RichTextEditor";
 import {
-  alignPlacementsOnePerSection,
+  alignPlacementsToItems,
   findSectionForLineIndex,
   parseSectionItems,
   parseTranslationSections,
@@ -58,7 +58,7 @@ export function EasyReadDocumentView({
   const { body: documentBody, closing } = useMemo(() => splitStandardClosing(text), [text]);
   const sections = useMemo(() => parseTranslationSections(documentBody), [documentBody]);
   const alignedPlacements = useMemo(
-    () => alignPlacementsOnePerSection(documentBody, placements),
+    () => alignPlacementsToItems(documentBody, placements),
     [documentBody, placements],
   );
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
@@ -70,22 +70,13 @@ export function EasyReadDocumentView({
   ) {
     if (!onPlacementsChange) return;
     const section = findSectionForLineIndex(documentBody, startLineIndex);
-    const sectionStart = section?.startLineIndex;
-    const firstIdx =
-      section != null
-        ? parseSectionItems(section)[0]?.startLineIndex ?? startLineIndex
-        : startLineIndex;
-    const without = placements.filter((p) => {
-      if (sectionStart == null) return p.line_index !== startLineIndex;
-      const sec = findSectionForLineIndex(documentBody, p.line_index);
-      return sec?.startLineIndex !== sectionStart;
-    });
+    const without = placements.filter((p) => p.line_index !== startLineIndex);
     onPlacementsChange([
       ...without,
       {
         id: crypto.randomUUID(),
         image_file: item.image_file,
-        line_index: firstIdx,
+        line_index: startLineIndex,
         title: item.title,
         section_heading: sectionHeading ?? section?.heading ?? null,
         image_url:
@@ -97,33 +88,12 @@ export function EasyReadDocumentView({
 
   function removeItemPlacement(startLineIndex: number) {
     if (!onPlacementsChange) return;
-    const section = findSectionForLineIndex(documentBody, startLineIndex);
-    const firstIdx =
-      section != null
-        ? parseSectionItems(section)[0]?.startLineIndex ?? startLineIndex
-        : startLineIndex;
-    const target =
-      alignedPlacements.get(firstIdx) ??
-      alignedPlacements.get(startLineIndex) ??
-      placements.find(
-        (p) =>
-          p.line_index === firstIdx ||
-          p.line_index === startLineIndex ||
-          findSectionForLineIndex(documentBody, p.line_index)?.startLineIndex ===
-            section?.startLineIndex,
-      );
-    if (!target && !section) return;
+    const target = alignedPlacements.get(startLineIndex);
+    if (!target) return;
 
-    if (docId) addClearedImageSlot(docId, firstIdx);
+    if (docId) addClearedImageSlot(docId, startLineIndex);
 
-    onPlacementsChange(
-      placements.filter((p) => {
-        if (target?.id && p.id) return p.id !== target.id;
-        const pSection = findSectionForLineIndex(documentBody, p.line_index);
-        if (section && pSection?.startLineIndex === section.startLineIndex) return false;
-        return true;
-      }),
-    );
+    onPlacementsChange(placements.filter((p) => p.id !== target.id));
   }
 
   if (!text.trim()) {
@@ -344,7 +314,7 @@ function ImageSlot({
                 onRemove();
               }}
               className="absolute top-1 right-1 z-10 size-6 rounded-full bg-white/90 border border-coolgray-30 text-coolgray-60 hover:text-alert text-sm leading-none shadow-sm"
-              aria-label="그림 제거"
+              aria-label="시각자료 제거"
             >
               ×
             </button>
@@ -352,7 +322,7 @@ function ImageSlot({
         </>
       ) : readOnly ? null : (
         <span className="text-sm text-center px-2 pointer-events-none">
-          그림 DB에서
+          시각자료 DB에서
           <br />
           드래그하여 배치
         </span>
@@ -361,7 +331,7 @@ function ImageSlot({
   );
 }
 
-/** 그림 DB 카드 — 드래그 소스 */
+/** 시각자료 DB 카드 — 드래그 소스 */
 export function DraggableCatalogItem({
   item,
   children,

@@ -157,6 +157,9 @@ def prepare_placements_for_export(body: str, placements: list) -> list:
     return list(by_line.values())
 
 
+MAX_PLACEMENT_SNAP_DISTANCE = 2
+
+
 def align_placements_to_items(body: str, placements: list) -> dict[int, object]:
     """Map placements to ExportItem.start_line_index (양식: 항목마다 삽화)."""
     from backend.models.schemas import ImagePlacement
@@ -196,7 +199,11 @@ def align_placements_to_items(body: str, placements: list) -> dict[int, object]:
             item_refs,
             key=lambda ref: abs(ref[1].start_line_index - placement.line_index),
         )
-        if nearest.start_line_index not in by_item:
+        snap_distance = abs(nearest.start_line_index - placement.line_index)
+        if (
+            snap_distance <= MAX_PLACEMENT_SNAP_DISTANCE
+            and nearest.start_line_index not in by_item
+        ):
             by_item[nearest.start_line_index] = placement
             used.add(placement.id)
 

@@ -1,5 +1,5 @@
 /**
- * 그림 배치 페이지 (워크플로 4단계) — Figma 그림 80% ERAI UI.
+ * 시각자료 배치 페이지 (워크플로 4단계) — Figma 시각자료 80% ERAI UI.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -115,8 +115,8 @@ export function ImagesPage() {
           console.error("auto-fill image placements failed", err);
           setError(
             err instanceof Error
-              ? `그림 자동 배치 실패: ${err.message}`
-              : "그림 자동 배치에 실패했습니다.",
+              ? `시각자료 자동 배치 실패: ${err.message}`
+              : "시각자료 자동 배치에 실패했습니다.",
           );
         } finally {
           setAutoPlacing(false);
@@ -229,10 +229,10 @@ export function ImagesPage() {
       const results = await searchWebImages(prompt.trim());
       setCatalogItems(results.slice(0, 40));
       if (results.length === 0) {
-        setError("웹에서 찾은 그림이 없습니다. 다른 키워드로 시도해 보세요.");
+        setError("웹에서 찾은 시각자료가 없습니다. 다른 키워드로 시도해 보세요.");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "웹 그림 검색 실패");
+      setError(err instanceof Error ? err.message : "웹 시각자료 검색 실패");
     } finally {
       setPromptLoading(false);
     }
@@ -290,7 +290,7 @@ export function ImagesPage() {
               <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center gap-3 px-4 py-8 text-primary-60 text-sm">
                 <IconSpinner className="size-10" />
                 {autoPlacing
-                  ? "AI가 그림을 배치하고 있습니다..."
+                  ? "AI가 시각자료를 배치하고 있습니다..."
                   : "번역문을 불러오는 중..."}
               </div>
             ) : segments.length === 0 ? (
@@ -313,7 +313,7 @@ export function ImagesPage() {
         </WorkflowTwoPaneColumn>
 
         <WorkflowTwoPaneColumn side="right">
-          <p className="shrink-0 text-center text-base text-primary-90">그림 DB</p>
+          <p className="shrink-0 text-center text-base text-primary-90">시각자료 DB</p>
 
           <div className="flex-1 min-h-0 flex flex-col border border-coolgray-40 overflow-hidden bg-coolgray-10">
             <input
@@ -330,7 +330,7 @@ export function ImagesPage() {
             >
               {webSearchActive && (
                 <p className="text-xs text-primary-60 mb-2 text-center">
-                  AI 프롬프트 웹 검색 결과 · 그림 DB로 돌아가려면 위 검색창을 사용하세요
+                  AI 프롬프트 웹 검색 결과 · 시각자료 DB로 돌아가려면 위 검색창을 사용하세요
                 </p>
               )}
               {catalogLoading ? (
@@ -370,8 +370,8 @@ export function ImagesPage() {
               onChange={setPrompt}
               onSubmit={applyImagePrompt}
               loading={promptLoading}
-              loadingLabel="그림 검색 중..."
-              placeholder="찾을 그림을 설명하세요 (예: 각하, 징역, 무죄)"
+              loadingLabel="시각자료 검색 중..."
+              placeholder="찾을 시각자료를 설명하세요 (예: 각하, 징역, 무죄)"
             />
           </div>
         </WorkflowTwoPaneColumn>

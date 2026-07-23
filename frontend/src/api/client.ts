@@ -35,7 +35,7 @@ export interface ImagePlacement {
   section_heading?: string | null;
   /** PDF 추출 POST body 전용 — 서버 파일 해석 없이 이미지 삽입 */
   image_base64?: string | null;
-  /** 그림 탭 자동 배치 — X 삭제 불가 */
+  /** 시각자료 탭 자동 배치 — X 삭제 불가 */
   auto_filled?: boolean;
 }
 
@@ -439,7 +439,7 @@ export async function getUserProjectTranslationSegments(
     if (doc.translation_segments?.length) {
       return doc.translation_segments;
     }
-    throw new Error("저장된 번역(그림 포함)을 찾을 수 없습니다.");
+    throw new Error("저장된 번역(시각자료 포함)을 찾을 수 없습니다.");
   }
 }
 

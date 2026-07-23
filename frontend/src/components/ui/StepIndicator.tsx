@@ -1,5 +1,5 @@
 /**
- * Figma 5단계 워크플로 stepper (업로드→요약→번역→그림→추출).
+ * Figma 5단계 워크플로 stepper (업로드→요약→번역→시각자료→추출).
  */
 import { Link } from "react-router-dom";
 import { IconActiveStep, IconCheck, IconCircle } from "./icons";
@@ -10,7 +10,7 @@ const STEPS: { id: WorkflowStep; label: string }[] = [
   { id: "upload", label: "1. 업로드" },
   { id: "summary", label: "2. 요약" },
   { id: "translate", label: "3. 번역" },
-  { id: "images", label: "4. 그림" },
+  { id: "images", label: "4. 시각자료" },
   { id: "export", label: "5. 추출" },
 ];
 
