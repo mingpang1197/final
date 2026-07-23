@@ -12,9 +12,25 @@ from docx.shared import Pt
 EASY_READ_BOX_FILL = "F5F0E8"
 EASY_READ_BOX_BORDER = "B8B0A4"
 EASY_READ_BOX_PAD_TWIPS = 180  # ~0.125"
+# word_export PAGE_MARGIN 0.6in → 본문 폭(8.5in 기준)
+EASY_READ_BOX_WIDTH_TWIPS = int((8.5 - 0.6 * 2) * 1440)
 
 
-def _set_cell_borders_visible(cell, *, color: str = EASY_READ_BOX_BORDER, size: str = "6") -> None:
+def _set_table_width_dxa(table, width_twips: int) -> None:
+    tbl = table._tbl
+    tbl_pr = tbl.tblPr
+    for child in list(tbl_pr):
+        if child.tag == qn("w:tblW"):
+            tbl_pr.remove(child)
+    tbl_w = OxmlElement("w:tblW")
+    tbl_w.set(qn("w:w"), str(width_twips))
+    tbl_w.set(qn("w:type"), "dxa")
+    tbl_pr.insert(0, tbl_w)
+EASY_READ_BOX_BORDER = "B8B0A4"
+EASY_READ_BOX_PAD_TWIPS = 180  # ~0.125"
+
+
+def _set_cell_borders_visible(cell, *, color: str = EASY_READ_BOX_BORDER, size: str = "12") -> None:
     tc_pr = cell._tc.get_or_add_tcPr()
     borders = OxmlElement("w:tcBorders")
     for edge in ("top", "left", "bottom", "right"):
@@ -56,6 +72,7 @@ def wrap_document_in_textbox(host: Document, content: Document) -> None:
     """content(단락·표)를 본문 순서에 맞는 테두리 1×1 표 안에 넣는다."""
     table = host.add_table(rows=1, cols=1)
     table.autofit = False
+    _set_table_width_dxa(table, EASY_READ_BOX_WIDTH_TWIPS)
     cell = table.rows[0].cells[0]
     _set_cell_borders_visible(cell)
     _set_cell_shading(cell, EASY_READ_BOX_FILL)

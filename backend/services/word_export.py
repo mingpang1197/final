@@ -16,7 +16,7 @@ from pathlib import Path
 
 from docx import Document
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_ROW_HEIGHT_RULE
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
@@ -851,6 +851,23 @@ def collect_body_text(doc: DocumentResponse) -> str:
     return _collect_body_text(doc)
 
 
+def _append_easy_read_in_textbox(host: Document, doc: DocumentResponse) -> None:
+    easy_body = _collect_body_text(doc)
+    if not easy_body:
+        return
+    inner = Document()
+    _push_font_profile(EASY_READ_FONT_PROFILE)
+    try:
+        _export_easy_read_provision(inner)
+        raw_placements = _collect_placements(doc) or []
+        _export_easy_read_body(inner, easy_body, raw_placements)
+    finally:
+        _pop_font_profile()
+    from backend.services.word_textbox import wrap_document_in_textbox
+
+    wrap_document_in_textbox(host, inner)
+
+
 def build_easy_read_insert_document(
     doc: DocumentResponse,
     *,
@@ -882,6 +899,10 @@ def build_easy_read_insert_document(
     from backend.services.word_textbox import wrap_document_in_textbox
 
     wrap_document_in_textbox(host, inner)
+    page_break = host.add_paragraph()
+    page_break.paragraph_format.space_before = Pt(0)
+    page_break.paragraph_format.space_after = Pt(0)
+    page_break.add_run().add_break(WD_BREAK.PAGE)
     enable_word_font_embedding(host)
     return host
 
@@ -923,14 +944,12 @@ def export_to_docx(
     if split and easy_body:
         prefix, suffix = split
         _export_judgment_plain(word, prefix)
-        _export_easy_read_provision(word)
-        raw_placements = _collect_placements(doc) or []
-        _export_easy_read_body(word, easy_body, raw_placements)
+        _append_easy_read_in_textbox(word, doc)
         if suffix.strip():
+            word.add_page_break()
             _export_judgment_plain(word, suffix)
     elif easy_body:
-        raw_placements = _collect_placements(doc) or []
-        _export_easy_read_body(word, easy_body, raw_placements)
+        _append_easy_read_in_textbox(word, doc)
 
     enable_word_font_embedding(word)
     buffer = io.BytesIO()

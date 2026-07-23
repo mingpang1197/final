@@ -124,6 +124,17 @@ def _append_clipped_page(out: fitz.Document, src: fitz.Document, page_number: in
     new_page.show_pdf_page(target, src, page_number, clip=clip)
 
 
+def _finalize_easy_read_pdf(pdf_bytes: bytes) -> bytes:
+    from backend.services.pdf_easy_read_frame import decorate_easy_read_pdf
+
+    easy = fitz.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        decorate_easy_read_pdf(easy)
+        return easy.tobytes(garbage=4, deflate=True)
+    finally:
+        easy.close()
+
+
 def _easy_read_insert_pdf_bytes(
     doc: DocumentResponse,
     *,
@@ -141,10 +152,13 @@ def _easy_read_insert_pdf_bytes(
     buffer = io.BytesIO()
     insert_doc.save(buffer)
     try:
-        return convert_docx_bytes_to_pdf(buffer.getvalue())
+        return _finalize_easy_read_pdf(convert_docx_bytes_to_pdf(buffer.getvalue()))
     except DocxToPdfError:
         logger.info("easy-read insert: docx2pdf unavailable, using PyMuPDF HTML")
-        return render_easy_read_insert_html_pdf(doc, font_profile=font_profile)
+        rendered = render_easy_read_insert_html_pdf(doc, font_profile=font_profile)
+        if not rendered:
+            return None
+        return _finalize_easy_read_pdf(rendered)
 
 
 def merge_pdf_three_part_with_easy_read(pdf_path: Path, doc: DocumentResponse) -> bytes | None:

@@ -151,6 +151,13 @@ def _font_css(
       clear: both;
       margin: 12px 0 0 0;
     }}
+    div.easy-read-frame {{
+      border: 1.5pt solid #b8b0a4;
+      background: #f5f0e8;
+      padding: 14pt 16pt;
+      box-sizing: border-box;
+      margin: 0 0 12pt 0;
+    }}
     """
     return css, archive
 
@@ -336,7 +343,8 @@ def _build_html(
         if closing_html:
             blocks.append(closing_html.replace('class="body"', 'class="body closing-line"', 1))
     content = "\n".join(blocks)
-    return f"<html><head></head><body>{content}</body></html>", css
+    framed = f'<div class="easy-read-frame">{content}</div>' if content.strip() else content
+    return f"<html><head></head><body>{framed}</body></html>", css
 
 
 def _provision_blocks_html() -> list[str]:
@@ -392,7 +400,15 @@ def render_easy_read_insert_html_pdf(
     if not body_html.strip():
         return None
     provision = "".join(_provision_blocks_html())
-    inner = body_html.replace("<body>", f"<body>{provision}", 1)
+    inner = body_html
+    if provision and 'class="easy-read-frame"' in inner:
+        inner = inner.replace(
+            '<div class="easy-read-frame">',
+            f'<div class="easy-read-frame">{provision}',
+            1,
+        )
+    elif provision:
+        inner = body_html.replace("<body>", f"<body>{provision}", 1)
     return _html_story_to_pdf(inner, css)
 
 

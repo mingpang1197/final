@@ -99,44 +99,20 @@ def append_easy_read_then_suffix(
     *,
     gap_pt: float = 10,
 ) -> None:
-    """이지리드 직후 원문 suffix — 마지막 이지리드 페이지에 공간 있으면 같은 페이지에 이어 붙임."""
-    from backend.services.pdf_page_numbers import clip_excluding_footer, page_height_with_number_footer
+    """이지리드 PDF 전체 삽입 후, 원문 suffix(이유 본문)는 항상 새 페이지부터."""
+    from backend.services.pdf_page_numbers import clip_excluding_footer
 
     src_page = src[reason_page]
     suffix_clip = clip_excluding_footer(src_page, suffix_clip & src_page.rect)
     page_w = src_page.rect.width
     page_h = src_page.rect.height
 
+    if easy.page_count:
+        out.insert_pdf(easy)
+
     if suffix_clip.is_empty or suffix_clip.height < 8:
-        if easy.page_count:
-            out.insert_pdf(easy)
         return
 
-    if easy.page_count == 0:
-        _append_clipped(out, src, reason_page, suffix_clip, page_w)
-        return
-
-    if easy.page_count > 1:
-        out.insert_pdf(easy, from_page=0, to_page=easy.page_count - 2)
-
-    last_idx = easy.page_count - 1
-    last_page = easy[last_idx]
-    easy_clip = _visible_content_rect(last_page) or last_page.rect
-    easy_clip = easy_clip & last_page.rect
-    easy_h = easy_clip.height
-    suffix_h = suffix_clip.height
-    combined = easy_h + gap_pt + suffix_h
-    combined_with_footer = page_height_with_number_footer(combined)
-
-    if combined_with_footer <= page_h + 1:
-        new_page = out.new_page(width=page_w, height=combined_with_footer)
-        y = 0.0
-        dest = fitz.Rect(0, y, page_w, y + easy_h)
-        new_page.show_pdf_page(dest, easy, last_idx, clip=easy_clip)
-        y += easy_h + gap_pt
-        dest = fitz.Rect(0, y, page_w, y + suffix_h)
-        new_page.show_pdf_page(dest, src, reason_page, clip=suffix_clip)
-        return
-
-    _append_clipped(out, easy, last_idx, easy_clip, page_w)
-    _append_clipped(out, src, reason_page, suffix_clip, page_w)
+    new_page = out.new_page(width=page_w, height=page_h)
+    dest = fitz.Rect(0, 0, page_w, suffix_clip.height)
+    new_page.show_pdf_page(dest, src, reason_page, clip=suffix_clip)
