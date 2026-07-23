@@ -63,6 +63,7 @@ _META_SECTION_START = re.compile(r"^###\s*수정\s*사항")
 
 DEFAULT_ASCII_FONT = "Malgun Gothic"
 DEFAULT_EAST_ASIA_FONT = "맑은 고딕"
+EASY_READ_COURT_FONT = "CourtBT"
 _GOTHIC_FONTS = frozenset(
     {"malgun gothic", "맑은 고딕", "nanumgothic", "나눔고딕", "dotum", "돋움", "gulim", "굴림"}
 )
@@ -74,6 +75,14 @@ class ExportFontProfile:
     h_ansi: str = DEFAULT_ASCII_FONT
     east_asia: str = DEFAULT_EAST_ASIA_FONT
     body_pt: float = BODY_PT
+
+
+EASY_READ_FONT_PROFILE = ExportFontProfile(
+    ascii=EASY_READ_COURT_FONT,
+    h_ansi=EASY_READ_COURT_FONT,
+    east_asia=EASY_READ_COURT_FONT,
+    body_pt=BODY_PT,
+)
 
 
 _FONT_PROFILE_STACK: list[ExportFontProfile] = []
@@ -829,7 +838,7 @@ def build_easy_read_insert_document(
     if not easy_body:
         return inner
 
-    _push_font_profile(font_profile)
+    _push_font_profile(font_profile if font_profile is not None else EASY_READ_FONT_PROFILE)
     try:
         _export_easy_read_provision(inner)
         raw_placements = _collect_placements(doc) or []

@@ -1,13 +1,10 @@
 name: 행정판결 요약
 doc_type: administrative
-writing_rules_file: writing_rules/administrative.yaml
 system_prompt: |
-  당신은 행정판결문 요약 전문가입니다.
+  당신은 행정판결문 **발췌·요약** 전문가입니다. 이지리드 문체 금지 — 번역 단계용 메모만 작성.
 sections:
   - 주문
   - 이유
 output_format: |
-  **절대 금지**: `<행정판결 이지리드 — …>` 같은 문서 표지·제목 줄.
-  1. <이 판결의 결론> (맨 앞)
-  2. 행정처분과 쟁점
-  3. 이유
+  **[주문]**, **[처분·쟁점]**, **[이유 요지]** — 판결문체 발췌.
+  **금지**: `<>` 이지리드 소제목, 표지 줄, 창작.

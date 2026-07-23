@@ -67,6 +67,14 @@ def _source_path(doc_id: str, filename: str) -> Path:
     return UPLOAD_DIR / f"{doc_id}_source{ext}"
 
 
+def _full_text_sufficient_for_summary(full_text: str | None) -> bool:
+    if not full_text or not full_text.strip():
+        return False
+    degraded = full_text.replace("추출된 텍스트 없음", "").replace("(페이지", "")
+    compact = re.sub(r"\s+", "", degraded)
+    return len(compact) >= 180
+
+
 async def _backfill_user_source_if_missing(user_id: str, doc_id: str) -> None:
     if user_storage.get_source_file(user_id, doc_id):
         return
@@ -671,8 +679,18 @@ async def summarize_document(
     if doc.summary and not force:
         return doc
 
+    if not _full_text_sufficient_for_summary(doc.full_text):
+        raise HTTPException(
+            400,
+            "원문 OCR 텍스트가 부족합니다. PDF를 다시 업로드하거나 스캔 PDF면 Upstage OCR 설정을 확인하세요.",
+        )
+
     system = prompts.build_summary_system_prompt(doc.doc_type)
-    user = f"다음 판결문을 요약하세요:\n\n{doc.full_text}"
+    user = (
+        "아래 판결문 **전문만** 보고, 요약 출력 형식에 맞게 **발췌 요약**하세요. "
+        "원문에 없는 사건·인물·형량을 invent하지 마세요.\n\n"
+        f"{doc.full_text}"
+    )
     summary = await upstage.chat_completion(system, user)
     summary = await _polish_summary_text(summary)
     await update_summary(doc_id, summary)

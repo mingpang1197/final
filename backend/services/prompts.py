@@ -43,44 +43,42 @@ TRANSLATION_OUTPUT_RULES = """
 7. `※` 면책 문구, `---` 구분선, `이하 빈칸`, `이 요약은 판결문…` 등 **별도 마무리·안내 문구 출력 금지**.
 """.strip().replace("{standard_closing}", STANDARD_CLOSING)
 
-SUMMARY_STRUCTURE_RULES = """
-## 요약 작성 구조 (반드시 준수)
-아래 판결문 텍스트를 분석하여, 반드시 다음 5가지 목차 순서로 요약하세요.
+SUMMARY_COMMON_RULES = """
+## 요약 공통 규칙 (반드시 준수)
 
-아래 제목 문구를 **한 글자도 바꾸지 말고 그대로** 사용하세요.
-
-<먼저, 법원의 판단을 알려드립니다>
-
-<어떤 일이 있었나요?>
-
-<법원이 판단한 문제는 무엇인가요?>
-
-<법원은 어떻게 판단했나요?>
-
-<최종 결과는 무엇인가요?>
-
-각 제목 아래 내용은 문단으로 작성하고, 제목이 바뀔 때마다 반드시 빈 줄로 문단을 구분하세요.
-
-1. 먼저, 법원의 판단을 알려드립니다
-- 법원의 최종 판단을 2~3문장으로 요약하여 가장 먼저 작성할 것.
-
-2. 어떤 일이 있었나요?
-- 당사자의 개별 주장은 배제하고, 법원이 최종적으로 인정한 핵심 사실관계만 작성할 것.
-- 당사자의 주장과 법원이 인정한 사실을 절대 섞지 말 것.
-
-3. 법원이 판단한 문제는 무엇인가요?
-- 원고/피고 등 당사자의 입장을 나열하지 말 것.
-- 법원이 법적으로 해결해야 했던 핵심 쟁점을 중립적인 문장으로 작성할 것.
-
-4. 법원은 어떻게 판단했나요?
-- 법원의 결론과 판단의 핵심 이유(법리 및 근거)를 작성할 것.
-- 이 항목을 전체 요약 내용 중 가장 중점적이고 비중 있게 다룰 것.
-
-5. 최종 결과는 무엇인가요?
-- 법원이 청구를 받아들였는지(인용) 여부를 명확히 작성할 것.
-- 법원이 선고한 최종 판결 결과(주문 내용)를 작성할 것.
-- 판결문 텍스트에 적히지 않은 이후 절차나 추측성 정보는 절대로 추가하지 말 것.
+1. **입력 판결문 전문만** 사용 — 원문에 없는 사건·인물·형량·쟁점을 **추가·추측하지 마세요**.
+2. **이지리드 번역이 아닙니다** — "감옥에 ~해야 합니다", "저지른 범죄는 이렇습니다", `<이 판결의 결론>` 같은 **쉬운 말·이지리드 소제목 금지**.
+3. **판결문체·중립** — 법원이 인정한 사실과 주문·이유를 **발췌·압축**합니다.
+4. 사건번호·당사자명·날짜·금액은 **원문과 일치**하게 적으세요.
+5. OCR이 불완전해 내용이 거의 없으면, **"원문 텍스트 부족으로 요약 불가"** 한 줄만 출력하세요.
 """.strip()
+
+
+def _translation_output_order_hint(doc_type: DocType) -> str:
+    rules = load_writing_rules(doc_type)
+    order = rules.get("section_order") or []
+    sections = rules.get("sections") or {}
+    lines = ["## 번역 시 본문 소제목 순서 (이지리드 출력용)"]
+    for key in order:
+        if key == "overview":
+            continue
+        cfg = sections.get(key)
+        if isinstance(cfg, dict) and cfg.get("heading"):
+            lines.append(f"- {cfg['heading']}")
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
+def build_summary_system_prompt(doc_type: DocType) -> str:
+    summary = load_summary_prompt(doc_type)
+    parts = [
+        summary.get("system_prompt", "당신은 판결문 발췌·요약 전문가입니다."),
+        "",
+        SUMMARY_COMMON_RULES,
+        "",
+        "## 요약 출력 형식",
+        summary.get("output_format", ""),
+    ]
+    return "\n".join(p for p in parts if p is not None)
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -133,32 +131,13 @@ def _format_easy_read_style(style: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def build_summary_system_prompt(doc_type: DocType) -> str:
-    summary = load_summary_prompt(doc_type)
-    rules = load_writing_rules(doc_type)
-    parts = [
-        summary.get("system_prompt", "당신은 판결문 요약 전문가입니다."),
-        "",
-        SUMMARY_STRUCTURE_RULES,
-        "",
-        "## 요약 출력 형식",
-        summary.get("output_format", ""),
-        "",
-        "## 작성 규칙 (반드시 준수)",
-        _format_writing_rules(rules),
-        "",
-        "## Few-shot 예시",
-        _format_examples(rules.get("examples", [])),
-    ]
-    return "\n".join(p for p in parts if p is not None)
-
-
 def build_translation_system_prompt(doc_type: DocType) -> str:
     rules = load_writing_rules(doc_type)
-    summary = load_summary_prompt(doc_type)
     style = load_easy_read_style()
+    order_hint = _translation_output_order_hint(doc_type)
     parts = [
         "당신은 발달장애인이 이해할 수 있는 이지리드(Easy-Read) 판결문 작성 전문가입니다.",
+        "입력으로 **발췌 요약**과 **판결문 원문 발췌**가 주어집니다. 요약·원문에 없는 내용을 invent하지 마세요.",
         "아래 **공통 작성 규칙**, **판결 유형별 규칙**, **예시**를 반드시 따르세요.",
         "",
         TRANSLATION_OUTPUT_RULES,
@@ -168,8 +147,7 @@ def build_translation_system_prompt(doc_type: DocType) -> str:
         "## 판결 유형별 작성 규칙",
         _format_writing_rules(rules, for_translation=True),
         "",
-        "## 요약·번역 출력 순서",
-        summary.get("output_format", ""),
+        order_hint,
         "",
         "## Few-shot 예시",
         _format_examples(rules.get("examples", [])),
@@ -221,6 +199,18 @@ def _format_examples(examples: list[Any]) -> str:
         blocks.append(f"[판결원문]\n{ex.get('source', '').strip()}")
         blocks.append(f"[이지리드]\n{ex.get('easy_read', '').strip()}")
     return "\n\n".join(blocks)
+
+
+def excerpt_full_text_for_translation(full_text: str, max_chars: int = 16000) -> str:
+    """번역 프롬프트에 넣을 원문 발췌 (토큰 한도)."""
+    text = (full_text or "").strip()
+    if not text:
+        return ""
+    if len(text) <= max_chars:
+        return text
+    head = (max_chars * 2) // 3
+    tail = max_chars - head - 40
+    return f"{text[:head]}\n\n...(원문 중략)...\n\n{text[-tail:]}"
 
 
 CHATBOT_PROMPT_OVERRIDE = DATA_DIR / "chatbot_prompt.yaml"
