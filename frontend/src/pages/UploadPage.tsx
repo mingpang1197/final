@@ -43,8 +43,6 @@ export function UploadPage() {
       if (docType !== result.doc_type) {
         await updateDocType(result.id, docType);
         resolvedType = docType;
-      } else if (result.doc_type !== "unknown") {
-        resolvedType = result.doc_type;
       }
       if (result.pages?.length && result.full_text) {
         cacheUpload({
