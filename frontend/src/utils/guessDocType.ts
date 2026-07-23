@@ -44,7 +44,7 @@ const ADMIN_SYMBOLS = new Set([
 ]);
 
 const CASE_NUMBER_LABEL = /사\s*건\s*번\s*호/;
-const CASE_NUM_PATTERN = /\d{2,4}[\s\n]*[가-힣]{1,4}[\s\n]*\d+/g;
+const CASE_NUM_PATTERN = /(?:19|20)\d{2}[\s\n]*[가-힣]{1,4}[\s\n]*\d+/g;
 
 function extractCaseNumbersAboveLabel(text: string, maxLinesBefore = 5): string[] {
   const lines = text.split(/\r?\n/);
@@ -81,8 +81,24 @@ function extractCaseNumbersBelowLabel(text: string, maxLinesAfter = 5): string[]
     }
   };
   for (let i = 0; i < lines.length; i++) {
-    if (!CASE_NUMBER_LABEL.test(lines[i])) continue;
-    for (let j = i; j < Math.min(i + maxLinesAfter, lines.length); j++) {
+    if (CASE_NUMBER_LABEL.test(lines[i])) {
+      for (let j = i; j < Math.min(i + maxLinesAfter, lines.length); j++) {
+        for (const m of lines[j].matchAll(CASE_NUM_PATTERN)) {
+          append(m[0]);
+        }
+      }
+      continue;
+    }
+    if (lines[i].trim() !== "사") continue;
+    let geonIndex: number | null = null;
+    for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+      if (lines[j].trim() === "건") {
+        geonIndex = j;
+        break;
+      }
+    }
+    if (geonIndex === null) continue;
+    for (let j = geonIndex; j < Math.min(geonIndex + maxLinesAfter, lines.length); j++) {
       for (const m of lines[j].matchAll(CASE_NUM_PATTERN)) {
         append(m[0]);
       }
@@ -138,4 +154,10 @@ function voteFromText(hint: string): KnownDocType | null {
 /** 파일명 등에서 사건부호를 읽어 초기 선택 유형을 반환한다. */
 export function guessDocTypeFromFilename(filename: string): KnownDocType {
   return voteFromText(filename) ?? "civil";
+}
+
+/** 업로드(OCR) 후 사건 유형 모달 기본값 — 서버 분류 우선. */
+export function docTypeForUploadModal(serverType: DocType, filename: string): KnownDocType {
+  if (serverType !== "unknown") return serverType;
+  return guessDocTypeFromFilename(filename);
 }

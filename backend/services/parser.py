@@ -17,7 +17,7 @@ CIVIL_MARKERS = ["원고", "피고", "청구", "소송", "손해배상"]
 FAMILY_MARKERS = ["이혼", "친권", "양육", "부양", "가사"]
 ADMIN_MARKERS = ["처분", "행정", "취소", "무효", "행정청", "행정법원", "구합", "장애등록", "등급외"]
 
-CASE_NUM_PATTERN = re.compile(r"\d{2,4}\s*[가-힣]{1,4}\s*\d+")
+CASE_NUM_PATTERN = re.compile(r"(?:19|20)\d{2}\s*[가-힣]{1,4}\s*\d+")
 _CASE_NUMBER_LABEL = re.compile(r"사\s*건\s*번\s*호")
 
 CIVIL_SYMBOLS = frozenset({
@@ -101,16 +101,29 @@ def extract_case_numbers_above_label(text: str, *, max_lines_before: int = 5) ->
 
 
 def extract_case_numbers_below_label(text: str, *, max_lines_after: int = 5) -> list[str]:
-    """「사건번호」 표기 직후·아래 줄에 적힌 사건번호 (OCR 세로 배치)."""
+    """「사건번호」 또는 세로 OCR(사/건) 직후·아래 줄에 적힌 사건번호."""
     lines = text.splitlines()
     found: list[str] = []
     seen: set[str] = set()
-    for index, line in enumerate(lines):
-        if not _CASE_NUMBER_LABEL.search(line):
-            continue
-        for j in range(index, min(index + max_lines_after, len(lines))):
+
+    def scan_from(start_index: int) -> None:
+        for j in range(start_index, min(start_index + max_lines_after, len(lines))):
             for m in CASE_NUM_PATTERN.finditer(lines[j]):
                 _append_case_match(found, seen, m.group(0))
+
+    for index, line in enumerate(lines):
+        if _CASE_NUMBER_LABEL.search(line):
+            scan_from(index)
+            continue
+        if line.strip() != "사":
+            continue
+        geon_index: int | None = None
+        for j in range(index + 1, min(index + 4, len(lines))):
+            if lines[j].strip() == "건":
+                geon_index = j
+                break
+        if geon_index is not None:
+            scan_from(geon_index)
     return found
 
 

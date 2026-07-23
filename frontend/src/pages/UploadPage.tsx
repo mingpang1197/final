@@ -3,14 +3,14 @@
  */
 import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { type DocType, uploadDocument, updateDocType } from "../api/client";
+import { type DocType, type UploadResult, uploadDocument, updateDocType } from "../api/client";
 import { ExistingProjectsTable } from "../components/ui/ExistingProjectsTable";
 import { ChatbotWidget } from "../components/ui/ChatbotWidget";
 import { IconUploadCloud } from "../components/ui/icons";
 import { StepIndicator } from "../components/ui/StepIndicator";
 import { UploadCaseTypeModal } from "../components/ui/UploadCaseTypeModal";
 import { cacheUpload, getCachedUpload, getLastDocId } from "../utils/docCache";
-import { guessDocTypeFromFilename } from "../utils/guessDocType";
+import { docTypeForUploadModal } from "../utils/guessDocType";
 import { saveSourceFile } from "../utils/sourceStore";
 import { isAdminUser } from "../utils/auth";
 
@@ -24,6 +24,7 @@ export function UploadPage() {
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [caseTypeModalOpen, setCaseTypeModalOpen] = useState(false);
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
 
   const filenameLabel = useMemo(() => {
     if (pendingFile?.name) return pendingFile.name;
@@ -34,16 +35,21 @@ export function UploadPage() {
     return "파일명";
   }, [pendingFile, lastDocId]);
 
-  async function handleUpload(file: File) {
+  async function finishUploadAfterCaseType(file: File, result: UploadResult) {
     setLoading(true);
     setError("");
     try {
-      const result = await uploadDocument(file);
-      await updateDocType(result.id, docType);
+      let resolvedType: Exclude<DocType, "unknown"> = docType;
+      if (docType !== result.doc_type) {
+        await updateDocType(result.id, docType);
+        resolvedType = docType;
+      } else if (result.doc_type !== "unknown") {
+        resolvedType = result.doc_type;
+      }
       if (result.pages?.length && result.full_text) {
         cacheUpload({
           ...result,
-          doc_type: docType,
+          doc_type: resolvedType,
           pages: result.pages,
           full_text: result.full_text,
           source_blob_url: URL.createObjectURL(file),
@@ -53,9 +59,10 @@ export function UploadPage() {
         void saveSourceFile(result.id, file);
       }
       setCaseTypeModalOpen(false);
+      setUploadResult(null);
       navigate(`/documents/${result.id}/summary`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "업로드 실패");
+      setError(err instanceof Error ? err.message : "저장 실패");
     } finally {
       setLoading(false);
     }
@@ -79,20 +86,32 @@ export function UploadPage() {
     if (file) selectFile(file);
   }
 
-  function handleDone() {
-    if (pendingFile && !loading) {
-      setDocType(guessDocTypeFromFilename(pendingFile.name));
+  async function handleDone() {
+    if (!pendingFile || loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      const result = await uploadDocument(pendingFile);
+      setUploadResult(result);
+      setDocType(docTypeForUploadModal(result.doc_type, result.filename));
       setCaseTypeModalOpen(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "업로드 실패");
+    } finally {
+      setLoading(false);
     }
   }
 
   function closeCaseTypeModal() {
-    if (!loading) setCaseTypeModalOpen(false);
+    if (!loading) {
+      setCaseTypeModalOpen(false);
+      setUploadResult(null);
+    }
   }
 
   function confirmUploadWithCaseType() {
-    if (pendingFile && !loading) {
-      void handleUpload(pendingFile);
+    if (pendingFile && uploadResult && !loading) {
+      void finishUploadAfterCaseType(pendingFile, uploadResult);
     }
   }
 
