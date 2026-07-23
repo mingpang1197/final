@@ -941,7 +941,9 @@ async def _export_docx(
 
     content = word_export.export_to_docx(
         doc,
-        source_file=_resolve_upload_source_path(doc_id, doc.filename, x_user_id, body),
+        source_file=None,
+        merge_source_pdf=False,
+        easy_read_only=True,
     )
     if x_user_id:
         easyread_text = doc.translation_text or doc.summary or ""
@@ -994,10 +996,7 @@ async def _export_pdf(
     from backend.services.docx_to_pdf import DocxToPdfError
 
     try:
-        content = pdf_export.export_to_pdf(
-            doc,
-            source_file=_resolve_upload_source_path(doc_id, doc.filename, x_user_id, body),
-        )
+        content = pdf_export.export_to_pdf(doc, source_file=None)
     except DocxToPdfError as exc:
         raise HTTPException(
             503,

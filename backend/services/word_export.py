@@ -1091,6 +1091,7 @@ def export_to_docx(
     include_meta: bool = False,
     source_file: Path | None = None,
     merge_source_pdf: bool = True,
+    easy_read_only: bool = False,
 ) -> bytes:
     word = Document()
 
@@ -1110,12 +1111,19 @@ def export_to_docx(
         word.save(buffer)
         return buffer.getvalue()
 
-    if source_file is not None and merge_source_pdf:
+    if source_file is not None and merge_source_pdf and not easy_read_only:
         from backend.services.pdf_source_merge import merge_pdf_with_easy_read_insert
 
         merged = merge_pdf_with_easy_read_insert(source_file, doc)
         if merged:
             return merged
+
+    if easy_read_only:
+        _append_easy_read_in_textbox(word, doc)
+        enable_word_font_embedding(word)
+        buffer = io.BytesIO()
+        word.save(buffer)
+        return buffer.getvalue()
 
     split = split_judgment_at_reason(doc.full_text or "") if (doc.full_text or "").strip() else None
 

@@ -416,35 +416,19 @@ def render_easy_read_insert_html_pdf(
 
 
 def export_to_pdf(doc: DocumentResponse, *, source_file: Path | None = None) -> bytes:
-    """원본 PDF 3단 병합 우선 → pdf2docx 병합 DOCX → PDF."""
+    """이지리드 판결문만 PDF로 내보낸다 (원문 PDF 병합 없음)."""
     from backend.services import word_export
     from backend.services.docx_to_pdf import DocxToPdfError, convert_docx_bytes_to_pdf
 
-    if (
-        source_file
-        and source_file.suffix.lower() == ".pdf"
-        and source_file.is_file()
-        and word_export.collect_body_text(doc)
-    ):
-        from backend.services.pdf_native_merge import merge_pdf_three_part_with_easy_read
-
-        merged = merge_pdf_three_part_with_easy_read(source_file, doc)
-        if merged:
-            logger.info("export pdf: native 3-part PDF merge")
-            return merged
-
-    # pdf2docx 삽입 위치가 어긋날 수 있어 PDF 추출은 OCR 분할 docx만 사용(원문 PDF는 3단 병합).
-    docx_bytes = word_export.export_to_docx(doc, source_file=None, merge_source_pdf=False)
+    docx_bytes = word_export.export_to_docx(
+        doc,
+        source_file=None,
+        merge_source_pdf=False,
+        easy_read_only=True,
+    )
     try:
         return convert_docx_bytes_to_pdf(docx_bytes)
     except DocxToPdfError as exc:
-        if source_file and source_file.suffix.lower() == ".pdf":
-            from backend.services.pdf_native_merge import merge_original_pdf_with_easy_read
-
-            merged = merge_original_pdf_with_easy_read(source_file, doc)
-            if merged:
-                logger.info("export pdf: native PDF merge (docx→pdf unavailable)")
-                return merged
         rendered = render_easy_read_insert_html_pdf(doc)
         if rendered:
             logger.warning("export pdf: easy-read only PyMuPDF fallback")
