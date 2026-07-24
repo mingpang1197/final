@@ -4,9 +4,9 @@
 type EraiLogoSize = "sm" | "compact" | "default";
 
 const HEIGHT: Record<EraiLogoSize, string> = {
-  sm: "h-8",
-  compact: "h-10",
-  default: "h-12",
+  sm: "h-8 max-w-[108px]",
+  compact: "h-10 max-w-[140px]",
+  default: "h-12 max-w-[168px]",
 };
 
 interface EraiLogoProps {

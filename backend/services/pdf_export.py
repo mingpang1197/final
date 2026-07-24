@@ -42,7 +42,9 @@ from backend.services.word_export import (
     _collect_placements,
     _is_heading,
     EASY_READ_FONT_PROFILE,
+    EASY_READ_INTRO_EST_PT,
     ExportFontProfile,
+    estimate_easy_read_total_pages,
 )
 from backend.services.court_fonts import (
     css_font_family_stack,
@@ -152,6 +154,19 @@ def _font_css(
     }}
     strong, b {{
       font-weight: bold;
+    }}
+    p.intro-title {{
+      text-align: center;
+      font-size: 17px;
+      font-weight: bold;
+      margin: 10px 0 4px 0;
+    }}
+    p.intro-subtitle {{
+      text-align: center;
+      margin: 0 0 10px 0;
+    }}
+    p.intro-bullet {{
+      margin: 0 0 6px 0;
     }}
     div.easy-read-frame {{
       border: 1.5pt solid #b8b0a4;
@@ -295,6 +310,12 @@ def _build_html(
     sections = parse_export_sections(export_body)
     raw_placements = _collect_placements(doc) or []
     placements = prepare_placements_for_export(export_body, raw_placements)
+    page_count = estimate_easy_read_total_pages(
+        export_body,
+        placements,
+        extra_lead_pt=EASY_READ_INTRO_EST_PT,
+    )
+    blocks.extend(_intro_blocks_html(doc, page_count))
     has_section_layout = any(section.heading for section in sections)
 
     if has_section_layout:
@@ -358,6 +379,29 @@ def _build_html(
     content = "\n".join(blocks)
     framed = f'<div class="easy-read-frame">{content}</div>' if content.strip() else content
     return f"<html><head></head><body>{framed}</body></html>", css
+
+
+def _intro_blocks_html(doc: DocumentResponse, page_count: int) -> list[str]:
+    from backend.services.judgment_merge import (
+        build_easy_read_intro_lines,
+        resolve_easy_read_recipient_name,
+    )
+
+    easy_body = _collect_body_text(doc)
+    party = resolve_easy_read_recipient_name(
+        doc.full_text or "",
+        doc.doc_type,
+        easy_body,
+    )
+    blocks: list[str] = []
+    for kind, text in build_easy_read_intro_lines(party, page_count):
+        if kind == "title":
+            blocks.append(f'<p class="intro-title">{html.escape(text)}</p>')
+        elif kind == "subtitle":
+            blocks.append(f'<p class="intro-subtitle">{html.escape(text)}</p>')
+        else:
+            blocks.append(f'<p class="intro-bullet">{html.escape(text)}</p>')
+    return blocks
 
 
 def _provision_blocks_html() -> list[str]:

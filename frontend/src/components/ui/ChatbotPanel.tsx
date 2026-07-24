@@ -158,7 +158,7 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
       <div className="relative w-full max-w-[420px] h-[min(640px,calc(100vh-6rem))] bg-white border border-coolgray-20 shadow-2xl flex flex-col pointer-events-auto rounded-lg overflow-hidden">
         <header className="flex items-center gap-3 px-4 py-3 border-b border-coolgray-20 bg-coolgray-10 shrink-0">
           <div className="shrink-0 overflow-hidden rounded-md bg-white">
-            <EraiLogo size="sm" className="h-10 w-[88px]" />
+            <EraiLogo size="sm" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-coolgray-90">ERAI 챗봇</p>

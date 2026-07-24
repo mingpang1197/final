@@ -33,6 +33,8 @@ from backend.services.export_layout import (
 from backend.services.easy_read_sanitize import split_standard_closing
 from backend.services.judgment_merge import (
     EASY_READ_PROVISION_PARAGRAPHS,
+    build_easy_read_intro_lines,
+    resolve_easy_read_recipient_name,
     split_judgment_at_reason,
 )
 from backend.services.image_assets import resolve_placement_image
@@ -54,6 +56,7 @@ PAGE_MARGIN = Inches(PAGE_MARGIN_IN)
 # Word A4 본문 높이(여백 제외) — 소제목 페이지 중단 이후면 다음 페이지 추정용
 EASY_READ_USABLE_PAGE_PT = 620.0
 EASY_READ_PROVISION_EST_PT = 240.0
+EASY_READ_INTRO_EST_PT = 110.0
 EASY_READ_HEADING_EST_PT = 64.0
 EASY_READ_ITEM_BASE_EST_PT = 128.0
 EASY_READ_LINE_EST_PT = 26.0
@@ -495,6 +498,25 @@ def _fill_at_next_page_top(fill: float) -> float:
 
     page_index = math.ceil(fill / EASY_READ_USABLE_PAGE_PT)
     return max(page_index, 1) * EASY_READ_USABLE_PAGE_PT
+
+
+def estimate_easy_read_total_pages(
+    easy_body: str,
+    placements: list[ImagePlacement],
+    *,
+    extra_lead_pt: float = 0.0,
+) -> int:
+    """이지리드 테두리 영역(고지·안내·본문) 예상 쪽수."""
+    import math
+
+    body, closing = split_standard_closing(easy_body)
+    by_item = align_placements_to_items(body, placements)
+    fill = EASY_READ_PROVISION_EST_PT + extra_lead_pt
+    for section in parse_export_sections(body):
+        fill += _estimate_easy_read_section_height(section, by_item)
+    if closing:
+        fill += 36.0
+    return max(1, math.ceil(fill / EASY_READ_USABLE_PAGE_PT))
 
 
 def _add_page_break_before_cell_content(cell) -> None:
@@ -972,6 +994,40 @@ def _export_easy_read_provision(doc_or_cell) -> None:
             spacer.paragraph_format.space_after = Pt(4)
 
 
+def _export_easy_read_intro(
+    doc_or_cell,
+    doc: DocumentResponse,
+    *,
+    page_count: int,
+) -> None:
+    """「아래와 같습니다.」 다음 — 이지리드 표지·안내(●) 블록."""
+    easy_body = _collect_body_text(doc)
+    party = resolve_easy_read_recipient_name(
+        doc.full_text or "",
+        doc.doc_type,
+        easy_body,
+    )
+    for kind, text in build_easy_read_intro_lines(party, page_count):
+        p = doc_or_cell.add_paragraph()
+        if kind == "title":
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_before = Pt(10)
+            p.paragraph_format.space_after = Pt(4)
+            run = p.add_run(text)
+            _set_run_font(run, HEADING_PT, bold=True)
+        elif kind == "subtitle":
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_after = Pt(10)
+            run = p.add_run(text)
+            _set_run_font(run, _body_pt())
+        else:
+            _apply_body_format(p)
+            run = p.add_run(text)
+            _set_run_font(run, _body_pt())
+    spacer = doc_or_cell.add_paragraph()
+    spacer.paragraph_format.space_after = Pt(6)
+
+
 def _export_easy_read_body(doc: Document, easy_body: str, raw_placements: list[ImagePlacement]) -> None:
     placements = prepare_placements_for_export(easy_body, raw_placements)
     sections = parse_export_sections(easy_body)
@@ -1035,13 +1091,19 @@ def _write_easy_read_bordered(
         _export_easy_read_provision(cell)
         raw_placements = _collect_placements(doc) or []
         placements = prepare_placements_for_export(easy_body, raw_placements)
+        page_count = estimate_easy_read_total_pages(
+            easy_body,
+            placements,
+            extra_lead_pt=EASY_READ_INTRO_EST_PT,
+        )
+        _export_easy_read_intro(cell, doc, page_count=page_count)
         sections = parse_export_sections(easy_body)
         if any(section.heading for section in sections):
             _export_easy_read_layout_in_table(
                 table,
                 easy_body,
                 placements,
-                page_fill_pt=EASY_READ_PROVISION_EST_PT,
+                page_fill_pt=EASY_READ_PROVISION_EST_PT + EASY_READ_INTRO_EST_PT,
             )
         else:
             body_cell = append_easy_read_section_row(table)
