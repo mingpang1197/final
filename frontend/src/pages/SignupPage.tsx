@@ -80,7 +80,7 @@ export function SignupPage() {
           aria-label="회원가입"
         >
           <div className="mb-10">
-            <EraiLogo size="default" />
+            <EraiLogo size="lg" />
           </div>
           <h1 className="mb-[56px] text-[32px] font-bold leading-[1.1] text-black">회원가입</h1>
 

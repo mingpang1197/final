@@ -48,7 +48,7 @@ export function LoginPage() {
           aria-label="로그인"
         >
           <div className="mb-10">
-            <EraiLogo size="default" />
+            <EraiLogo size="lg" />
           </div>
           <h1 className="mb-[72px] text-[32px] font-bold leading-[1.1] text-black">로그인</h1>
 
