@@ -146,11 +146,22 @@ POST   /api/documents/{doc_id}/export.pdf
 POST   /api/chat
 - ERAI 챗봇 (Solar) — DB(LEGAL_DB) 우선, 부족 시 웹 검색
 - Request: { message, history?: [{ role: "user"|"assistant", content }] }
-- Response: { reply, sources: ["db"|"document"|"web"|"solar"] }
+- Response: { reply, sources: ["db"|"document"|"web"|"solar"|"generated"], visual_aids?: ChatVisualAid[] }
+- ChatVisualAid: { phrase, explanation?, image_file?, image_url?, title?, source: "db"|"web"|"generated"|"pending", generated }
 
 POST   /api/chat/documents/{doc_id}
 - 문서 맥락 포함 챗봇
 - Request/Response: POST /api/chat 와 동일
+
+GET    /api/chat/openai-settings
+- OpenAI API 키 설정 상태 (마스킹)
+- Response: { configured, api_key_masked, source: "env"|"file"|"none", image_gen_enabled }
+
+PATCH  /api/chat/openai-settings
+- OpenAI API 키 저장 (data/openai_settings.yaml) — DALL·E 시각자료 생성용
+- Request: { api_key } — 빈 문자열이면 삭제
+- Response: GET /api/chat/openai-settings 와 동일
+- .env: OPENAI_API_KEY(우선), MOCK_IMAGE_GEN=false 시 생성 활성
 
 GET    /api/chat/prompt
 - 챗봇 system prompt 조회

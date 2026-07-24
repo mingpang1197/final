@@ -663,14 +663,26 @@ export async function detectImagePlacements(
   });
 }
 
+export interface ChatVisualAid {
+  phrase: string;
+  explanation?: string | null;
+  image_file?: string | null;
+  image_url?: string | null;
+  title?: string | null;
+  source: "db" | "web" | "generated" | "pending";
+  generated: boolean;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  visual_aids?: ChatVisualAid[];
 }
 
 export interface ChatResponse {
   reply: string;
   sources: string[];
+  visual_aids?: ChatVisualAid[];
 }
 
 export async function sendChatMessage(
@@ -695,5 +707,24 @@ export async function updateChatPrompt(systemPrompt: string): Promise<{ system_p
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ system_prompt: systemPrompt }),
+  });
+}
+
+export interface OpenAISettings {
+  configured: boolean;
+  api_key_masked: string;
+  source: "env" | "file" | "none";
+  image_gen_enabled: boolean;
+}
+
+export async function getOpenAISettings(): Promise<OpenAISettings> {
+  return request<OpenAISettings>("/chat/openai-settings");
+}
+
+export async function updateOpenAISettings(apiKey: string): Promise<OpenAISettings> {
+  return request<OpenAISettings>("/chat/openai-settings", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ api_key: apiKey }),
   });
 }

@@ -4,6 +4,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ChatbotWidget } from "./ChatbotWidget";
+import { EraiLogo } from "./EraiLogo";
 import { StepIndicator, type WorkflowStep } from "./StepIndicator";
 
 /** 2단 grid — 중앙선 기준 1:1, 좌·우 바깥 여백 동일(px-5) */
@@ -53,7 +54,7 @@ export function WorkflowLayout({
   step,
   docId,
   filename,
-  projectTitle = "Easy-Read 판결문 작성 보조",
+  projectTitle,
   headerVariant = "default",
   prevNav,
   nextNav,
@@ -69,12 +70,8 @@ export function WorkflowLayout({
         <div
           className={`flex items-start justify-between gap-6 ${compact ? "mb-3" : "mb-6"}`}
         >
-          <h1
-            className={`font-bold leading-tight tracking-tight text-coolgray-90 ${
-              compact ? "text-[32px]" : "text-[42px]"
-            }`}
-          >
-            {projectTitle}
+          <h1 className="leading-none">
+            {projectTitle ?? <EraiLogo size={compact ? "compact" : "default"} />}
           </h1>
           {filename && (
             <span

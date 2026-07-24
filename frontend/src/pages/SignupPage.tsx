@@ -3,6 +3,7 @@
  */
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { EraiLogo } from "../components/ui/EraiLogo";
 import { isAuthenticated, registerUser } from "../utils/auth";
 
 type SignupForm = {
@@ -78,6 +79,9 @@ export function SignupPage() {
           className="flex flex-1 flex-col justify-center px-8 py-16 sm:px-16 lg:px-[140px]"
           aria-label="회원가입"
         >
+          <div className="mb-10">
+            <EraiLogo size="default" />
+          </div>
           <h1 className="mb-[56px] text-[32px] font-bold leading-[1.1] text-black">회원가입</h1>
 
           <div className="w-full max-w-[575px] space-y-[30px]">

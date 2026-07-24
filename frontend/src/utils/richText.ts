@@ -177,6 +177,17 @@ function parseFontPt(el: HTMLElement): FontSizePt | null {
   return null;
 }
 
+function elementIsBold(el: HTMLElement): boolean {
+  const tag = el.tagName;
+  if (tag === "STRONG" || tag === "B") return true;
+  const fw = el.style.fontWeight;
+  if (fw === "bold" || fw === "700" || fw === "600" || fw === "800" || fw === "900") {
+    return true;
+  }
+  const n = Number(fw);
+  return Number.isFinite(n) && n >= 600;
+}
+
 function nodeToMarkers(node: Node, ctx: { bold: boolean; sizePt: FontSizePt }): string {
   if (node.nodeType === Node.TEXT_NODE) {
     const raw = node.textContent ?? "";
@@ -193,7 +204,7 @@ function nodeToMarkers(node: Node, ctx: { bold: boolean; sizePt: FontSizePt }): 
   if (el.tagName === "BR") return "\n";
 
   const nextCtx = { ...ctx };
-  if (el.tagName === "STRONG" || el.tagName === "B") nextCtx.bold = true;
+  if (elementIsBold(el)) nextCtx.bold = true;
   const fontPt = parseFontPt(el);
   if (fontPt) nextCtx.sizePt = fontPt;
 

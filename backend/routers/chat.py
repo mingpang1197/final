@@ -7,8 +7,11 @@ from backend.models.schemas import (
     ChatPromptUpdate,
     ChatRequest,
     ChatResponse,
+    OpenAISettingsResponse,
+    OpenAISettingsUpdate,
 )
 from backend.services.chatbot import answer_chat
+from backend.services.openai_settings import openai_settings_status, save_openai_api_key
 from backend.services.prompts import load_chatbot_prompt, save_chatbot_prompt
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -42,3 +45,16 @@ async def update_chat_prompt(body: ChatPromptUpdate) -> ChatPromptResponse:
         raise HTTPException(400, "system_prompt가 비어 있습니다.")
     save_chatbot_prompt(prompt)
     return ChatPromptResponse(system_prompt=prompt)
+
+
+@router.get("/openai-settings", response_model=OpenAISettingsResponse)
+async def get_openai_settings() -> OpenAISettingsResponse:
+    status = openai_settings_status()
+    return OpenAISettingsResponse(**status)
+
+
+@router.patch("/openai-settings", response_model=OpenAISettingsResponse)
+async def update_openai_settings(body: OpenAISettingsUpdate) -> OpenAISettingsResponse:
+    save_openai_api_key(body.api_key)
+    status = openai_settings_status()
+    return OpenAISettingsResponse(**status)

@@ -250,11 +250,6 @@ export function SummaryPage() {
       step="summary"
       docId={id}
       headerVariant="compact"
-      projectTitle={
-        <>
-          ER<span className="text-primary-60">AI</span>
-        </>
-      }
       filename={filenameLabel}
       error={error || undefined}
     >

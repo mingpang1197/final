@@ -178,11 +178,6 @@ export function ExportPage() {
       step="export"
       docId={id}
       headerVariant="compact"
-      projectTitle={
-        <>
-          ER<span className="text-primary-60">AI</span>
-        </>
-      }
       filename={filename || "파일명"}
       error={error || undefined}
     >

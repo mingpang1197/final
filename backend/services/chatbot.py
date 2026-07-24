@@ -11,6 +11,7 @@ from backend.config import ROOT_DIR
 from backend.database import get_document
 from backend.models.schemas import ChatMessage, ChatResponse
 from backend.services import upstage
+from backend.services.chat_visual_aids import suggest_visual_aids
 from backend.services.prompts import load_chatbot_prompt
 from backend.services.web_search import search_web
 
@@ -190,4 +191,16 @@ async def answer_chat(
     if not sources:
         sources.append("solar")
 
-    return ChatResponse(reply=reply.strip(), sources=sources)
+    reply_text = reply.strip()
+    visual_aids = await suggest_visual_aids(
+        question,
+        doc_context=doc_context,
+        reply=reply_text,
+    )
+    for aid in visual_aids:
+        if aid.source == "generated" and "generated" not in sources:
+            sources.append("generated")
+        elif aid.source == "web" and "web" not in sources and aid.image_url:
+            pass  # already may have web from text search
+
+    return ChatResponse(reply=reply_text, sources=sources, visual_aids=visual_aids)

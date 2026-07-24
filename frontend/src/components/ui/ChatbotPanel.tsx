@@ -1,10 +1,14 @@
 /**
- * 챗봇 대화 패널 — Solar API + DB/웹 검색 연동.
+ * 챗봇 대화 패널 — Solar API + DB/웹 검색 + 시각자료 추천(stub/생성).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChatMessage } from "../../api/client";
-import { sendChatMessage } from "../../api/client";
-import { IconChatSolid } from "./icons";
+import type { ChatMessage, ChatVisualAid } from "../../api/client";
+import {
+  getOpenAISettings,
+  sendChatMessage,
+  updateOpenAISettings,
+} from "../../api/client";
+import { EraiLogo } from "./EraiLogo";
 
 interface ChatbotPanelProps {
   open: boolean;
@@ -12,16 +16,101 @@ interface ChatbotPanelProps {
   docId?: string;
 }
 
+function visualAidImageSrc(aid: ChatVisualAid): string | null {
+  if (aid.image_url?.startsWith("http")) return aid.image_url;
+  if (aid.image_file) return `/images/${aid.image_file}`;
+  if (aid.image_url) return aid.image_url;
+  return null;
+}
+
+function sourceLabel(source: ChatVisualAid["source"]): string {
+  switch (source) {
+    case "db":
+      return "시각자료 DB";
+    case "web":
+      return "웹 검색";
+    case "generated":
+      return "AI 생성";
+    default:
+      return "준비 중";
+  }
+}
+
+function VisualAidCard({ aid }: { aid: ChatVisualAid }) {
+  const src = visualAidImageSrc(aid);
+  return (
+    <div className="mt-2 rounded-lg border border-coolgray-20 bg-white p-2 text-left">
+      <p className="text-xs font-medium text-primary-90 truncate" title={aid.phrase}>
+        {aid.phrase}
+      </p>
+      {aid.explanation && (
+        <p className="text-xs text-coolgray-60 mt-1 line-clamp-3">{aid.explanation}</p>
+      )}
+      {src ? (
+        <img
+          src={src}
+          alt={aid.title || aid.phrase}
+          className="mt-2 max-h-28 w-full object-contain rounded bg-[#f5f0e8]"
+          loading="lazy"
+        />
+      ) : (
+        <p className="mt-2 text-xs text-coolgray-60 italic">
+          OpenAI API 키를 설정하고 MOCK_IMAGE_GEN=false 이면 AI 그림을 생성할 수 있습니다.
+        </p>
+      )}
+      <p className="text-[10px] text-coolgray-40 mt-1">{sourceLabel(aid.source)}</p>
+    </div>
+  );
+}
+
 export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [openaiKeyInput, setOpenaiKeyInput] = useState("");
+  const [openaiStatus, setOpenaiStatus] = useState<{
+    configured: boolean;
+    api_key_masked: string;
+    image_gen_enabled: boolean;
+    source: string;
+  } | null>(null);
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const loadOpenAISettings = useCallback(async () => {
+    try {
+      const status = await getOpenAISettings();
+      setOpenaiStatus(status);
+    } catch {
+      setOpenaiStatus(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      loadOpenAISettings().catch(console.error);
+    }
+  }, [open, loadOpenAISettings]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages, loading, showSettings]);
+
+  const saveOpenAIKey = useCallback(async () => {
+    setSettingsSaving(true);
+    setError("");
+    try {
+      const status = await updateOpenAISettings(openaiKeyInput.trim());
+      setOpenaiStatus(status);
+      setOpenaiKeyInput("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "OpenAI 설정 저장 실패");
+    } finally {
+      setSettingsSaving(false);
+    }
+  }, [openaiKeyInput]);
 
   const send = useCallback(async () => {
     const text = input.trim();
@@ -36,7 +125,14 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
 
     try {
       const res = await sendChatMessage(text, messages, docId);
-      setMessages([...nextHistory, { role: "assistant", content: res.reply }]);
+      setMessages([
+        ...nextHistory,
+        {
+          role: "assistant",
+          content: res.reply,
+          visual_aids: res.visual_aids ?? [],
+        },
+      ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "챗봇 응답 실패");
       setMessages(messages);
@@ -61,15 +157,23 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
 
       <div className="relative w-full max-w-[420px] h-[min(640px,calc(100vh-6rem))] bg-white border border-coolgray-20 shadow-2xl flex flex-col pointer-events-auto rounded-lg overflow-hidden">
         <header className="flex items-center gap-3 px-4 py-3 border-b border-coolgray-20 bg-coolgray-10 shrink-0">
-          <div className="size-10 rounded-full bg-primary-60 flex items-center justify-center shrink-0">
-            <IconChatSolid className="size-6" />
+          <div className="shrink-0 overflow-hidden rounded-md bg-white">
+            <EraiLogo size="sm" className="h-10 w-[88px]" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-coolgray-90">ERAI 챗봇</p>
             <p className="text-xs text-coolgray-60 truncate">
-              {docId ? "현재 문서 맥락 포함" : "DB · 웹 검색 지원"}
+              {docId ? "현재 문서 맥락 · 시각자료 추천" : "DB · 웹 · 시각자료"}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowSettings((v) => !v)}
+            className="text-xs text-primary-60 hover:text-primary-90 px-2 py-1 shrink-0"
+            aria-expanded={showSettings}
+          >
+            설정
+          </button>
           <button
             type="button"
             onClick={onClose}
@@ -80,12 +184,61 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
           </button>
         </header>
 
+        {showSettings && (
+          <div className="shrink-0 border-b border-coolgray-20 bg-coolgray-10 px-4 py-3 space-y-2">
+            <p className="text-sm font-medium text-coolgray-90">OpenAI API 키</p>
+            <p className="text-xs text-coolgray-60 leading-relaxed">
+              문구 이해용 AI 시각자료 생성(DALL·E)에 사용합니다. 서버에 저장되며, 키가 없으면
+              시각자료 DB·웹 검색만 사용합니다.
+            </p>
+            {openaiStatus && (
+              <p className="text-xs text-coolgray-60">
+                현재:{" "}
+                {openaiStatus.configured
+                  ? `${openaiStatus.api_key_masked} (${openaiStatus.source})`
+                  : "미설정"}
+                {openaiStatus.image_gen_enabled
+                  ? " · AI 생성 사용 가능"
+                  : " · AI 생성 꺼짐 (MOCK_IMAGE_GEN=false 필요)"}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={openaiKeyInput}
+                onChange={(e) => setOpenaiKeyInput(e.target.value)}
+                placeholder="sk-..."
+                autoComplete="off"
+                className="flex-1 h-9 px-2 text-sm border border-coolgray-30 bg-white outline-none focus:border-primary-60"
+              />
+              <button
+                type="button"
+                onClick={saveOpenAIKey}
+                disabled={settingsSaving}
+                className="px-3 h-9 bg-primary-60 text-white text-xs font-medium disabled:opacity-50"
+              >
+                {settingsSaving ? "저장 중" : "저장"}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenaiKeyInput("");
+                void updateOpenAISettings("").then(setOpenaiStatus).catch(console.error);
+              }}
+              className="text-xs text-coolgray-60 hover:text-alert underline"
+            >
+              저장된 키 삭제
+            </button>
+          </div>
+        )}
+
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
           {messages.length === 0 && !loading && (
             <p className="text-sm text-coolgray-60 text-center py-8 leading-relaxed">
               판결문·이지리드·서비스 사용법을 물어보세요.
               <br />
-              DB에서 먼저 찾고, 필요하면 웹 검색으로 답합니다.
+              답변과 함께 이해를 돕는 시각자료를 추천합니다.
             </p>
           )}
 
@@ -102,6 +255,14 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
                 }`}
               >
                 {msg.content}
+                {msg.role === "assistant" && msg.visual_aids?.length ? (
+                  <div className="mt-2 space-y-2 border-t border-coolgray-20 pt-2">
+                    <p className="text-xs font-medium text-coolgray-60">시각자료</p>
+                    {msg.visual_aids.map((aid, j) => (
+                      <VisualAidCard key={`${aid.phrase}-${j}`} aid={aid} />
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
           ))}

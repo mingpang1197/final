@@ -4,6 +4,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { type DocType, type UploadResult, uploadDocument, updateDocType } from "../api/client";
+import { EraiLogo } from "../components/ui/EraiLogo";
 import { ExistingProjectsTable } from "../components/ui/ExistingProjectsTable";
 import { ChatbotWidget } from "../components/ui/ChatbotWidget";
 import { IconUploadCloud } from "../components/ui/icons";
@@ -117,8 +118,8 @@ export function UploadPage() {
     <div className="h-screen overflow-hidden bg-coolgray-10 flex flex-col">
       <header className="px-6 pt-4 pb-0 shrink-0">
         <div className="flex items-start justify-between gap-6 mb-3">
-          <h1 className="text-[32px] font-bold leading-tight text-coolgray-90 tracking-tight">
-            ER<span className="text-primary-60">AI</span>
+          <h1 className="leading-none">
+            <EraiLogo size="compact" />
           </h1>
           <div className="flex flex-col items-end gap-1 shrink-0 pt-1">
             <span className="text-primary-60 font-medium text-base tracking-wide truncate max-w-[40vw]">

@@ -99,8 +99,11 @@ def _convert_via_word_com(docx_bytes: bytes) -> bytes:
             word = win32com.client.Dispatch("Word.Application")
             word.Visible = False
             try:
-                word.Options.SaveEmbedTrueTypeFonts = True
-                word.Options.SaveEmbedSystemFonts = False
+                try:
+                    word.Options.SaveEmbedTrueTypeFonts = True
+                    word.Options.SaveEmbedSystemFonts = False
+                except Exception:
+                    pass
                 doc = word.Documents.Open(str(docx_path.resolve()))
                 try:
                     doc.SaveAs(str(pdf_path.resolve()), FileFormat=17)

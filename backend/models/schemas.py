@@ -171,6 +171,16 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class ChatVisualAid(BaseModel):
+    phrase: str
+    explanation: str | None = None
+    image_file: str | None = None
+    image_url: str | None = None
+    title: str | None = None
+    source: Literal["db", "web", "generated", "pending"] = "pending"
+    generated: bool = False
+
+
 class ChatRequest(BaseModel):
     message: str
     history: list[ChatMessage] = Field(default_factory=list)
@@ -179,6 +189,18 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     sources: list[str] = Field(default_factory=list)
+    visual_aids: list[ChatVisualAid] = Field(default_factory=list)
+
+
+class OpenAISettingsResponse(BaseModel):
+    configured: bool
+    api_key_masked: str = ""
+    source: Literal["env", "file", "none"] = "none"
+    image_gen_enabled: bool = False
+
+
+class OpenAISettingsUpdate(BaseModel):
+    api_key: str = ""
 
 
 class ChatPromptResponse(BaseModel):

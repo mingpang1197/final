@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     convertapi_secret: str = ""
     admin_emails: str = ""  # comma-separated login emails for storage admin
 
+    openai_api_key: str = ""
+    mock_image_gen: bool = True
+    openai_image_model: str = "dall-e-3"
+    openai_image_size: str = "1024x1024"
+
     upstage_ocr_url: str = "https://api.upstage.ai/v1/document-digitization"
     upstage_chat_url: str = "https://api.upstage.ai/v1/solar/chat/completions"
     solar_model: str = "solar-pro"
@@ -44,6 +49,14 @@ class Settings(BaseSettings):
         if not self.upstage_api_key.strip():
             return True
         return self.mock_upstage
+
+    @property
+    def image_gen_enabled(self) -> bool:
+        if self.mock_image_gen:
+            return False
+        from backend.services.openai_settings import get_openai_api_key
+
+        return bool(get_openai_api_key())
 
 
 settings = Settings()

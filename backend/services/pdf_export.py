@@ -150,6 +150,9 @@ def _font_css(
       clear: both;
       margin: 12px 0 0 0;
     }}
+    strong, b {{
+      font-weight: bold;
+    }}
     div.easy-read-frame {{
       border: 1.5pt solid #b8b0a4;
       background: #ffffff;
@@ -175,7 +178,14 @@ def _line_to_html(line: str) -> str | None:
         return None
 
     if _is_heading(stripped):
-        text = html.escape(_clean_heading(stripped))
+        chunks: list[str] = []
+        for part, is_bold, size_pt in iter_styled_runs(_clean_heading(stripped)):
+            escaped = html.escape(part)
+            inner = f"<strong>{escaped}</strong>" if is_bold else escaped
+            if size_pt != 12:
+                inner = f'<span style="font-size:{int(size_pt)}px">{inner}</span>'
+            chunks.append(inner)
+        text = "".join(chunks) if chunks else html.escape(_clean_heading(stripped))
         return f'<p class="heading">{text}</p>'
 
     chunks: list[str] = []
