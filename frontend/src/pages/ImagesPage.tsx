@@ -20,6 +20,10 @@ import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { filterPlacementsForExport } from "../utils/translationSections";
 import { useDebouncedSave, useFlushSaveOnUnmount } from "../utils/useDebouncedSave";
 import {
+  awaitPlacementPrefetchIfMatching,
+  hasFreshPrefetchedPlacements,
+} from "../utils/placementPrefetch";
+import {
   getWorkflowSnapshot,
   resolveTranslationSegments,
   saveWorkflowSnapshot,
@@ -86,30 +90,46 @@ export function ImagesPage() {
     try {
       const doc = await loadDocumentWithRecovery(id);
       setFilename(doc.filename);
+      // resolveTranslationSegments가 번역 탭 workflow 편집본을 서버본과 병합
       let segs = sanitizeSegments(resolveTranslationSegments(id, doc.translation_segments));
       const main = segs[0];
       if (main?.easy_text) {
+        const text = main.easy_text;
         setAutoPlacing(true);
         try {
-          const ensurePayload = buildEnsureContext(id);
-          const clearedExisting = filterPlacementsRespectingClears(
-            id,
-            main.image_placements ?? [],
-          );
-          let filled = await detectImagePlacements(id, {
-            ...(ensurePayload ?? {}),
-            translationText: main.easy_text,
-            existingPlacements: clearedExisting,
-          });
-          filled = filterPlacementsRespectingClears(id, filled);
-          if (placementsChanged(clearedExisting, filled)) {
-            segs = segs.map((s, i) =>
-              i === 0 ? { ...s, image_placements: filled } : s,
-            );
-          } else if (clearedExisting.length !== (main.image_placements ?? []).length) {
-            segs = segs.map((s, i) =>
-              i === 0 ? { ...s, image_placements: clearedExisting } : s,
-            );
+          if (hasFreshPrefetchedPlacements(id, text)) {
+            const fresh = getWorkflowSnapshot(id)?.translation_segments;
+            if (fresh?.length) {
+              segs = sanitizeSegments(fresh);
+            }
+          } else {
+            const prefetched = await awaitPlacementPrefetchIfMatching(id, text);
+            if (prefetched && prefetched.length) {
+              segs = segs.map((s, i) =>
+                i === 0 ? { ...s, image_placements: prefetched } : s,
+              );
+            } else {
+              const ensurePayload = buildEnsureContext(id);
+              const clearedExisting = filterPlacementsRespectingClears(
+                id,
+                main.image_placements ?? [],
+              );
+              let filled = await detectImagePlacements(id, {
+                ...(ensurePayload ?? {}),
+                translationText: text,
+                existingPlacements: clearedExisting,
+              });
+              filled = filterPlacementsRespectingClears(id, filled);
+              if (placementsChanged(clearedExisting, filled)) {
+                segs = segs.map((s, i) =>
+                  i === 0 ? { ...s, image_placements: filled } : s,
+                );
+              } else if (clearedExisting.length !== (main.image_placements ?? []).length) {
+                segs = segs.map((s, i) =>
+                  i === 0 ? { ...s, image_placements: clearedExisting } : s,
+                );
+              }
+            }
           }
         } catch (err) {
           console.error("auto-fill image placements failed", err);
@@ -124,7 +144,11 @@ export function ImagesPage() {
       }
       setSegments(segs);
       if (segs.length) {
-        saveWorkflowSnapshot(id, { translation_segments: segs, filename: doc.filename });
+        saveWorkflowSnapshot(id, {
+          translation_segments: segs,
+          translation_text: segmentsToText(segs),
+          filename: doc.filename,
+        });
       }
       const updatedMain = segs[0];
       if (

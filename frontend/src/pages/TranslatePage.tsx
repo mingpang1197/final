@@ -16,6 +16,7 @@ import { WorkflowLayout, WorkflowTwoPaneColumn, WorkflowTwoPaneGrid } from "../c
 import { buildEnsureContext, loadDocumentWithRecovery } from "../utils/documentLoader";
 import { sanitizeTranslationText } from "../utils/sanitizeTranslation";
 import { useDebouncedSave, useFlushSaveOnUnmount } from "../utils/useDebouncedSave";
+import { startPlacementPrefetch } from "../utils/placementPrefetch";
 import {
   getWorkflowSnapshot,
   resolveSummary,
@@ -90,6 +91,10 @@ export function TranslatePage() {
           translation_text: doc.translation_text ?? workflow?.translation_text,
           filename: doc.filename,
         });
+        const hasAuto = segs[0]?.image_placements?.some((p) => p.auto_filled);
+        if (!hasAuto) {
+          startPlacementPrefetch(id, segs);
+        }
       } else {
         setGenerating(true);
         try {
@@ -101,6 +106,8 @@ export function TranslatePage() {
             translation_text: updated.translation_text ?? undefined,
             filename: updated.filename,
           });
+          // 번역 완료 직후 시각자료 배치를 백그라운드로 시작
+          startPlacementPrefetch(id, segs);
         } catch (err) {
           setError(err instanceof Error ? err.message : "번역 생성 실패");
         } finally {
@@ -150,6 +157,8 @@ export function TranslatePage() {
         translation_text: segmentsToText(segments),
       });
       setSaveStatus("saved");
+      // 편집·저장 반영 후 시각자료 배치도 최신 번역문 기준으로 다시 시작
+      startPlacementPrefetch(id, segments);
     } catch (err) {
       setSaveStatus("idle");
       setError(err instanceof Error ? err.message : "저장 실패");
@@ -185,6 +194,7 @@ export function TranslatePage() {
         translation_segments: segs,
         translation_text: segmentsToText(segs),
       });
+      startPlacementPrefetch(id, segs);
       setPrompt("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI 수정 실패");
