@@ -109,7 +109,12 @@ async def serve_root():
 async def serve_assets(asset_path: str):
     asset = _static_file(f"assets/{asset_path}")
     if asset:
-        return FileResponse(asset, headers={"Cache-Control": "public, max-age=31536000, immutable"})
+        cache = (
+            "public, max-age=86400, must-revalidate"
+            if asset_path.startswith("erai-logo")
+            else "public, max-age=31536000, immutable"
+        )
+        return FileResponse(asset, headers={"Cache-Control": cache})
     raise HTTPException(status_code=404, detail="Asset not found")
 
 
@@ -119,6 +124,23 @@ async def serve_favicon():
     if icon:
         return FileResponse(icon)
     raise HTTPException(status_code=404, detail="Favicon not found")
+
+
+@app.get("/login")
+@app.get("/signup")
+async def serve_auth_pages():
+    index = _static_file("index.html")
+    if index:
+        return FileResponse(index, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    raise HTTPException(status_code=404, detail="SPA build not found")
+
+
+@app.get("/admin/{rest:path}")
+async def serve_admin_routes(rest: str):
+    index = _static_file("index.html")
+    if index:
+        return FileResponse(index, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    raise HTTPException(status_code=404, detail="SPA build not found")
 
 
 @app.get("/documents/{rest:path}")
