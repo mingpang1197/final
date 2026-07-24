@@ -9,9 +9,8 @@ from rapidfuzz import fuzz, process
 
 from backend.config import ROOT_DIR
 from backend.database import get_document
-from backend.models.schemas import ChatMessage, ChatResponse
+from backend.models.schemas import ChatMessage, ChatResponse, ChatVisualAid
 from backend.services import upstage
-from backend.services.chat_visual_aids import suggest_visual_aids
 from backend.services.image_matcher import list_image_catalog
 from backend.services.prompts import format_chat_writing_rules_context, load_chatbot_prompt
 from backend.services.usage_guide_db import (
@@ -447,13 +446,7 @@ async def answer_chat(
         sources.append("solar")
 
     reply_text = reply.strip()
-    visual_aids = await suggest_visual_aids(
-        question,
-        doc_context=doc_context,
-        reply=reply_text,
-    )
-    for aid in visual_aids:
-        if aid.source == "generated" and "generated" not in sources:
-            sources.append("generated")
+    # 챗봇 답변에 시각자료 카드/생성 이미지를 붙이지 않음
+    visual_aids: list[ChatVisualAid] = []
 
     return ChatResponse(reply=reply_text, sources=sources, visual_aids=visual_aids)
