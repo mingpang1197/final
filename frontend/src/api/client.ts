@@ -689,12 +689,13 @@ export async function sendChatMessage(
   message: string,
   history: ChatMessage[] = [],
   docId?: string,
+  pagePath?: string,
 ): Promise<ChatResponse> {
   const path = docId ? `/chat/documents/${docId}` : "/chat";
   return request<ChatResponse>(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, history }),
+    body: JSON.stringify({ message, history, page_path: pagePath }),
   });
 }
 

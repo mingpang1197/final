@@ -1,7 +1,7 @@
 /**
  * 챗봇 대화 패널 — Solar API + DB/웹 검색 + 시각자료 추천(stub/생성).
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { ChatMessage, ChatVisualAid } from "../../api/client";
 import {
   getOpenAISettings,
@@ -14,6 +14,32 @@ interface ChatbotPanelProps {
   open: boolean;
   onClose: () => void;
   docId?: string;
+  pagePath?: string;
+}
+
+function renderBoldText(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /\*\*([\s\S]+?)\*\*/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(<span key={`plain-${lastIndex}`}>{text.slice(lastIndex, match.index)}</span>);
+    }
+    nodes.push(<strong key={`bold-${match.index}`}>{match[1]}</strong>);
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(<span key={`tail-${lastIndex}`}>{text.slice(lastIndex)}</span>);
+  }
+
+  if (!nodes.length) {
+    return [<span key="plain-0">{text}</span>];
+  }
+
+  return nodes;
 }
 
 function visualAidImageSrc(aid: ChatVisualAid): string | null {
@@ -63,7 +89,7 @@ function VisualAidCard({ aid }: { aid: ChatVisualAid }) {
   );
 }
 
-export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
+export function ChatbotPanel({ open, onClose, docId, pagePath }: ChatbotPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -124,7 +150,7 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
     setError("");
 
     try {
-      const res = await sendChatMessage(text, messages, docId);
+      const res = await sendChatMessage(text, messages, docId, pagePath);
       setMessages([
         ...nextHistory,
         {
@@ -139,7 +165,7 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [docId, input, loading, messages]);
+  }, [docId, input, loading, messages, pagePath]);
 
   if (!open) return null;
 
@@ -163,7 +189,11 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
           <div className="flex-1 min-w-0">
             <p className="font-medium text-coolgray-90">ERAI 챗봇</p>
             <p className="text-xs text-coolgray-60 truncate">
-              {docId ? "현재 문서 맥락 · 시각자료 추천" : "DB · 웹 · 시각자료"}
+              {pagePath && pagePath !== "/login" && pagePath !== "/signup"
+                ? "현재 화면 · 사용방안 DB"
+                : docId
+                  ? "현재 문서 맥락 · 시각자료 추천"
+                  : "DB · 웹 · 시각자료"}
             </p>
           </div>
           <button
@@ -254,7 +284,7 @@ export function ChatbotPanel({ open, onClose, docId }: ChatbotPanelProps) {
                     : "bg-coolgray-10 text-coolgray-90 border border-coolgray-20"
                 }`}
               >
-                {msg.content}
+                {msg.role === "assistant" ? renderBoldText(msg.content) : msg.content}
                 {msg.role === "assistant" && msg.visual_aids?.length ? (
                   <div className="mt-2 space-y-2 border-t border-coolgray-20 pt-2">
                     <p className="text-xs font-medium text-coolgray-60">시각자료</p>

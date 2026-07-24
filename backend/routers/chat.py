@@ -22,7 +22,12 @@ async def chat(body: ChatRequest) -> ChatResponse:
     message = body.message.strip()
     if not message:
         raise HTTPException(400, "메시지를 입력하세요.")
-    return await answer_chat(message, history=body.history)
+    return await answer_chat(
+        message,
+        history=body.history,
+        page_context=body.page_context,
+        page_path=body.page_path,
+    )
 
 
 @router.post("/documents/{doc_id}", response_model=ChatResponse)
@@ -30,7 +35,13 @@ async def chat_with_document(doc_id: str, body: ChatRequest) -> ChatResponse:
     message = body.message.strip()
     if not message:
         raise HTTPException(400, "메시지를 입력하세요.")
-    return await answer_chat(message, doc_id=doc_id, history=body.history)
+    return await answer_chat(
+        message,
+        doc_id=doc_id,
+        history=body.history,
+        page_context=body.page_context,
+        page_path=body.page_path,
+    )
 
 
 @router.get("/prompt", response_model=ChatPromptResponse)

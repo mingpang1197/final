@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-"""챗봇 — LEGAL_DB·문서 맥락 우선, 부족 시 웹 검색 후 Solar 응답."""
+"""챗봇 — LEGAL_DB·사용방안 DB·문서 맥락 우선, 부족 시 웹 검색 후 Solar 응답."""
 
+import re
 import sys
-from pathlib import Path
 
 from rapidfuzz import fuzz, process
 
@@ -12,7 +12,14 @@ from backend.database import get_document
 from backend.models.schemas import ChatMessage, ChatResponse
 from backend.services import upstage
 from backend.services.chat_visual_aids import suggest_visual_aids
+from backend.services.image_matcher import list_image_catalog
 from backend.services.prompts import load_chatbot_prompt
+from backend.services.usage_guide_db import (
+    format_usage_guide_context,
+    is_service_help_question,
+    match_quick_reply,
+    resolve_page_context,
+)
 from backend.services.web_search import search_web
 
 sys.path.insert(0, str(ROOT_DIR))
@@ -21,6 +28,129 @@ from db_rules import LEGAL_DB  # noqa: E402
 NEED_WEB_MARKER = "NEED_WEB_SEARCH"
 DB_MATCH_THRESHOLD = 55
 DB_RESULT_LIMIT = 6
+IMAGE_TITLE_RECOMMEND_LIMIT = 5
+
+_SOURCE_REQUEST_TOKENS = ("출처", "근거", "참고문헌", "어디서가져", "출처가", "출처를")
+_IMAGE_HELP_TOKENS = (
+    "그림",
+    "이미지",
+    "image",
+    "title",
+    "시각자료",
+    "첨부할그림",
+    "그림이름",
+    "이미지이름",
+    "그림추천",
+    "이미지추천",
+)
+
+
+def _normalize_question(question: str) -> str:
+    return re.sub(r"\s+", "", (question or "").strip())
+
+
+def _wants_source(question: str) -> bool:
+    normalized = _normalize_question(question)
+    return any(token in normalized for token in _SOURCE_REQUEST_TOKENS)
+
+
+def _wants_image_help(question: str) -> bool:
+    normalized = _normalize_question(question.lower())
+    return any(token in normalized for token in _IMAGE_HELP_TOKENS)
+
+
+def _wants_service_help(question: str) -> bool:
+    return is_service_help_question(question)
+
+
+def search_image_titles(query: str, *, limit: int | None = None) -> list[dict[str, str]]:
+    if not query.strip():
+        return []
+
+    catalog = [item for item in list_image_catalog() if (item.get("title") or "").strip()]
+    if not catalog:
+        return []
+
+    title_to_item = {str(item.get("title") or "").strip(): item for item in catalog}
+    titles = list(title_to_item.keys())
+    matches = process.extract(
+        query,
+        titles,
+        scorer=fuzz.token_set_ratio,
+        limit=len(titles),
+    )
+
+    results: list[dict[str, str]] = []
+    seen_titles: set[str] = set()
+    for title, score, _ in matches:
+        if score < 35:
+            continue
+        if not title or title in seen_titles:
+            continue
+        item = title_to_item.get(title)
+        if not item:
+            continue
+        seen_titles.add(title)
+        results.append(
+            {
+                "title": title,
+                "image_file": str(item.get("image_file") or "").strip(),
+            }
+        )
+        if limit is not None and len(results) >= limit:
+            break
+    return results
+
+
+def search_image_catalog(query: str) -> list[dict[str, str]]:
+    return search_image_titles(query, limit=IMAGE_TITLE_RECOMMEND_LIMIT)
+
+
+def _build_image_title_reply(hits: list[dict[str, str]]) -> str:
+    if not hits:
+        return _fallback_unresolved_reply()
+    lines = ["관련된 이미지 title 후보는 아래와 같습니다."]
+    for hit in hits:
+        image_file = hit.get("image_file") or ""
+        if image_file:
+            lines.append(f"- {hit['title']} ({image_file})")
+        else:
+            lines.append(f"- {hit['title']}")
+    return "\n".join(lines)
+
+
+def _sanitize_reply(reply: str) -> str:
+    cleaned_lines: list[str] = []
+    for line in reply.splitlines():
+        if re.search(r"(출처\s*:|참고\s*:|근거\s*:|웹\s*검색\s*결과|DB\s*자료|문서\s*맥락)", line):
+            continue
+        cleaned_lines.append(line)
+    return "\n".join(cleaned_lines).strip()
+
+
+def _remove_source_sentences(text: str) -> str:
+    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    filtered = [part for part in parts if part and not re.search(r"(출처|참고|근거)", part)]
+    return " ".join(filtered).strip() if filtered else text.strip()
+
+
+def _normalize_reply_markup(reply: str) -> str:
+    return reply.strip()
+
+
+def _sanitize_reply_for_request(reply: str, *, wants_source: bool) -> str:
+    cleaned = reply.replace(NEED_WEB_MARKER, "").strip()
+    if wants_source:
+        return _normalize_reply_markup(cleaned)
+    sanitized = _sanitize_reply(cleaned)
+    return _remove_source_sentences(sanitized)
+
+
+def _fallback_unresolved_reply() -> str:
+    return (
+        "답변에 필요한 정보를 찾지 못했습니다. "
+        "질문을 조금 더 구체적으로 말씀해 주세요."
+    )
 
 
 def search_legal_db(query: str, *, limit: int = DB_RESULT_LIMIT) -> list[dict[str, str]]:
@@ -84,7 +214,7 @@ async def build_document_context(doc_id: str | None) -> str:
 
 def _format_db_context(hits: list[dict[str, str]]) -> str:
     if not hits:
-        return "(DB에서 관련 항목을 찾지 못했습니다.)"
+        return ""
     blocks: list[str] = []
     for i, hit in enumerate(hits, 1):
         title = f" — {hit['title']}" if hit.get("title") else ""
@@ -97,28 +227,50 @@ def _format_db_context(hits: list[dict[str, str]]) -> str:
 def _build_user_payload(
     question: str,
     *,
+    usage_guide_context: str,
     db_context: str,
     doc_context: str,
+    page_context: str = "",
+    image_context: str = "",
     web_context: str = "",
+    wants_source: bool = False,
 ) -> str:
     sections = [
         "## 사용자 질문",
         question.strip(),
         "",
-        "## DB 자료 (법률·이지리드 사례)",
-        db_context,
+        "## 사용방안 DB",
+        usage_guide_context,
     ]
+    if db_context.strip():
+        sections.extend(["", "## DB 자료 (법률·이지리드 사례)", db_context])
     if doc_context.strip():
         sections.extend(["", "## 현재 작업 중인 문서", doc_context.strip()])
+    if page_context.strip():
+        sections.extend(["", "## 현재 화면 맥락", page_context.strip()])
+    if image_context.strip():
+        sections.extend(["", "## 이미지 후보", image_context.strip()])
     if web_context.strip():
         sections.extend(["", "## 웹 검색 결과", web_context.strip()])
     sections.extend(
         [
             "",
             "## 지시",
-            "위 자료를 우선 활용해 질문에 답하세요. 웹 검색 결과가 있으면 출처 불확실성을 밝히세요.",
+            "위 자료를 우선 활용해 질문에 바로 답하세요. 사용자에게 출처, 참고, 근거, 검색 과정은 언급하지 마세요.",
+            "질문이 화면 구성이나 버튼 기능에 관한 것이라면 사용방안 DB와 현재 화면 맥락을 기준으로 설명하세요.",
+            "현재 화면 맥락이 있으면 버튼 이름, 위치, 동작을 그 맥락에 맞게 설명하세요.",
+            "질문이 그림·이미지 추천에 관한 것이라면 이미지 후보의 title을 우선 추천하세요.",
         ]
     )
+    if wants_source:
+        sections.extend(
+            [
+                "",
+                "## 출처 응답 허용",
+                "사용자가 출처를 요구한 경우에만, 답변 끝에 간단히 출처를 알려도 됩니다.",
+                "가능하면 짧게 '출처: DB 자료', '출처: 현재 문서', '출처: 웹 검색 결과', '출처: 사용방안 DB'처럼 적으세요.",
+            ]
+        )
     return "\n".join(sections)
 
 
@@ -134,13 +286,26 @@ def _messages_for_solar(
     return messages
 
 
+def _format_image_context(hits: list[dict[str, str]]) -> str:
+    if not hits:
+        return ""
+    lines: list[str] = []
+    for idx, hit in enumerate(hits, 1):
+        lines.append(f"{idx}. 제목: {hit['title']} | 파일: {hit['image_file']}")
+    return "\n\n".join(lines)
+
+
+def _should_include_image_context(question: str, image_hits: list[dict[str, str]]) -> bool:
+    if not image_hits:
+        return False
+    normalized = _normalize_question(question.lower())
+    return any(token in normalized for token in ("그림", "이미지", "시각", "image"))
+
+
 def _needs_web_fallback(reply: str, db_hits: list[dict], doc_context: str) -> bool:
-    normalized = reply.strip().upper()
-    if NEED_WEB_MARKER in normalized:
-        return True
     if db_hits or doc_context.strip():
         return False
-    return True
+    return not reply.strip()
 
 
 async def answer_chat(
@@ -148,21 +313,50 @@ async def answer_chat(
     *,
     doc_id: str | None = None,
     history: list[ChatMessage] | None = None,
+    page_context: str | None = None,
+    page_path: str | None = None,
 ) -> ChatResponse:
     history = history or []
+    wants_source = _wants_source(question)
+    wants_image_help = _wants_image_help(question)
+    wants_service_help = _wants_service_help(question)
+
+    if wants_image_help:
+        image_hits = search_image_titles(question, limit=IMAGE_TITLE_RECOMMEND_LIMIT)
+        return ChatResponse(reply=_build_image_title_reply(image_hits), sources=["db_rules"])
+
+    if wants_service_help:
+        quick_reply = match_quick_reply(question)
+        if quick_reply:
+            return ChatResponse(reply=quick_reply, sources=["service_guide"])
+
     system = load_chatbot_prompt()
+    usage_guide_context = format_usage_guide_context(question)
     db_hits = search_legal_db(question)
     db_context = _format_db_context(db_hits)
+    image_hits = search_image_catalog(question)
+    image_context = (
+        _format_image_context(image_hits) if _should_include_image_context(question, image_hits) else ""
+    )
     doc_context = await build_document_context(doc_id)
+    resolved_page_context = resolve_page_context(page_path, inline_context=page_context)
     sources: list[str] = []
 
     payload = _build_user_payload(
         question,
+        usage_guide_context=usage_guide_context,
         db_context=db_context,
         doc_context=doc_context,
+        page_context=resolved_page_context,
+        image_context=image_context,
+        wants_source=wants_source,
     )
     messages = _messages_for_solar(system, history, payload)
     reply = await upstage.chat_completion_messages(messages, max_tokens=2048)
+    reply = _sanitize_reply_for_request(reply, wants_source=wants_source)
+    reply = reply.replace(NEED_WEB_MARKER, "").strip()
+    if not reply:
+        reply = _fallback_unresolved_reply()
 
     if _needs_web_fallback(reply, db_hits, doc_context):
         web_context = await search_web(question)
@@ -170,23 +364,28 @@ async def answer_chat(
             sources.append("web")
             payload = _build_user_payload(
                 question,
+                usage_guide_context=usage_guide_context,
                 db_context=db_context,
                 doc_context=doc_context,
+                page_context=resolved_page_context,
                 web_context=web_context,
+                wants_source=wants_source,
             )
             messages = _messages_for_solar(system, history, payload)
             reply = await upstage.chat_completion_messages(messages, max_tokens=2048)
+            reply = _sanitize_reply_for_request(reply, wants_source=wants_source)
+            reply = reply.replace(NEED_WEB_MARKER, "").strip()
+            if not reply:
+                reply = _fallback_unresolved_reply()
         elif not db_hits and not doc_context.strip():
-            reply = (
-                "죄송합니다. DB와 웹에서도 관련 정보를 찾지 못했습니다. "
-                "질문을 조금 다르게 바꿔 주시거나, 작업 중인 문서가 있다면 해당 화면에서 다시 물어봐 주세요."
-            )
+            reply = _fallback_unresolved_reply()
     else:
-        reply = reply.replace(NEED_WEB_MARKER, "").strip()
         if db_hits:
             sources.append("db")
         if doc_context.strip():
             sources.append("document")
+        if resolved_page_context.strip() or wants_service_help:
+            sources.append("service_guide")
 
     if not sources:
         sources.append("solar")
@@ -200,7 +399,5 @@ async def answer_chat(
     for aid in visual_aids:
         if aid.source == "generated" and "generated" not in sources:
             sources.append("generated")
-        elif aid.source == "web" and "web" not in sources and aid.image_url:
-            pass  # already may have web from text search
 
     return ChatResponse(reply=reply_text, sources=sources, visual_aids=visual_aids)

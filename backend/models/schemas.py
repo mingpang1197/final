@@ -184,6 +184,8 @@ class ChatVisualAid(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: list[ChatMessage] = Field(default_factory=list)
+    page_context: str | None = None
+    page_path: str | None = None
 
 
 class ChatResponse(BaseModel):

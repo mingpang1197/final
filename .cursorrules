@@ -144,10 +144,12 @@ POST   /api/documents/{doc_id}/export.pdf
 - segments[].image_placements[].image_base64 — 추출 시 브라우저에서 인코딩한 data URL (선택)
 
 POST   /api/chat
-- ERAI 챗봇 (Solar) — DB(LEGAL_DB) 우선, 부족 시 웹 검색
-- Request: { message, history?: [{ role: "user"|"assistant", content }] }
-- Response: { reply, sources: ["db"|"document"|"web"|"solar"|"generated"], visual_aids?: ChatVisualAid[] }
+- ERAI 챗봇 (Solar) — 사용방안 DB·LEGAL_DB·문서 맥락 우선, 부족 시 웹 검색
+- Request: { message, history?: [{ role: "user"|"assistant", content }], page_path?: string, page_context?: string }
+- page_path: 현재 화면 경로(예: /documents/{id}/summary) — 서버가 usage_guide.yaml에서 화면 맥락 조회
+- Response: { reply, sources: ["service_guide"|"db"|"document"|"web"|"solar"|"generated"|"db_rules"], visual_aids?: ChatVisualAid[] }
 - ChatVisualAid: { phrase, explanation?, image_file?, image_url?, title?, source: "db"|"web"|"generated"|"pending", generated }
+- 사용방안 DB: backend/prompts/usage_guide.yaml (data/usage_guide.yaml 로 덮어쓰기 가능)
 
 POST   /api/chat/documents/{doc_id}
 - 문서 맥락 포함 챗봇
