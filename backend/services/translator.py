@@ -2,9 +2,13 @@ from __future__ import annotations
 
 """쉬운 글(이지리드) 번역 오케스트레이션.
 
-역할: 요약 → LEGAL_DB 매칭 + terms_list(Solar 입력) + Solar 번역 + 체크리스트 검사·자동 수정을 조율한다.
+역할: 요약 → LEGAL_DB 매칭(1순위) + 용어 치환(2·3순위) + Solar 번역 + 체크리스트를 조율한다.
+용어 DB 우선순위:
+  1. db_rules.LEGAL_DB — 판결 문장·이지리드 매칭 (matcher)
+  2. mohw_terms_dict — 보건복지부 「쉬운단어 사전」 (Solar 입력 치환)
+  3. terms_dict — 법제처 「정비 권고 용어」 (Solar 입력 치환, mohw와 충돌 시 mohw 우선)
 주요 기능: translate_summary, refine_translation, run_checklist.
-관계: matcher, prompts, upstage, checklist, image_matcher, routers/documents.
+관계: matcher, prompts, upstage, checklist, image_matcher, terms, routers/documents.
 """
 
 import uuid
