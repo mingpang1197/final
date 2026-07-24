@@ -45,9 +45,14 @@ export function ExportPage() {
       setSummary(resolveSummary(id, doc.summary));
       setFullText(doc.full_text ?? "");
       const segs = resolveTranslationSegments(id, doc.translation_segments);
-      setSegments(segs);
-      if (segs.length) {
-        saveWorkflowSnapshot(id, { translation_segments: segs, filename: doc.filename });
+      const workflowSegments = getWorkflowSnapshot(id)?.translation_segments;
+      const resolved =
+        workflowSegments?.length && segs.length
+          ? resolveTranslationSegments(id, workflowSegments)
+          : segs;
+      setSegments(resolved);
+      if (resolved.length) {
+        saveWorkflowSnapshot(id, { translation_segments: resolved, filename: doc.filename });
       }
     } catch (err) {
       const workflow = getWorkflowSnapshot(id);
@@ -73,7 +78,12 @@ export function ExportPage() {
       throw new Error("문서 ID가 없습니다.");
     }
     const cached = id ? getCachedUpload(id) : null;
-    const mergedSegments = id ? resolveTranslationSegments(id, segments) : segments;
+    const workflowSegments = id ? getWorkflowSnapshot(id)?.translation_segments : undefined;
+    const baseSegments =
+      segments.length > 0 ? segments : workflowSegments ?? [];
+    const mergedSegments = id
+      ? resolveTranslationSegments(id, baseSegments)
+      : baseSegments;
     const exportSegments = await enrichSegmentsForExport(mergedSegments);
     const mergedFullText = fullText || cached?.full_text || "";
     return {

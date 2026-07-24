@@ -179,6 +179,14 @@ def _font_css(
       page-break-inside: avoid;
       break-inside: avoid-page;
     }}
+    div.easy-read-intro {{
+      page-break-after: always;
+      break-after: page;
+    }}
+    div.easy-read-body-start {{
+      page-break-before: always;
+      break-before: page;
+    }}
     """
     return css, archive
 
@@ -315,7 +323,9 @@ def _build_html(
         placements,
         extra_lead_pt=EASY_READ_INTRO_EST_PT,
     )
-    blocks.extend(_intro_blocks_html(doc, page_count))
+    intro_parts = _intro_blocks_html(doc, page_count)
+    if intro_parts:
+        blocks.append(f'<div class="easy-read-intro">{"".join(intro_parts)}</div>')
     has_section_layout = any(section.heading for section in sections)
 
     if has_section_layout:
@@ -324,9 +334,15 @@ def _build_html(
             k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
             for k, v in by_item_raw.items()
         }
-        for section in sections:
+        for section_index, section in enumerate(sections):
             section_html = _section_block_html(section, by_item)
             if section_html:
+                if section_index == 0:
+                    section_html = section_html.replace(
+                        'class="easy-read-section"',
+                        'class="easy-read-section easy-read-body-start"',
+                        1,
+                    )
                 blocks.append(section_html)
     elif placements:
         by_item_raw = align_placements_to_items(export_body, placements)
@@ -334,9 +350,15 @@ def _build_html(
             k: (v if isinstance(v, ImagePlacement) else ImagePlacement(**v))  # type: ignore[arg-type]
             for k, v in by_item_raw.items()
         }
-        for section in sections:
+        for section_index, section in enumerate(sections):
             section_html = _section_block_html(section, by_item)
             if section_html:
+                if section_index == 0:
+                    section_html = section_html.replace(
+                        'class="easy-read-section"',
+                        'class="easy-read-section easy-read-body-start"',
+                        1,
+                    )
                 blocks.append(section_html)
     else:
         in_meta_section = False

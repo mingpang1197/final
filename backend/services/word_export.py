@@ -544,7 +544,9 @@ def _export_easy_read_layout_in_table(
         section_est = _estimate_easy_read_section_height(section, by_item)
         min_start = _min_section_start_height(section, by_item)
         pos_on_page = fill % EASY_READ_USABLE_PAGE_PT
-        need_break = _should_start_section_on_new_page(pos_on_page, section_est, min_start)
+        need_break = section_index == 0 or _should_start_section_on_new_page(
+            pos_on_page, section_est, min_start
+        )
 
         cell = append_easy_read_section_row(table)
         _reset_cell_paragraphs(cell)

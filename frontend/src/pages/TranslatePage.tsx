@@ -123,6 +123,15 @@ export function TranslatePage() {
     load().catch(console.error);
   }, [load]);
 
+  useEffect(() => {
+    if (!id || segments.length === 0) return;
+    saveWorkflowSnapshot(id, {
+      translation_segments: segments,
+      translation_text: segmentsToText(segments),
+      filename,
+    });
+  }, [id, segments, filename]);
+
   const persistTranslation = useCallback(async () => {
     if (!id || segments.length === 0) return;
     setSaveStatus("saving");
