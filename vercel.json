@@ -6,9 +6,7 @@
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/images/(.*)", "destination": "/api/index.py" },
     { "source": "/health", "destination": "/api/index.py" },
-    { "source": "/", "destination": "/index.html" },
-    { "source": "/documents/:path*", "destination": "/index.html" },
-    { "source": "/((?!api/|images/|assets/|favicon\\.svg).*)", "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
     {
@@ -18,6 +16,10 @@
     {
       "source": "/index.html",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+    },
+    {
+      "source": "/assets/erai-logo-banner.png",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400, must-revalidate" }]
     }
   ],
   "functions": {
