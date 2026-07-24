@@ -7,8 +7,9 @@ from __future__ import annotations
   1. db_rules.LEGAL_DB — 판결 문장·이지리드 매칭 (matcher)
   2. mohw_terms_dict — 보건복지부 「쉬운단어 사전」 (Solar 입력 치환)
   3. terms_dict — 법제처 「정비 권고 용어」 (현재 비활성)
+시각자료 자동 배치는 번역 단계가 아니라 시각자료 탭(detect-placements)에서 수행한다.
 주요 기능: translate_summary, refine_translation, run_checklist.
-관계: matcher, prompts, upstage, checklist, image_matcher, terms, routers/documents.
+관계: matcher, prompts, upstage, checklist, terms, routers/documents.
 """
 
 import uuid
@@ -16,7 +17,6 @@ import uuid
 from backend.models.schemas import ChecklistReport, DocType, TranslationSegment
 from backend.services import checklist, matcher, prompts, upstage
 from backend.services.easy_read_sanitize import extract_refined_translation, sanitize_translation_text
-from backend.services.image_matcher import build_image_placements_async
 from backend.services.terms import apply_terms_for_translation
 
 
@@ -44,19 +44,6 @@ async def _revise_for_checklist(
     )
     revised = await upstage.chat_completion(system, user)
     return sanitize_translation_text(revised)
-
-
-async def _attach_placements(
-    segments: list[TranslationSegment],
-    text: str,
-    db_hits: list[TranslationSegment] | None = None,
-) -> list[TranslationSegment]:
-    if not segments:
-        return segments
-    segments[0].image_placements = await build_image_placements_async(
-        text, db_segments=db_hits
-    )
-    return segments
 
 
 def _merge_db_images(
@@ -118,7 +105,7 @@ async def translate_summary(
             segments[0].easy_text = text
             segments[0].source = "solar"
 
-    segments = await _attach_placements(segments, text, db_hits)
+    # 시각자료 자동 배치는 시각자료 탭(detect-placements)에서만 수행
     return segments, text, report
 
 
@@ -154,15 +141,15 @@ async def refine_translation(
         )
         revised = extract_refined_translation(revised, fallback=current)
 
+    # 수동 배치만 유지 — 자동 배치는 시각자료 탭에서 다시 채움
     manual_placements = [p for p in preserved_placements if not p.auto_filled]
-    placements = await build_image_placements_async(revised, existing=manual_placements)
     new_segments = [
         TranslationSegment(
             id=base_id,
             original=base_original,
             easy_text=revised,
             source="solar",
-            image_placements=placements,
+            image_placements=manual_placements,
         )
     ]
     report = _build_checklist_report(revised)
