@@ -19,7 +19,7 @@ interface EraiLogoProps {
 export function EraiLogo({ className = "", size = "default" }: EraiLogoProps) {
   return (
     <img
-      src="/assets/erai-logo-banner.png"
+      src="/assets/erai-logo-banner.png?v=2"
       alt="ERAI"
       className={`block w-auto object-contain object-left ${HEIGHT[size]} ${className}`.trim()}
     />
