@@ -6,6 +6,7 @@ from __future__ import annotations
   1. db_rules.LEGAL_DB — 판결 문장 매칭 (matcher, 이 모듈 밖)
   2. mohw_terms_dict.json — 보건복지부 「쉬운단어 사전」
   3. terms_dict.json — 법제처 「정비 권고 용어」 (없으면 terms_list.json)
+     ※ 현재 ENABLE_MOLEG_TERMS=False 로 비활성 (번역 생성 시 미사용)
 
 역할: original → recommended(쉼표·슬래시 앞 첫 후보) 치환.
 관계: translator.translate_summary(Solar 프롬프트용 요약·원문 발췌만).
@@ -24,6 +25,9 @@ MOHW_TERMS_DICT_PATH = ROOT_DIR / "mohw_terms_dict.json"
 MOHW_TERMS_LIST_PATH = ROOT_DIR / "mohw_terms_list.json"
 MOLEG_TERMS_DICT_PATH = ROOT_DIR / "terms_dict.json"
 MOLEG_TERMS_LIST_PATH = ROOT_DIR / "terms_list.json"
+
+# 법제처 terms_dict / terms_list — 번역 생성 시 비활성
+ENABLE_MOLEG_TERMS = False
 
 # 법제처 정비 권고에는 '대'·'인'·편집 지시문처럼 자동 치환에 부적합한 항목이 있음
 _MOLEG_MIN_ORIG_LEN = 3
@@ -116,6 +120,9 @@ def _load_mohw_dict() -> dict[str, str]:
 
 
 def _load_moleg_dict() -> dict[str, str]:
+    if not ENABLE_MOLEG_TERMS:
+        logger.info("moleg terms DB disabled (terms_dict.json / terms_list.json)")
+        return {}
     data = _load_json(MOLEG_TERMS_DICT_PATH)
     if data is None:
         data = _load_json(MOLEG_TERMS_LIST_PATH)
