@@ -1,0 +1,1672 @@
+[
+  {
+    "id": 1,
+    "original_term": "CCTV",
+    "recommended_term": "시시티브이/ 상황관찰기"
+  },
+  {
+    "id": 2,
+    "original_term": "DB",
+    "recommended_term": "데이터 베이스"
+  },
+  {
+    "id": 3,
+    "original_term": "E-mail",
+    "recommended_term": "전자우편, 이메일"
+  },
+  {
+    "id": 4,
+    "original_term": "FAX",
+    "recommended_term": "팩스"
+  },
+  {
+    "id": 5,
+    "original_term": "GDP",
+    "recommended_term": "국내총생산"
+  },
+  {
+    "id": 6,
+    "original_term": "H.P",
+    "recommended_term": "핸드폰"
+  },
+  {
+    "id": 7,
+    "original_term": "IT",
+    "recommended_term": "정보기술"
+  },
+  {
+    "id": 8,
+    "original_term": "LED",
+    "recommended_term": "발광 다이오드(LED)"
+  },
+  {
+    "id": 9,
+    "original_term": "MOU",
+    "recommended_term": "엠오유, 인수합병"
+  },
+  {
+    "id": 10,
+    "original_term": "para",
+    "recommended_term": "단락"
+  },
+  {
+    "id": 11,
+    "original_term": "PM",
+    "recommended_term": "오후"
+  },
+  {
+    "id": 12,
+    "original_term": "R&D",
+    "recommended_term": "연구 개발"
+  },
+  {
+    "id": 13,
+    "original_term": "S/W",
+    "recommended_term": "소프트웨어"
+  },
+  {
+    "id": 14,
+    "original_term": "SMS",
+    "recommended_term": "문자 메시지"
+  },
+  {
+    "id": 15,
+    "original_term": "T/F",
+    "recommended_term": "특별팀"
+  },
+  {
+    "id": 16,
+    "original_term": "가급적",
+    "recommended_term": "할 수 있는 대로"
+  },
+  {
+    "id": 17,
+    "original_term": "가이드라인",
+    "recommended_term": "방침, 지침"
+  },
+  {
+    "id": 18,
+    "original_term": "가정",
+    "recommended_term": "가정"
+  },
+  {
+    "id": 19,
+    "original_term": "가중",
+    "recommended_term": "가중"
+  },
+  {
+    "id": 20,
+    "original_term": "가해자",
+    "recommended_term": "가해자"
+  },
+  {
+    "id": 21,
+    "original_term": "가혹",
+    "recommended_term": "가혹"
+  },
+  {
+    "id": 22,
+    "original_term": "간음",
+    "recommended_term": "간음"
+  },
+  {
+    "id": 23,
+    "original_term": "감금",
+    "recommended_term": "감금"
+  },
+  {
+    "id": 24,
+    "original_term": "감안하여",
+    "recommended_term": "고려하여"
+  },
+  {
+    "id": 25,
+    "original_term": "강간",
+    "recommended_term": "강간"
+  },
+  {
+    "id": 26,
+    "original_term": "강요",
+    "recommended_term": "강요"
+  },
+  {
+    "id": 27,
+    "original_term": "강제",
+    "recommended_term": "억지로 시킴"
+  },
+  {
+    "id": 28,
+    "original_term": "건강보험",
+    "recommended_term": "건강보험"
+  },
+  {
+    "id": 29,
+    "original_term": "검사",
+    "recommended_term": "검사"
+  },
+  {
+    "id": 30,
+    "original_term": "견해",
+    "recommended_term": "견해"
+  },
+  {
+    "id": 31,
+    "original_term": "경계",
+    "recommended_term": "경계"
+  },
+  {
+    "id": 32,
+    "original_term": "경고",
+    "recommended_term": "경고"
+  },
+  {
+    "id": 33,
+    "original_term": "경조사",
+    "recommended_term": "기쁜 일"
+  },
+  {
+    "id": 34,
+    "original_term": "고용",
+    "recommended_term": "고용"
+  },
+  {
+    "id": 35,
+    "original_term": "고지의무",
+    "recommended_term": "알려주어야 할 의무"
+  },
+  {
+    "id": 36,
+    "original_term": "고통",
+    "recommended_term": "고통"
+  },
+  {
+    "id": 37,
+    "original_term": "공갈",
+    "recommended_term": "거짓말"
+  },
+  {
+    "id": 38,
+    "original_term": "공공장소",
+    "recommended_term": "공공장소"
+  },
+  {
+    "id": 39,
+    "original_term": "공공체육시설",
+    "recommended_term": "공공체육시설"
+  },
+  {
+    "id": 40,
+    "original_term": "과식",
+    "recommended_term": "과식"
+  },
+  {
+    "id": 41,
+    "original_term": "과학적 실험",
+    "recommended_term": "과학적 실험"
+  },
+  {
+    "id": 42,
+    "original_term": "관리",
+    "recommended_term": "관리"
+  },
+  {
+    "id": 43,
+    "original_term": "관찰하기",
+    "recommended_term": "자세히 살펴보기"
+  },
+  {
+    "id": 44,
+    "original_term": "교육바우처",
+    "recommended_term": "교육 복지상품권 제도"
+  },
+  {
+    "id": 45,
+    "original_term": "교제",
+    "recommended_term": "사귀는 것"
+  },
+  {
+    "id": 46,
+    "original_term": "교통",
+    "recommended_term": "교통"
+  },
+  {
+    "id": 47,
+    "original_term": "구걸",
+    "recommended_term": "구걸"
+  },
+  {
+    "id": 48,
+    "original_term": "구화",
+    "recommended_term": "구화"
+  },
+  {
+    "id": 49,
+    "original_term": "권리",
+    "recommended_term": "권한"
+  },
+  {
+    "id": 50,
+    "original_term": "근로",
+    "recommended_term": "근무"
+  },
+  {
+    "id": 51,
+    "original_term": "글로벌",
+    "recommended_term": "국제적"
+  },
+  {
+    "id": 52,
+    "original_term": "금년",
+    "recommended_term": "올해"
+  },
+  {
+    "id": 53,
+    "original_term": "금번",
+    "recommended_term": "이번"
+  },
+  {
+    "id": 54,
+    "original_term": "금융거래",
+    "recommended_term": "금융거래"
+  },
+  {
+    "id": 55,
+    "original_term": "금지",
+    "recommended_term": "금지"
+  },
+  {
+    "id": 56,
+    "original_term": "급여",
+    "recommended_term": "급여"
+  },
+  {
+    "id": 57,
+    "original_term": "기만하다",
+    "recommended_term": "속이다"
+  },
+  {
+    "id": 58,
+    "original_term": "기여하는",
+    "recommended_term": "이바지하는"
+  },
+  {
+    "id": 59,
+    "original_term": "낙태",
+    "recommended_term": "낙태"
+  },
+  {
+    "id": 60,
+    "original_term": "낭독자",
+    "recommended_term": "읽는사람"
+  },
+  {
+    "id": 61,
+    "original_term": "내역",
+    "recommended_term": "내용"
+  },
+  {
+    "id": 62,
+    "original_term": "노골적으로",
+    "recommended_term": "숨김없이"
+  },
+  {
+    "id": 63,
+    "original_term": "노동",
+    "recommended_term": "일하기"
+  },
+  {
+    "id": 64,
+    "original_term": "노동환경",
+    "recommended_term": "일하는 환경"
+  },
+  {
+    "id": 65,
+    "original_term": "노무",
+    "recommended_term": "일"
+  },
+  {
+    "id": 66,
+    "original_term": "노출",
+    "recommended_term": "노출"
+  },
+  {
+    "id": 67,
+    "original_term": "다그치다",
+    "recommended_term": "몰아부치다, 재촉하다"
+  },
+  {
+    "id": 68,
+    "original_term": "다운로드",
+    "recommended_term": "내려받기"
+  },
+  {
+    "id": 69,
+    "original_term": "당해",
+    "recommended_term": "그 해"
+  },
+  {
+    "id": 70,
+    "original_term": "당황",
+    "recommended_term": "당황"
+  },
+  {
+    "id": 71,
+    "original_term": "대중매체",
+    "recommended_term": "대중매체"
+  },
+  {
+    "id": 72,
+    "original_term": "대출",
+    "recommended_term": "돈을 빌림"
+  },
+  {
+    "id": 73,
+    "original_term": "대화",
+    "recommended_term": "이야기하기"
+  },
+  {
+    "id": 74,
+    "original_term": "데이트",
+    "recommended_term": "만남"
+  },
+  {
+    "id": 75,
+    "original_term": "도용",
+    "recommended_term": "도용"
+  },
+  {
+    "id": 76,
+    "original_term": "도출하여",
+    "recommended_term": "이끌어 내어"
+  },
+  {
+    "id": 77,
+    "original_term": "돌봄",
+    "recommended_term": "돌봄"
+  },
+  {
+    "id": 78,
+    "original_term": "동산",
+    "recommended_term": "동산"
+  },
+  {
+    "id": 79,
+    "original_term": "동승하다",
+    "recommended_term": "함께 타다"
+  },
+  {
+    "id": 80,
+    "original_term": "따돌림",
+    "recommended_term": "따돌림"
+  },
+  {
+    "id": 81,
+    "original_term": "로그인",
+    "recommended_term": "접속, 들어가기"
+  },
+  {
+    "id": 82,
+    "original_term": "로드맵",
+    "recommended_term": "청사진"
+  },
+  {
+    "id": 83,
+    "original_term": "리더십",
+    "recommended_term": "지도력"
+  },
+  {
+    "id": 84,
+    "original_term": "리스크",
+    "recommended_term": "위험"
+  },
+  {
+    "id": 85,
+    "original_term": "마스터플랜",
+    "recommended_term": "종합 계획/ 기본 계획"
+  },
+  {
+    "id": 86,
+    "original_term": "망신",
+    "recommended_term": "부끄러움"
+  },
+  {
+    "id": 87,
+    "original_term": "매개",
+    "recommended_term": "중개"
+  },
+  {
+    "id": 88,
+    "original_term": "매끈한",
+    "recommended_term": "깔끔한"
+  },
+  {
+    "id": 89,
+    "original_term": "매뉴얼",
+    "recommended_term": "설명서/ 안내서"
+  },
+  {
+    "id": 90,
+    "original_term": "메일박스",
+    "recommended_term": "편지함"
+  },
+  {
+    "id": 91,
+    "original_term": "면밀히",
+    "recommended_term": "자세히"
+  },
+  {
+    "id": 92,
+    "original_term": "면접",
+    "recommended_term": "면접"
+  },
+  {
+    "id": 93,
+    "original_term": "명예",
+    "recommended_term": "명예"
+  },
+  {
+    "id": 94,
+    "original_term": "모니터링하고",
+    "recommended_term": "관찰하고/ 지켜보고"
+  },
+  {
+    "id": 95,
+    "original_term": "모델",
+    "recommended_term": "본보기"
+  },
+  {
+    "id": 96,
+    "original_term": "모성권",
+    "recommended_term": "모성권"
+  },
+  {
+    "id": 97,
+    "original_term": "모욕",
+    "recommended_term": "무시"
+  },
+  {
+    "id": 98,
+    "original_term": "목적",
+    "recommended_term": "목적"
+  },
+  {
+    "id": 99,
+    "original_term": "문신",
+    "recommended_term": "문신"
+  },
+  {
+    "id": 100,
+    "original_term": "미연에 방지하다",
+    "recommended_term": "미리 막다"
+  },
+  {
+    "id": 101,
+    "original_term": "반영하다",
+    "recommended_term": "나타내다"
+  },
+  {
+    "id": 102,
+    "original_term": "반응하기",
+    "recommended_term": "응답하기"
+  },
+  {
+    "id": 103,
+    "original_term": "발달장애인 거점병원",
+    "recommended_term": "발달장애인 거점병원"
+  },
+  {
+    "id": 104,
+    "original_term": "방임",
+    "recommended_term": "방치"
+  },
+  {
+    "id": 105,
+    "original_term": "배제",
+    "recommended_term": "따돌림"
+  },
+  {
+    "id": 106,
+    "original_term": "배회",
+    "recommended_term": "배회"
+  },
+  {
+    "id": 107,
+    "original_term": "범죄",
+    "recommended_term": "범죄"
+  },
+  {
+    "id": 108,
+    "original_term": "법",
+    "recommended_term": "법"
+  },
+  {
+    "id": 109,
+    "original_term": "법적 능력",
+    "recommended_term": "법적 능력"
+  },
+  {
+    "id": 110,
+    "original_term": "별거",
+    "recommended_term": "별거"
+  },
+  {
+    "id": 111,
+    "original_term": "보도",
+    "recommended_term": "보도"
+  },
+  {
+    "id": 112,
+    "original_term": "보도자료",
+    "recommended_term": "보도자료"
+  },
+  {
+    "id": 113,
+    "original_term": "보장",
+    "recommended_term": "보장"
+  },
+  {
+    "id": 114,
+    "original_term": "보조도구",
+    "recommended_term": "돕는 기구"
+  },
+  {
+    "id": 115,
+    "original_term": "보험",
+    "recommended_term": "보험"
+  },
+  {
+    "id": 116,
+    "original_term": "부동산",
+    "recommended_term": "부동산"
+  },
+  {
+    "id": 117,
+    "original_term": "부양의무자",
+    "recommended_term": "부양의무자"
+  },
+  {
+    "id": 118,
+    "original_term": "부적절",
+    "recommended_term": "부적절"
+  },
+  {
+    "id": 119,
+    "original_term": "부합하는",
+    "recommended_term": "맞는"
+  },
+  {
+    "id": 120,
+    "original_term": "분실",
+    "recommended_term": "분실"
+  },
+  {
+    "id": 121,
+    "original_term": "분투하는",
+    "recommended_term": "힘든"
+  },
+  {
+    "id": 122,
+    "original_term": "불가",
+    "recommended_term": "안됨"
+  },
+  {
+    "id": 123,
+    "original_term": "불법체포",
+    "recommended_term": "불법체포"
+  },
+  {
+    "id": 124,
+    "original_term": "불비",
+    "recommended_term": "준비되지 않음"
+  },
+  {
+    "id": 125,
+    "original_term": "불필요한",
+    "recommended_term": "필요없는"
+  },
+  {
+    "id": 126,
+    "original_term": "브로슈어",
+    "recommended_term": "안내서"
+  },
+  {
+    "id": 127,
+    "original_term": "비장애인",
+    "recommended_term": "비장애인"
+  },
+  {
+    "id": 128,
+    "original_term": "비전",
+    "recommended_term": "이상/전망"
+  },
+  {
+    "id": 129,
+    "original_term": "비정부단체",
+    "recommended_term": "비정부단체"
+  },
+  {
+    "id": 130,
+    "original_term": "비즈니스",
+    "recommended_term": "사업"
+  },
+  {
+    "id": 131,
+    "original_term": "비하하다",
+    "recommended_term": "낮추다"
+  },
+  {
+    "id": 132,
+    "original_term": "사기",
+    "recommended_term": "남을 속임"
+  },
+  {
+    "id": 133,
+    "original_term": "사료됨",
+    "recommended_term": "생각함"
+  },
+  {
+    "id": 134,
+    "original_term": "사생활",
+    "recommended_term": "개인생활"
+  },
+  {
+    "id": 135,
+    "original_term": "사유",
+    "recommended_term": "이유, 까닭"
+  },
+  {
+    "id": 136,
+    "original_term": "사이버",
+    "recommended_term": "인터넷"
+  },
+  {
+    "id": 137,
+    "original_term": "사회관계",
+    "recommended_term": "사회관계"
+  },
+  {
+    "id": 138,
+    "original_term": "사회서비스",
+    "recommended_term": "사회서비스"
+  },
+  {
+    "id": 139,
+    "original_term": "삭발",
+    "recommended_term": "삭발"
+  },
+  {
+    "id": 140,
+    "original_term": "살인죄",
+    "recommended_term": "살인죄"
+  },
+  {
+    "id": 141,
+    "original_term": "상기",
+    "recommended_term": "위의"
+  },
+  {
+    "id": 142,
+    "original_term": "상담",
+    "recommended_term": "상담"
+  },
+  {
+    "id": 143,
+    "original_term": "상반기",
+    "recommended_term": "1월부터 6월까지"
+  },
+  {
+    "id": 144,
+    "original_term": "상속",
+    "recommended_term": "물려 받음"
+  },
+  {
+    "id": 145,
+    "original_term": "상이한",
+    "recommended_term": "서로 다른"
+  },
+  {
+    "id": 146,
+    "original_term": "상정하다",
+    "recommended_term": "회의에 올리다"
+  },
+  {
+    "id": 147,
+    "original_term": "상해",
+    "recommended_term": "상해"
+  },
+  {
+    "id": 148,
+    "original_term": "선거권",
+    "recommended_term": "투표할 수 있는 권리"
+  },
+  {
+    "id": 149,
+    "original_term": "선입견",
+    "recommended_term": "선입견"
+  },
+  {
+    "id": 150,
+    "original_term": "선홍빛",
+    "recommended_term": "빨간 빛"
+  },
+  {
+    "id": 151,
+    "original_term": "성",
+    "recommended_term": "섹스"
+  },
+  {
+    "id": 152,
+    "original_term": "성관계",
+    "recommended_term": "성관계"
+  },
+  {
+    "id": 153,
+    "original_term": "성년후견제",
+    "recommended_term": "성년후견제"
+  },
+  {
+    "id": 154,
+    "original_term": "성인",
+    "recommended_term": "성인"
+  },
+  {
+    "id": 155,
+    "original_term": "세대주",
+    "recommended_term": "세대주"
+  },
+  {
+    "id": 156,
+    "original_term": "소관",
+    "recommended_term": "맡은"
+  },
+  {
+    "id": 157,
+    "original_term": "소극적",
+    "recommended_term": "활동적이지 않음"
+  },
+  {
+    "id": 158,
+    "original_term": "소기의",
+    "recommended_term": "기대한 바"
+  },
+  {
+    "id": 159,
+    "original_term": "소명하고",
+    "recommended_term": "밝히고"
+  },
+  {
+    "id": 160,
+    "original_term": "소송",
+    "recommended_term": "소송"
+  },
+  {
+    "id": 161,
+    "original_term": "송부",
+    "recommended_term": "보냄"
+  },
+  {
+    "id": 162,
+    "original_term": "수령",
+    "recommended_term": "받음"
+  },
+  {
+    "id": 163,
+    "original_term": "수령",
+    "recommended_term": "받음"
+  },
+  {
+    "id": 164,
+    "original_term": "수여하고자",
+    "recommended_term": "주고자"
+  },
+  {
+    "id": 165,
+    "original_term": "수화",
+    "recommended_term": "수화"
+  },
+  {
+    "id": 166,
+    "original_term": "순종",
+    "recommended_term": "잘 따름"
+  },
+  {
+    "id": 167,
+    "original_term": "스왑",
+    "recommended_term": "스와프/ 교환"
+  },
+  {
+    "id": 168,
+    "original_term": "스크린",
+    "recommended_term": "화면"
+  },
+  {
+    "id": 169,
+    "original_term": "스토킹",
+    "recommended_term": "스토킹"
+  },
+  {
+    "id": 170,
+    "original_term": "스트레칭",
+    "recommended_term": "몸풀기"
+  },
+  {
+    "id": 171,
+    "original_term": "스포츠 클럽",
+    "recommended_term": "운동 모임"
+  },
+  {
+    "id": 172,
+    "original_term": "슬로건",
+    "recommended_term": "표어, 구호"
+  },
+  {
+    "id": 173,
+    "original_term": "습관",
+    "recommended_term": "버릇"
+  },
+  {
+    "id": 174,
+    "original_term": "승진",
+    "recommended_term": "승진"
+  },
+  {
+    "id": 175,
+    "original_term": "시너지",
+    "recommended_term": "상승효과"
+  },
+  {
+    "id": 176,
+    "original_term": "시스템",
+    "recommended_term": "체제"
+  },
+  {
+    "id": 177,
+    "original_term": "시정하다",
+    "recommended_term": "잘못을 바로잡다"
+  },
+  {
+    "id": 178,
+    "original_term": "식욕",
+    "recommended_term": "식욕"
+  },
+  {
+    "id": 179,
+    "original_term": "식전",
+    "recommended_term": "밥 먹기 전"
+  },
+  {
+    "id": 180,
+    "original_term": "식후",
+    "recommended_term": "밥 먹은 후"
+  },
+  {
+    "id": 181,
+    "original_term": "신규",
+    "recommended_term": "새로"
+  },
+  {
+    "id": 182,
+    "original_term": "신뢰관계자",
+    "recommended_term": "서로 믿는 사람"
+  },
+  {
+    "id": 183,
+    "original_term": "신빙성",
+    "recommended_term": "신빙성"
+  },
+  {
+    "id": 184,
+    "original_term": "신종 플루",
+    "recommended_term": "새로운 독한감기"
+  },
+  {
+    "id": 185,
+    "original_term": "신체",
+    "recommended_term": "몸"
+  },
+  {
+    "id": 186,
+    "original_term": "신탁",
+    "recommended_term": "신탁"
+  },
+  {
+    "id": 187,
+    "original_term": "실태조사",
+    "recommended_term": "실태조사"
+  },
+  {
+    "id": 188,
+    "original_term": "실행",
+    "recommended_term": "수행"
+  },
+  {
+    "id": 189,
+    "original_term": "아동",
+    "recommended_term": "아동"
+  },
+  {
+    "id": 190,
+    "original_term": "안내견",
+    "recommended_term": "안내견"
+  },
+  {
+    "id": 191,
+    "original_term": "안내인",
+    "recommended_term": "안내인"
+  },
+  {
+    "id": 192,
+    "original_term": "양벌규정",
+    "recommended_term": "양벌규정"
+  },
+  {
+    "id": 193,
+    "original_term": "양육권",
+    "recommended_term": "양육권"
+  },
+  {
+    "id": 194,
+    "original_term": "양지하시고",
+    "recommended_term": "고려하시어"
+  },
+  {
+    "id": 195,
+    "original_term": "언어폭력",
+    "recommended_term": "언어폭력"
+  },
+  {
+    "id": 196,
+    "original_term": "엄수하여",
+    "recommended_term": "지켜"
+  },
+  {
+    "id": 197,
+    "original_term": "업무배치",
+    "recommended_term": "입금과 출금"
+  },
+  {
+    "id": 198,
+    "original_term": "여객선",
+    "recommended_term": "여객선"
+  },
+  {
+    "id": 199,
+    "original_term": "연루되어",
+    "recommended_term": "관련되어"
+  },
+  {
+    "id": 200,
+    "original_term": "연장",
+    "recommended_term": "연장"
+  },
+  {
+    "id": 201,
+    "original_term": "염려",
+    "recommended_term": "걱정"
+  },
+  {
+    "id": 202,
+    "original_term": "엽기",
+    "recommended_term": "엽기"
+  },
+  {
+    "id": 203,
+    "original_term": "오락",
+    "recommended_term": "오락"
+  },
+  {
+    "id": 204,
+    "original_term": "외딴 곳",
+    "recommended_term": "외딴 곳"
+  },
+  {
+    "id": 205,
+    "original_term": "요양보호사",
+    "recommended_term": "요양보호사"
+  },
+  {
+    "id": 206,
+    "original_term": "우울증",
+    "recommended_term": "우울증"
+  },
+  {
+    "id": 207,
+    "original_term": "원스톱",
+    "recommended_term": "한번에"
+  },
+  {
+    "id": 208,
+    "original_term": "월급",
+    "recommended_term": "월급"
+  },
+  {
+    "id": 209,
+    "original_term": "위조",
+    "recommended_term": "가짜"
+  },
+  {
+    "id": 210,
+    "original_term": "위축",
+    "recommended_term": "위축"
+  },
+  {
+    "id": 211,
+    "original_term": "위협",
+    "recommended_term": "두렵게 함/ 무섭게 함"
+  },
+  {
+    "id": 212,
+    "original_term": "유관기관",
+    "recommended_term": "관계 기관"
+  },
+  {
+    "id": 213,
+    "original_term": "유기",
+    "recommended_term": "유기"
+  },
+  {
+    "id": 214,
+    "original_term": "유보하다",
+    "recommended_term": "미루어 두다"
+  },
+  {
+    "id": 215,
+    "original_term": "유사 성행위",
+    "recommended_term": "유사 성행위"
+  },
+  {
+    "id": 216,
+    "original_term": "유언",
+    "recommended_term": "유언"
+  },
+  {
+    "id": 217,
+    "original_term": "유통",
+    "recommended_term": "유통"
+  },
+  {
+    "id": 218,
+    "original_term": "유통기한",
+    "recommended_term": "유통기한"
+  },
+  {
+    "id": 219,
+    "original_term": "유해",
+    "recommended_term": "유해"
+  },
+  {
+    "id": 220,
+    "original_term": "음란물",
+    "recommended_term": "음란물"
+  },
+  {
+    "id": 221,
+    "original_term": "음란행위",
+    "recommended_term": "음란행위"
+  },
+  {
+    "id": 222,
+    "original_term": "음성 대화",
+    "recommended_term": "음성 대화"
+  },
+  {
+    "id": 223,
+    "original_term": "응급서비스",
+    "recommended_term": "응급서비스"
+  },
+  {
+    "id": 224,
+    "original_term": "응급조치",
+    "recommended_term": "응급조치"
+  },
+  {
+    "id": 225,
+    "original_term": "의료급여",
+    "recommended_term": "의료급여"
+  },
+  {
+    "id": 226,
+    "original_term": "의사소통방법",
+    "recommended_term": "의사소통방법"
+  },
+  {
+    "id": 227,
+    "original_term": "의하여",
+    "recommended_term": "따라"
+  },
+  {
+    "id": 228,
+    "original_term": "의학검사",
+    "recommended_term": "의학검사"
+  },
+  {
+    "id": 229,
+    "original_term": "이동",
+    "recommended_term": "이동"
+  },
+  {
+    "id": 230,
+    "original_term": "이슈",
+    "recommended_term": "논쟁거리"
+  },
+  {
+    "id": 231,
+    "original_term": "이자",
+    "recommended_term": "이자"
+  },
+  {
+    "id": 232,
+    "original_term": "이주",
+    "recommended_term": "이사"
+  },
+  {
+    "id": 233,
+    "original_term": "이혼",
+    "recommended_term": "이혼"
+  },
+  {
+    "id": 234,
+    "original_term": "익일",
+    "recommended_term": "다음 날"
+  },
+  {
+    "id": 235,
+    "original_term": "인권",
+    "recommended_term": "사람으로서의 권리"
+  },
+  {
+    "id": 236,
+    "original_term": "인센티브",
+    "recommended_term": "유인책/ 특전"
+  },
+  {
+    "id": 237,
+    "original_term": "인센티브",
+    "recommended_term": "성과급, 유인책, 보상"
+  },
+  {
+    "id": 238,
+    "original_term": "인식",
+    "recommended_term": "인식"
+  },
+  {
+    "id": 239,
+    "original_term": "인프라",
+    "recommended_term": "기반"
+  },
+  {
+    "id": 240,
+    "original_term": "인프라",
+    "recommended_term": "기반"
+  },
+  {
+    "id": 241,
+    "original_term": "일상어",
+    "recommended_term": "쉬운단어"
+  },
+  {
+    "id": 242,
+    "original_term": "일상적",
+    "recommended_term": "일상적"
+  },
+  {
+    "id": 243,
+    "original_term": "일환으로",
+    "recommended_term": "하나로"
+  },
+  {
+    "id": 244,
+    "original_term": "임신",
+    "recommended_term": "아기를 가짐"
+  },
+  {
+    "id": 245,
+    "original_term": "입주",
+    "recommended_term": "입주"
+  },
+  {
+    "id": 246,
+    "original_term": "입출금",
+    "recommended_term": "입출금"
+  },
+  {
+    "id": 247,
+    "original_term": "자기결정권",
+    "recommended_term": "자기결정권"
+  },
+  {
+    "id": 248,
+    "original_term": "자유",
+    "recommended_term": "자유"
+  },
+  {
+    "id": 249,
+    "original_term": "잠재력",
+    "recommended_term": "잠재력"
+  },
+  {
+    "id": 250,
+    "original_term": "재앙",
+    "recommended_term": "재앙"
+  },
+  {
+    "id": 251,
+    "original_term": "재화",
+    "recommended_term": "재화"
+  },
+  {
+    "id": 252,
+    "original_term": "전년 대비",
+    "recommended_term": "지난해보다"
+  },
+  {
+    "id": 253,
+    "original_term": "전자메일",
+    "recommended_term": "전자우편"
+  },
+  {
+    "id": 254,
+    "original_term": "전자서비스",
+    "recommended_term": "전자서비스"
+  },
+  {
+    "id": 255,
+    "original_term": "절감",
+    "recommended_term": "절감"
+  },
+  {
+    "id": 256,
+    "original_term": "절도",
+    "recommended_term": "도둑질"
+  },
+  {
+    "id": 257,
+    "original_term": "절차",
+    "recommended_term": "순서"
+  },
+  {
+    "id": 258,
+    "original_term": "점자",
+    "recommended_term": "점자"
+  },
+  {
+    "id": 259,
+    "original_term": "정당",
+    "recommended_term": "정당"
+  },
+  {
+    "id": 260,
+    "original_term": "정당한",
+    "recommended_term": "마땅한"
+  },
+  {
+    "id": 261,
+    "original_term": "정보",
+    "recommended_term": "정보"
+  },
+  {
+    "id": 262,
+    "original_term": "정보제공",
+    "recommended_term": "정보제공"
+  },
+  {
+    "id": 263,
+    "original_term": "정서",
+    "recommended_term": "감정"
+  },
+  {
+    "id": 264,
+    "original_term": "정중하게",
+    "recommended_term": "예의의 맞게"
+  },
+  {
+    "id": 265,
+    "original_term": "정치적 권리",
+    "recommended_term": "정치적 권리"
+  },
+  {
+    "id": 266,
+    "original_term": "제고하고",
+    "recommended_term": "높이고"
+  },
+  {
+    "id": 267,
+    "original_term": "제고하기",
+    "recommended_term": "높이기"
+  },
+  {
+    "id": 268,
+    "original_term": "제공",
+    "recommended_term": "제공"
+  },
+  {
+    "id": 269,
+    "original_term": "제로 플랜",
+    "recommended_term": "없애기 계획"
+  },
+  {
+    "id": 270,
+    "original_term": "제조일자",
+    "recommended_term": "만든 날"
+  },
+  {
+    "id": 271,
+    "original_term": "조력",
+    "recommended_term": "도움"
+  },
+  {
+    "id": 272,
+    "original_term": "조속히",
+    "recommended_term": "즉시/ 빨리"
+  },
+  {
+    "id": 273,
+    "original_term": "존엄성",
+    "recommended_term": "존엄성"
+  },
+  {
+    "id": 274,
+    "original_term": "존중",
+    "recommended_term": "존중"
+  },
+  {
+    "id": 275,
+    "original_term": "중복",
+    "recommended_term": "겹침"
+  },
+  {
+    "id": 276,
+    "original_term": "증여",
+    "recommended_term": "증여"
+  },
+  {
+    "id": 277,
+    "original_term": "지급",
+    "recommended_term": "속히"
+  },
+  {
+    "id": 278,
+    "original_term": "지속적으로",
+    "recommended_term": "계속해서"
+  },
+  {
+    "id": 279,
+    "original_term": "지시하다",
+    "recommended_term": "지시하다"
+  },
+  {
+    "id": 280,
+    "original_term": "지원",
+    "recommended_term": "뒷받침"
+  },
+  {
+    "id": 281,
+    "original_term": "지체 없이",
+    "recommended_term": "곧바로"
+  },
+  {
+    "id": 282,
+    "original_term": "지표",
+    "recommended_term": "지표"
+  },
+  {
+    "id": 283,
+    "original_term": "진술",
+    "recommended_term": "진술"
+  },
+  {
+    "id": 284,
+    "original_term": "징후",
+    "recommended_term": "조짐"
+  },
+  {
+    "id": 285,
+    "original_term": "차월",
+    "recommended_term": "다음 날"
+  },
+  {
+    "id": 286,
+    "original_term": "참정권",
+    "recommended_term": "참정권"
+  },
+  {
+    "id": 287,
+    "original_term": "채널",
+    "recommended_term": "경로, 통로"
+  },
+  {
+    "id": 288,
+    "original_term": "채팅",
+    "recommended_term": "채팅"
+  },
+  {
+    "id": 289,
+    "original_term": "처방전",
+    "recommended_term": "처방전"
+  },
+  {
+    "id": 290,
+    "original_term": "처벌",
+    "recommended_term": "처벌"
+  },
+  {
+    "id": 291,
+    "original_term": "취업",
+    "recommended_term": "취업"
+  },
+  {
+    "id": 292,
+    "original_term": "침해",
+    "recommended_term": "침해"
+  },
+  {
+    "id": 293,
+    "original_term": "컨설팅",
+    "recommended_term": "상담"
+  },
+  {
+    "id": 294,
+    "original_term": "컨텐츠",
+    "recommended_term": "콘텐츠"
+  },
+  {
+    "id": 295,
+    "original_term": "컨트롤타워",
+    "recommended_term": "지휘부"
+  },
+  {
+    "id": 296,
+    "original_term": "클릭",
+    "recommended_term": "선택"
+  },
+  {
+    "id": 297,
+    "original_term": "클릭하면",
+    "recommended_term": "누르면"
+  },
+  {
+    "id": 298,
+    "original_term": "타 학교",
+    "recommended_term": "다른 학교"
+  },
+  {
+    "id": 299,
+    "original_term": "통신",
+    "recommended_term": "통신"
+  },
+  {
+    "id": 300,
+    "original_term": "통합교육",
+    "recommended_term": "통합교육"
+  },
+  {
+    "id": 301,
+    "original_term": "퇴직금",
+    "recommended_term": "퇴직금"
+  },
+  {
+    "id": 302,
+    "original_term": "투표권",
+    "recommended_term": "투표권"
+  },
+  {
+    "id": 303,
+    "original_term": "투표소",
+    "recommended_term": "투표소"
+  },
+  {
+    "id": 304,
+    "original_term": "트렌드",
+    "recommended_term": "유행"
+  },
+  {
+    "id": 305,
+    "original_term": "팀웍",
+    "recommended_term": "팀워크/결속력"
+  },
+  {
+    "id": 306,
+    "original_term": "팝업창",
+    "recommended_term": "알림창"
+  },
+  {
+    "id": 307,
+    "original_term": "패러다임",
+    "recommended_term": "틀/ 체계"
+  },
+  {
+    "id": 308,
+    "original_term": "패키지",
+    "recommended_term": "꾸러미, 묶음"
+  },
+  {
+    "id": 309,
+    "original_term": "패턴",
+    "recommended_term": "유형"
+  },
+  {
+    "id": 310,
+    "original_term": "편의시설",
+    "recommended_term": "편의시설"
+  },
+  {
+    "id": 311,
+    "original_term": "평생교육기관",
+    "recommended_term": "평생교육기관"
+  },
+  {
+    "id": 312,
+    "original_term": "평소",
+    "recommended_term": "평소"
+  },
+  {
+    "id": 313,
+    "original_term": "포탈",
+    "recommended_term": "들머리"
+  },
+  {
+    "id": 314,
+    "original_term": "프로세스",
+    "recommended_term": "과정, 절차"
+  },
+  {
+    "id": 315,
+    "original_term": "플랜",
+    "recommended_term": "계획"
+  },
+  {
+    "id": 316,
+    "original_term": "플랫폼",
+    "recommended_term": "운영체계"
+  },
+  {
+    "id": 317,
+    "original_term": "피선거권",
+    "recommended_term": "피선거권"
+  },
+  {
+    "id": 318,
+    "original_term": "필한",
+    "recommended_term": "마친"
+  },
+  {
+    "id": 319,
+    "original_term": "필히",
+    "recommended_term": "반드시"
+  },
+  {
+    "id": 320,
+    "original_term": "하반기",
+    "recommended_term": "7월부터 12월까지"
+  },
+  {
+    "id": 321,
+    "original_term": "학교폭력",
+    "recommended_term": "학교폭력"
+  },
+  {
+    "id": 322,
+    "original_term": "학대",
+    "recommended_term": "괴롭힘"
+  },
+  {
+    "id": 323,
+    "original_term": "핫라인",
+    "recommended_term": "직통전화"
+  },
+  {
+    "id": 324,
+    "original_term": "해소하며",
+    "recommended_term": "없애며"
+  },
+  {
+    "id": 325,
+    "original_term": "행위",
+    "recommended_term": "행동"
+  },
+  {
+    "id": 326,
+    "original_term": "향후",
+    "recommended_term": "앞으로"
+  },
+  {
+    "id": 327,
+    "original_term": "허브",
+    "recommended_term": "중심축"
+  },
+  {
+    "id": 328,
+    "original_term": "혐오",
+    "recommended_term": "싫어하고 미워함"
+  },
+  {
+    "id": 329,
+    "original_term": "혐오감",
+    "recommended_term": "혐오감"
+  },
+  {
+    "id": 330,
+    "original_term": "호감",
+    "recommended_term": "좋은 감정"
+  },
+  {
+    "id": 331,
+    "original_term": "홈페이지",
+    "recommended_term": "누리집"
+  },
+  {
+    "id": 332,
+    "original_term": "환상",
+    "recommended_term": "환상"
+  },
+  {
+    "id": 333,
+    "original_term": "후견인",
+    "recommended_term": "후견인"
+  },
+  {
+    "id": 334,
+    "original_term": "희롱",
+    "recommended_term": "희롱"
+  }
+]
