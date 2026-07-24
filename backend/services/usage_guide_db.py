@@ -14,7 +14,6 @@ from backend.config import DATA_DIR, PROMPTS_DIR
 USAGE_GUIDE_OVERRIDE = DATA_DIR / "usage_guide.yaml"
 USAGE_GUIDE_DEFAULT = PROMPTS_DIR / "usage_guide.yaml"
 SECTION_MATCH_THRESHOLD = 50
-FAQ_MATCH_THRESHOLD = 55
 
 
 def _normalize(text: str) -> str:
@@ -159,9 +158,14 @@ def _format_faq_context(query: str) -> str:
 
 
 def match_faq_reply(question: str) -> str | None:
+    """FAQ는 부분문자열 포함만 허용한다.
+
+    partial_ratio 퍼지 매칭은 '번역 보' ↔ '번역 기준이 뭐야'처럼
+    짧은 트리거가 무관한 질문에 오매칭되므로 사용하지 않는다.
+    """
     data = load_usage_guide()
     normalized = _normalize(question)
-    best_score = 0
+    best_len = 0
     best_answer: str | None = None
 
     for item in data.get("faq") or []:
@@ -169,14 +173,11 @@ def match_faq_reply(question: str) -> str | None:
             continue
         for trigger in item.get("triggers") or []:
             trigger_norm = _normalize(str(trigger))
-            if not trigger_norm:
+            if not trigger_norm or trigger_norm not in normalized:
                 continue
-            if trigger_norm in normalized:
-                score = 100
-            else:
-                score = fuzz.partial_ratio(normalized, trigger_norm)
-            if score >= FAQ_MATCH_THRESHOLD and score > best_score:
-                best_score = score
+            # 더 긴 트리거를 우선 (예: '번역문 열기' > '번역 보')
+            if len(trigger_norm) > best_len:
+                best_len = len(trigger_norm)
                 best_answer = str(item.get("answer") or "").strip() or None
 
     return best_answer

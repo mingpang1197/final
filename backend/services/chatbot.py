@@ -13,7 +13,7 @@ from backend.models.schemas import ChatMessage, ChatResponse
 from backend.services import upstage
 from backend.services.chat_visual_aids import suggest_visual_aids
 from backend.services.image_matcher import list_image_catalog
-from backend.services.prompts import load_chatbot_prompt
+from backend.services.prompts import format_chat_writing_rules_context, load_chatbot_prompt
 from backend.services.usage_guide_db import (
     format_usage_guide_context,
     is_service_help_question,
@@ -31,6 +31,22 @@ DB_RESULT_LIMIT = 6
 IMAGE_TITLE_RECOMMEND_LIMIT = 5
 
 _SOURCE_REQUEST_TOKENS = ("출처", "근거", "참고문헌", "어디서가져", "출처가", "출처를")
+_WRITING_RULES_TOKENS = (
+    "번역기준",
+    "작성기준",
+    "작성규칙",
+    "번역규칙",
+    "이지리드기준",
+    "이지리드규칙",
+    "쉬운글기준",
+    "쉬운글규칙",
+    "writingrule",
+    "체크리스트기준",
+    "어떻게번역",
+    "번역어떻게",
+    "번역할때",
+    "번역할떄",
+)
 _IMAGE_HELP_TOKENS = (
     "그림",
     "이미지",
@@ -61,6 +77,17 @@ def _wants_image_help(question: str) -> bool:
 
 def _wants_service_help(question: str) -> bool:
     return is_service_help_question(question)
+
+
+def _wants_writing_rules(question: str) -> bool:
+    normalized = _normalize_question(question.lower())
+    if any(token in normalized for token in _WRITING_RULES_TOKENS):
+        return True
+    if ("기준" in normalized or "규칙" in normalized) and any(
+        key in normalized for key in ("번역", "이지리드", "쉬운글", "작성")
+    ):
+        return True
+    return False
 
 
 def search_image_titles(query: str, *, limit: int | None = None) -> list[dict[str, str]]:
@@ -233,15 +260,28 @@ def _build_user_payload(
     page_context: str = "",
     image_context: str = "",
     web_context: str = "",
+    writing_rules_context: str = "",
     wants_source: bool = False,
 ) -> str:
     sections = [
         "## 사용자 질문",
         question.strip(),
         "",
-        "## 사용방안 DB",
-        usage_guide_context,
     ]
+    if writing_rules_context.strip():
+        sections.extend(
+            [
+                "## 번역·이지리드 작성 기준",
+                writing_rules_context.strip(),
+                "",
+            ]
+        )
+    sections.extend(
+        [
+            "## 사용방안 DB",
+            usage_guide_context,
+        ]
+    )
     if db_context.strip():
         sections.extend(["", "## DB 자료 (법률·이지리드 사례)", db_context])
     if doc_context.strip():
@@ -257,6 +297,7 @@ def _build_user_payload(
             "",
             "## 지시",
             "위 자료를 우선 활용해 질문에 바로 답하세요. 사용자에게 출처, 참고, 근거, 검색 과정은 언급하지 마세요.",
+            "질문이 번역 기준·작성 규칙·이지리드 규칙에 관한 것이라면 번역·이지리드 작성 기준을 우선으로 설명하세요.",
             "질문이 화면 구성이나 버튼 기능에 관한 것이라면 사용방안 DB와 현재 화면 맥락을 기준으로 설명하세요.",
             "현재 화면 맥락이 있으면 버튼 이름, 위치, 동작을 그 맥락에 맞게 설명하세요.",
             "질문이 그림·이미지 추천에 관한 것이라면 이미지 후보의 title을 우선 추천하세요.",
@@ -268,7 +309,7 @@ def _build_user_payload(
                 "",
                 "## 출처 응답 허용",
                 "사용자가 출처를 요구한 경우에만, 답변 끝에 간단히 출처를 알려도 됩니다.",
-                "가능하면 짧게 '출처: DB 자료', '출처: 현재 문서', '출처: 웹 검색 결과', '출처: 사용방안 DB'처럼 적으세요.",
+                "가능하면 짧게 '출처: DB 자료', '출처: 현재 문서', '출처: 웹 검색 결과', '출처: 사용방안 DB', '출처: 작성 기준'처럼 적으세요.",
             ]
         )
     return "\n".join(sections)
@@ -319,7 +360,9 @@ async def answer_chat(
     history = history or []
     wants_source = _wants_source(question)
     wants_image_help = _wants_image_help(question)
-    wants_service_help = _wants_service_help(question)
+    wants_writing_rules = _wants_writing_rules(question)
+    # 작성 기준 질문은 FAQ/퀵리플라이(번역문 위치 안내 등)로 가로채지 않음
+    wants_service_help = _wants_service_help(question) and not wants_writing_rules
 
     if wants_image_help:
         image_hits = search_image_titles(question, limit=IMAGE_TITLE_RECOMMEND_LIMIT)
@@ -332,7 +375,7 @@ async def answer_chat(
 
     system = load_chatbot_prompt()
     usage_guide_context = format_usage_guide_context(question)
-    db_hits = search_legal_db(question)
+    db_hits = [] if wants_writing_rules else search_legal_db(question)
     db_context = _format_db_context(db_hits)
     image_hits = search_image_catalog(question)
     image_context = (
@@ -340,6 +383,14 @@ async def answer_chat(
     )
     doc_context = await build_document_context(doc_id)
     resolved_page_context = resolve_page_context(page_path, inline_context=page_context)
+    writing_rules_context = ""
+    if wants_writing_rules:
+        doc_type = None
+        if doc_id:
+            doc = await get_document(doc_id)
+            if doc and doc.doc_type and doc.doc_type != "unknown":
+                doc_type = doc.doc_type
+        writing_rules_context = format_chat_writing_rules_context(doc_type)
     sources: list[str] = []
 
     payload = _build_user_payload(
@@ -349,6 +400,7 @@ async def answer_chat(
         doc_context=doc_context,
         page_context=resolved_page_context,
         image_context=image_context,
+        writing_rules_context=writing_rules_context,
         wants_source=wants_source,
     )
     messages = _messages_for_solar(system, history, payload)
@@ -358,7 +410,7 @@ async def answer_chat(
     if not reply:
         reply = _fallback_unresolved_reply()
 
-    if _needs_web_fallback(reply, db_hits, doc_context):
+    if _needs_web_fallback(reply, db_hits, doc_context) and not writing_rules_context.strip():
         web_context = await search_web(question)
         if web_context.strip():
             sources.append("web")
@@ -369,6 +421,7 @@ async def answer_chat(
                 doc_context=doc_context,
                 page_context=resolved_page_context,
                 web_context=web_context,
+                writing_rules_context=writing_rules_context,
                 wants_source=wants_source,
             )
             messages = _messages_for_solar(system, history, payload)
@@ -380,12 +433,15 @@ async def answer_chat(
         elif not db_hits and not doc_context.strip():
             reply = _fallback_unresolved_reply()
     else:
+        if writing_rules_context.strip():
+            sources.append("service_guide")
         if db_hits:
             sources.append("db")
         if doc_context.strip():
             sources.append("document")
         if resolved_page_context.strip() or wants_service_help:
-            sources.append("service_guide")
+            if "service_guide" not in sources:
+                sources.append("service_guide")
 
     if not sources:
         sources.append("solar")

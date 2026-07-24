@@ -276,6 +276,28 @@ def excerpt_full_text_for_translation(full_text: str, max_chars: int = 16000) ->
     return f"{text[:head]}\n\n...(원문 중략)...\n\n{text[-tail:]}"
 
 
+def format_chat_writing_rules_context(doc_type: DocType | None = None) -> str:
+    """챗봇용 번역·이지리드 작성 기준 요약."""
+    style = load_easy_read_style()
+    parts = [_format_easy_read_style(style)]
+    if doc_type and doc_type != "unknown":
+        rules = load_writing_rules(doc_type)
+        type_block = _format_writing_rules(rules, for_translation=True)
+        if type_block and type_block != "(작성 규칙 파일 없음)":
+            label = {
+                "criminal": "형사",
+                "civil": "민사",
+                "family": "가사",
+                "administrative": "행정",
+            }.get(doc_type, doc_type)
+            # 챗봇 컨텍스트 한도 — 유형별 규칙은 앞부분만
+            max_chars = 2500
+            if len(type_block) > max_chars:
+                type_block = type_block[:max_chars].rstrip() + "\n…(유형별 규칙 일부 생략)"
+            parts.append(f"\n## {label} 판결 유형별 작성 규칙\n{type_block}")
+    return "\n".join(p for p in parts if p).strip()
+
+
 CHATBOT_PROMPT_OVERRIDE = DATA_DIR / "chatbot_prompt.yaml"
 
 
