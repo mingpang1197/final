@@ -3,7 +3,6 @@
  */
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { EraiLogo } from "../components/ui/EraiLogo";
 import { isAuthenticated, registerUser } from "../utils/auth";
 
 type SignupForm = {
@@ -63,7 +62,7 @@ export function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-coolgray-20">
+    <div className="flex min-h-screen bg-white">
       <div className="relative hidden min-h-screen flex-1 overflow-hidden lg:block">
         <img
           src="/assets/login-bg.png"
@@ -73,15 +72,12 @@ export function SignupPage() {
         />
       </div>
 
-      <div className="flex min-h-screen w-full shrink-0 flex-col bg-white lg:w-[845px] lg:max-w-[58.7%] lg:rounded-tl-[50px] lg:rounded-bl-[50px]">
+      <div className="flex min-h-screen w-full shrink-0 flex-col bg-white lg:w-[845px] lg:max-w-[58.7%]">
         <form
           onSubmit={handleSubmit}
           className="flex flex-1 flex-col justify-center px-8 py-16 sm:px-16 lg:px-[140px]"
           aria-label="회원가입"
         >
-          <div className="mb-10">
-            <EraiLogo size="lg" />
-          </div>
           <h1 className="mb-[56px] text-[32px] font-bold leading-[1.1] text-black">회원가입</h1>
 
           <div className="w-full max-w-[575px] space-y-[30px]">
