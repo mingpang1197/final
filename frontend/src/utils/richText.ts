@@ -209,7 +209,9 @@ function nodeToMarkers(node: Node, ctx: { bold: boolean; sizePt: FontSizePt }): 
   if (fontPt) nextCtx.sizePt = fontPt;
 
   if (el.tagName === "DIV" || el.tagName === "P") {
-    const inner = Array.from(el.childNodes).map((child) => nodeToMarkers(child, ctx)).join("");
+    const inner = Array.from(el.childNodes)
+      .map((child) => nodeToMarkers(child, nextCtx))
+      .join("");
     return inner + "\n";
   }
 

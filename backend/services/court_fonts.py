@@ -82,17 +82,13 @@ def css_font_family_stack() -> str:
 
 
 def story_font_face_css() -> str:
-    """PyMuPDF: family 이름은 휴먼명조, TTF는 Windows 휴먼명조 또는 나눔명조."""
-    human = _windows_human_myeongjo_files()
-    regular = human[0] if human else STORY_FALLBACK_TTF
-    bold = None
-    for path in human:
-        if "B" in path.stem.upper() or path.name.upper().startswith("H2MJB"):
-            bold = path
-            break
-    if bold is None and STORY_FALLBACK_BOLD.is_file():
-        bold = STORY_FALLBACK_BOLD
+    """PyMuPDF Story용 @font-face — Archive(FONT_DIR)에 있는 파일만 참조.
 
+    Windows 휴먼명조 파일명을 쓰면 Archive에 없어 bold가 통째로 무시되는 경우가 있어
+    번들 나눔명조 Regular/Bold를 항상 사용한다.
+    """
+    regular = STORY_FALLBACK_TTF
+    bold = STORY_FALLBACK_BOLD
     if not regular.is_file():
         return ""
 
@@ -102,16 +98,36 @@ def story_font_face_css() -> str:
     @font-face {{
       font-family: "{family}";
       src: url("{regular.name}");
+      font-weight: 400;
+      font-style: normal;
+    }}
+    @font-face {{
+      font-family: "{family}";
+      src: url("{regular.name}");
       font-weight: normal;
+      font-style: normal;
     }}"""
     ]
-    if bold and bold.is_file():
+    if bold.is_file():
         lines.append(
             f"""
     @font-face {{
       font-family: "{family}";
       src: url("{bold.name}");
+      font-weight: 700;
+      font-style: normal;
+    }}
+    @font-face {{
+      font-family: "{family}";
+      src: url("{bold.name}");
       font-weight: bold;
+      font-style: normal;
+    }}
+    @font-face {{
+      font-family: "Nanum Myeongjo Bold";
+      src: url("{bold.name}");
+      font-weight: bold;
+      font-style: normal;
     }}"""
         )
     return "".join(lines)

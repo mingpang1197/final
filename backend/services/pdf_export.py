@@ -153,7 +153,8 @@ def _font_css(
       margin: 12px 0 0 0;
     }}
     strong, b {{
-      font-weight: bold;
+      font-family: "Nanum Myeongjo Bold", {stack};
+      font-weight: 700;
     }}
     p.intro-title {{
       text-align: center;

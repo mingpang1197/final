@@ -341,8 +341,16 @@ def _body_pt() -> float:
 
 def _set_run_font(run, size_pt: float, bold: bool = False) -> None:
     profile = _active_font_profile()
-    ascii_name = profile.ascii
-    east_name = profile.east_asia
+    # ConvertAPI/LibreOffice 등 외부 변환기는 휴먼명조 bold face가 없어
+    # w:b만으로는 굵게가 사라질 수 있음 → 볼드는 번들 나눔명조 + bold 속성 사용
+    if bold:
+        ascii_name = "NanumMyeongjo"
+        east_name = "나눔명조"
+        h_ansi = "NanumMyeongjo"
+    else:
+        ascii_name = profile.ascii
+        east_name = profile.east_asia
+        h_ansi = profile.h_ansi
     run.font.name = ascii_name
     run.font.size = Pt(size_pt)
     run.font.bold = bold
@@ -352,7 +360,7 @@ def _set_run_font(run, size_pt: float, bold: bool = False) -> None:
         r_fonts = OxmlElement("w:rFonts")
         r_pr.insert(0, r_fonts)
     r_fonts.set(qn("w:ascii"), ascii_name)
-    r_fonts.set(qn("w:hAnsi"), profile.h_ansi)
+    r_fonts.set(qn("w:hAnsi"), h_ansi)
     r_fonts.set(qn("w:eastAsia"), east_name)
     for tag in ("w:b", "w:bCs"):
         existing = r_pr.find(qn(tag))
